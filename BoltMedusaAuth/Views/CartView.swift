@@ -154,7 +154,7 @@ struct CartView: View {
                             
                             Divider()
                             
-                            // Cart summary
+                            // Cart summary with customer info and addresses
                             CartSummaryView(cart: cart)
                             
                             // Checkout button
@@ -407,11 +407,206 @@ struct CartItemRow: View {
 
 struct CartSummaryView: View {
     let cart: Cart
+    @EnvironmentObject var authService: AuthService
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
+            // Customer Information Section
+            CustomerInfoSection(cart: cart)
+            
+            // Shipping Address Section
+            ShippingAddressSection(cart: cart)
+            
+            // Billing Address Section
+            BillingAddressSection(cart: cart)
+            
+            // Price Summary Section
+            PriceSummarySection(cart: cart)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+    }
+}
+
+struct CustomerInfoSection: View {
+    let cart: Cart
+    @EnvironmentObject var authService: AuthService
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Cart Summary")
+                Image(systemName: "person.circle")
+                    .foregroundColor(.blue)
+                Text("Customer Information")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            VStack(spacing: 8) {
+                if cart.isAssociatedWithCustomer {
+                    // Cart has customer association
+                    if let customer = authService.currentCustomer {
+                        // We have full customer details
+                        CustomerDetailRow(title: "Name", value: "\(customer.firstName ?? "") \(customer.lastName ?? "")".trimmingCharacters(in: .whitespaces))
+                        CustomerDetailRow(title: "Email", value: customer.email)
+                        
+                        if let phone = customer.phone {
+                            CustomerDetailRow(title: "Phone", value: phone)
+                        }
+                        
+                        if let company = customer.companyName {
+                            CustomerDetailRow(title: "Company", value: company)
+                        }
+                        
+                        CustomerDetailRow(title: "Customer ID", value: customer.id)
+                        CustomerDetailRow(title: "Status", value: "Authenticated", valueColor: .green)
+                    } else if let customerId = cart.customerId {
+                        // Cart has customer ID but we don't have full details
+                        CustomerDetailRow(title: "Customer ID", value: customerId)
+                        CustomerDetailRow(title: "Status", value: "Authenticated", valueColor: .green)
+                        
+                        if let email = cart.email {
+                            CustomerDetailRow(title: "Email", value: email)
+                        }
+                    }
+                } else {
+                    // Anonymous cart
+                    CustomerDetailRow(title: "Status", value: "Anonymous Cart", valueColor: .orange)
+                    CustomerDetailRow(title: "Cart ID", value: cart.id)
+                    
+                    if let email = cart.email {
+                        CustomerDetailRow(title: "Email", value: email)
+                    }
+                    
+                    // Suggestion to log in
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                        Text("Sign in to save your cart and access faster checkout")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct ShippingAddressSection: View {
+    let cart: Cart
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "truck.box")
+                    .foregroundColor(.green)
+                Text("Shipping Address")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                
+                Button("Edit") {
+                    // TODO: Implement shipping address editing
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            
+            if let shippingAddress = cart.shippingAddress {
+                AddressDisplayView(address: shippingAddress, type: .shipping)
+            } else {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "location.slash")
+                            .foregroundColor(.gray)
+                        Text("No shipping address set")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    
+                    Button("Add Shipping Address") {
+                        // TODO: Implement add shipping address
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct BillingAddressSection: View {
+    let cart: Cart
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "creditcard")
+                    .foregroundColor(.purple)
+                Text("Billing Address")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                
+                Button("Edit") {
+                    // TODO: Implement billing address editing
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            
+            if let billingAddress = cart.billingAddress {
+                AddressDisplayView(address: billingAddress, type: .billing)
+            } else {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "location.slash")
+                            .foregroundColor(.gray)
+                        Text("No billing address set")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    
+                    Button("Add Billing Address") {
+                        // TODO: Implement add billing address
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Button("Same as shipping address") {
+                        // TODO: Implement copy shipping to billing
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct PriceSummarySection: View {
+    let cart: Cart
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "dollarsign.circle")
+                    .foregroundColor(.blue)
+                Text("Order Summary")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -420,7 +615,6 @@ struct CartSummaryView: View {
             VStack(spacing: 8) {
                 SummaryRow(title: "Subtotal", value: cart.formattedSubtotal)
                 
-                // ✅ Fixed: Use direct comparison instead of optional binding
                 if cart.taxTotal > 0 {
                     SummaryRow(title: "Tax", value: cart.formattedTaxTotal)
                 }
@@ -446,10 +640,102 @@ struct CartSummaryView: View {
                         .font(.headline)
                         .fontWeight(.bold)
                 }
+                
+                // Additional cart info
+                HStack {
+                    Text("Items: \(cart.itemCount)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text("Currency: \(cart.currencyCode.uppercased())")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Supporting Views
+
+struct CustomerDetailRow: View {
+    let title: String
+    let value: String
+    var valueColor: Color = .primary
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(valueColor)
+        }
+    }
+}
+
+struct AddressDisplayView: View {
+    let address: CartAddress
+    let type: AddressType
+    
+    enum AddressType {
+        case shipping, billing
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let firstName = address.firstName, let lastName = address.lastName {
+                Text("\(firstName) \(lastName)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            
+            if let company = address.company {
+                Text(company)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(address.address1)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            if let address2 = address.address2 {
+                Text(address2)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text("\(address.city), \(address.province ?? "") \(address.postalCode)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Text(address.countryCode.uppercased())
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            if let phone = address.phone {
+                HStack {
+                    Image(systemName: "phone")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(phone)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -517,4 +803,5 @@ struct CheckoutView: View {
     CartView()
         .environmentObject(CartService())
         .environmentObject(RegionService())
+        .environmentObject(AuthService())
 }

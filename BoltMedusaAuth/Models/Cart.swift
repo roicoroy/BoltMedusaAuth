@@ -42,6 +42,8 @@ struct Cart: Codable, Identifiable {
     let items: [CartLineItem]?
     let promotions: [CartPromotion]?
     let region: CartRegion?
+    let shippingAddress: CartAddress?
+    let billingAddress: CartAddress?
     
     enum CodingKeys: String, CodingKey {
         case id, email, metadata, total, subtotal, items, promotions, region
@@ -70,6 +72,8 @@ struct Cart: Codable, Identifiable {
         case originalShippingSubtotal = "original_shipping_subtotal"
         case originalShippingTotal = "original_shipping_total"
         case salesChannelId = "sales_channel_id"
+        case shippingAddress = "shipping_address"
+        case billingAddress = "billing_address"
     }
     
     // Custom decoder to handle the exact API response structure
@@ -111,10 +115,12 @@ struct Cart: Codable, Identifiable {
         completedAt = try container.decodeIfPresent(String.self, forKey: .completedAt)
         salesChannelId = try container.decodeIfPresent(String.self, forKey: .salesChannelId)
         
-        // Arrays
+        // Arrays and objects
         items = try container.decodeIfPresent([CartLineItem].self, forKey: .items)
         promotions = try container.decodeIfPresent([CartPromotion].self, forKey: .promotions)
         region = try container.decodeIfPresent(CartRegion.self, forKey: .region)
+        shippingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .shippingAddress)
+        billingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .billingAddress)
         
         // Handle metadata as flexible dictionary - can be null or object
         if container.contains(.metadata) {
@@ -165,6 +171,82 @@ struct Cart: Codable, Identifiable {
         try container.encodeIfPresent(items, forKey: .items)
         try container.encodeIfPresent(promotions, forKey: .promotions)
         try container.encodeIfPresent(region, forKey: .region)
+        try container.encodeIfPresent(shippingAddress, forKey: .shippingAddress)
+        try container.encodeIfPresent(billingAddress, forKey: .billingAddress)
+        
+        // Skip metadata encoding for simplicity
+    }
+}
+
+// MARK: - Cart Address Model
+struct CartAddress: Codable, Identifiable {
+    let id: String?
+    let firstName: String?
+    let lastName: String?
+    let company: String?
+    let address1: String
+    let address2: String?
+    let city: String
+    let countryCode: String
+    let province: String?
+    let postalCode: String
+    let phone: String?
+    let metadata: [String: Any]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, company, city, phone, metadata
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case address1 = "address_1"
+        case address2 = "address_2"
+        case countryCode = "country_code"
+        case province
+        case postalCode = "postal_code"
+    }
+    
+    // Custom decoder to handle flexible metadata
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
+        company = try container.decodeIfPresent(String.self, forKey: .company)
+        address1 = try container.decode(String.self, forKey: .address1)
+        address2 = try container.decodeIfPresent(String.self, forKey: .address2)
+        city = try container.decode(String.self, forKey: .city)
+        countryCode = try container.decode(String.self, forKey: .countryCode)
+        province = try container.decodeIfPresent(String.self, forKey: .province)
+        postalCode = try container.decode(String.self, forKey: .postalCode)
+        phone = try container.decodeIfPresent(String.self, forKey: .phone)
+        
+        // Handle metadata as flexible dictionary
+        if container.contains(.metadata) {
+            if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
+                metadata = metadataDict.mapValues { $0.value }
+            } else {
+                metadata = nil
+            }
+        } else {
+            metadata = nil
+        }
+    }
+    
+    // Custom encoder
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encodeIfPresent(firstName, forKey: .firstName)
+        try container.encodeIfPresent(lastName, forKey: .lastName)
+        try container.encodeIfPresent(company, forKey: .company)
+        try container.encode(address1, forKey: .address1)
+        try container.encodeIfPresent(address2, forKey: .address2)
+        try container.encode(city, forKey: .city)
+        try container.encode(countryCode, forKey: .countryCode)
+        try container.encodeIfPresent(province, forKey: .province)
+        try container.encode(postalCode, forKey: .postalCode)
+        try container.encodeIfPresent(phone, forKey: .phone)
         
         // Skip metadata encoding for simplicity
     }
@@ -511,6 +593,18 @@ extension Cart {
         }
     }
     
+    var hasShippingAddress: Bool {
+        return shippingAddress != nil
+    }
+    
+    var hasBillingAddress: Bool {
+        return billingAddress != nil
+    }
+    
+    var isReadyForCheckout: Bool {
+        return !isEmpty && hasShippingAddress && hasBillingAddress
+    }
+    
     private func formatPrice(_ amount: Int, currencyCode: String? = nil) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -590,5 +684,37 @@ extension CartLineItem {
             return variantTitle
         }
         return productSubtitle
+    }
+}
+
+extension CartAddress {
+    var fullName: String {
+        let components = [firstName, lastName].compactMap { $0 }
+        return components.joined(separator: " ")
+    }
+    
+    var fullAddress: String {
+        var components = [address1]
+        
+        if let address2 = address2 {
+            components.append(address2)
+        }
+        
+        components.append("\(city), \(province ?? "") \(postalCode)")
+        components.append(countryCode.uppercased())
+        
+        return components.joined(separator: "\n")
+    }
+    
+    var singleLineAddress: String {
+        var components = [address1]
+        
+        if let address2 = address2 {
+            components.append(address2)
+        }
+        
+        components.append("\(city), \(province ?? "") \(postalCode), \(countryCode.uppercased())")
+        
+        return components.joined(separator: ", ")
     }
 }
