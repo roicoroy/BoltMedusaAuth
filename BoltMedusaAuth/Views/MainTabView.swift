@@ -55,12 +55,12 @@ struct MainTabView: View {
         .onChange(of: regionService.selectedCountry) { newCountry in
             // When region changes, update or create cart for that region
             if let newCountry = newCountry {
-                print("Country changed to: \(newCountry.label) (\(newCountry.currencyCode))")
+                print("🌍 Country changed globally to: \(newCountry.label) (\(newCountry.currencyCode))")
                 cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
                     if success {
-                        print("Cart updated/created for new country successfully")
+                        print("✅ Cart updated/created for new country successfully")
                     } else {
-                        print("Failed to update/create cart for new country")
+                        print("❌ Failed to update/create cart for new country")
                     }
                 }
             }
@@ -68,10 +68,10 @@ struct MainTabView: View {
         .onChange(of: authService.isAuthenticated) { isAuthenticated in
             // When authentication status changes, handle cart association
             if isAuthenticated {
-                print("User logged in, cart service will handle association")
+                print("👤 User logged in, cart service will handle association")
                 // Cart service will automatically associate cart when user logs in
             } else {
-                print("User logged out, cart service will handle cleanup")
+                print("👤 User logged out, cart service will handle cleanup")
                 // Cart service will handle logout cleanup
             }
         }

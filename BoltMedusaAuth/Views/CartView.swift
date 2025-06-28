@@ -21,10 +21,11 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Country Selector Header (fixed at top)
-                CountryHeaderView(
+                // Country Selector Header (shared component)
+                SharedCountryHeaderView(
                     regionService: regionService,
-                    showingCountrySelector: $showingCountrySelector
+                    showingCountrySelector: $showingCountrySelector,
+                    title: "Shopping Country"
                 )
                 
                 // Main scrollable content
@@ -62,7 +63,7 @@ struct CartView: View {
                         }
                         
                         // Error messages
-                        ErrorMessagesView(
+                        CartErrorMessagesView(
                             cartService: cartService,
                             regionService: regionService
                         )
@@ -94,7 +95,7 @@ struct CartView: View {
             CheckoutView(cart: cartService.currentCart)
         }
         .sheet(isPresented: $showingCountrySelector) {
-            CountrySelectorView(regionService: regionService)
+            SharedCountrySelectorView(regionService: regionService)
         }
         .sheet(isPresented: $showingAddShippingAddress) {
             if authService.isAuthenticated {
@@ -125,15 +126,15 @@ struct CartView: View {
         .onChange(of: regionService.selectedCountry) { newCountry in
             // When country changes, update cart region if cart exists
             if let newCountry = newCountry {
-                print("Country changed in CartView to: \(newCountry.label) (\(newCountry.currencyCode))")
+                print("🛒 Cart view detected country change: \(newCountry.label) (\(newCountry.currencyCode))")
                 
                 if cartService.currentCart != nil {
                     // Cart exists, update its region
                     cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
                         if success {
-                            print("Cart updated for new country successfully")
+                            print("✅ Cart updated for new country successfully")
                         } else {
-                            print("Failed to update cart for new country")
+                            print("❌ Failed to update cart for new country")
                         }
                     }
                 }
@@ -150,58 +151,7 @@ struct CartView: View {
     }
 }
 
-// MARK: - Supporting Views
-
-struct CountryHeaderView: View {
-    @ObservedObject var regionService: RegionService
-    @Binding var showingCountrySelector: Bool
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Shopping Country")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Button(action: {
-                        showingCountrySelector = true
-                    }) {
-                        HStack {
-                            if let selectedCountry = regionService.selectedCountry {
-                                Text(selectedCountry.flagEmoji)
-                                Text(selectedCountry.label)
-                                    .fontWeight(.medium)
-                                Text("(\(selectedCountry.formattedCurrency))")
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("Select Country")
-                                    .foregroundColor(.blue)
-                            }
-                            
-                            Image(systemName: "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                if regionService.isLoading {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-    }
-}
+// MARK: - Cart-Specific Supporting Views
 
 struct NoCountrySelectedView: View {
     @Binding var showingCountrySelector: Bool
@@ -375,7 +325,7 @@ struct NoCartView: View {
     }
 }
 
-struct ErrorMessagesView: View {
+struct CartErrorMessagesView: View {
     @ObservedObject var cartService: CartService
     @ObservedObject var regionService: RegionService
     

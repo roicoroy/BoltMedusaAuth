@@ -9,7 +9,9 @@ import SwiftUI
 
 struct ProductsView: View {
     @StateObject private var productService = ProductService()
-    @StateObject private var regionService = RegionService()
+    @EnvironmentObject var regionService: RegionService
+    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
     @State private var selectedProduct: Product?
     @State private var showingProductDetail = false
@@ -30,155 +32,41 @@ struct ProductsView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Country Selector Header
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Shopping Country")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Button(action: {
-                                showingCountrySelector = true
-                            }) {
-                                HStack {
-                                    if let selectedCountry = regionService.selectedCountry {
-                                        Text(selectedCountry.flagEmoji)
-                                        Text(selectedCountry.label)
-                                            .fontWeight(.medium)
-                                        Text("(\(selectedCountry.formattedCurrency))")
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("Select Country")
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .foregroundColor(.primary)
-                        }
-                        
-                        Spacer()
-                        
-                        if regionService.isLoading {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    
-                    // Search Bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                        
-                        TextField("Search products...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                        
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                }
-                .padding()
-                .background(Color(.systemBackground))
+                SharedCountryHeaderView(
+                    regionService: regionService,
+                    showingCountrySelector: $showingCountrySelector,
+                    title: "Shopping Country"
+                )
+                
+                // Search Bar
+                SearchBarView(searchText: $searchText)
+                    .padding(.horizontal)
+                    .padding(.bottom)
                 
                 // Products Grid
                 if productService.isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading products...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    LoadingProductsView()
                 } else if filteredProducts.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "cube.box")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("No products found")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        
-                        if !searchText.isEmpty {
-                            Text("Try adjusting your search")
-                                .foregroundColor(.secondary)
-                            
-                            Button("Clear Search") {
-                                searchText = ""
-                            }
-                            .foregroundColor(.blue)
-                        } else {
-                            Text("No products available")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyProductsView(
+                        searchText: searchText,
+                        onClearSearch: { searchText = "" }
+                    )
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8)
-                        ], spacing: 16) {
-                            ForEach(filteredProducts) { product in
-                                ProductCard(product: product) {
-                                    selectedProduct = product
-                                    showingProductDetail = true
-                                }
-                            }
+                    ProductsGridView(
+                        products: filteredProducts,
+                        regionService: regionService,
+                        onProductTap: { product in
+                            selectedProduct = product
+                            showingProductDetail = true
                         }
-                        .padding()
-                    }
+                    )
                 }
                 
                 // Error messages
-                VStack {
-                    if let errorMessage = productService.errorMessage {
-                        VStack {
-                            Text(errorMessage)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .padding()
-                            
-                            Button("Retry") {
-                                productService.fetchProducts()
-                            }
-                            .foregroundColor(.blue)
-                        }
-                        .background(Color(.systemGray6))
-                    }
-                    
-                    if let errorMessage = regionService.errorMessage {
-                        VStack {
-                            Text("Region Error: \(errorMessage)")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .padding()
-                            
-                            Button("Retry Regions") {
-                                regionService.refreshRegions()
-                            }
-                            .foregroundColor(.blue)
-                        }
-                        .background(Color(.systemGray6))
-                    }
-                }
+                ErrorMessagesView(
+                    productService: productService,
+                    regionService: regionService
+                )
             }
             .navigationTitle("Products")
             .navigationBarTitleDisplayMode(.large)
@@ -190,10 +78,11 @@ struct ProductsView: View {
         .sheet(isPresented: $showingProductDetail) {
             if let product = selectedProduct {
                 ProductDetailView(product: product, regionService: regionService)
+                    .environmentObject(cartService)
             }
         }
         .sheet(isPresented: $showingCountrySelector) {
-            CountrySelectorView(regionService: regionService)
+            SharedCountrySelectorView(regionService: regionService)
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
@@ -207,10 +96,69 @@ struct ProductsView: View {
                 productService.fetchProducts()
             }
         }
+        .onChange(of: regionService.selectedCountry) { newCountry in
+            if let newCountry = newCountry {
+                print("🛍️ Products view detected country change: \(newCountry.label)")
+            }
+        }
     }
 }
 
-struct CountrySelectorView: View {
+// MARK: - Shared Components
+
+struct SharedCountryHeaderView: View {
+    @ObservedObject var regionService: RegionService
+    @Binding var showingCountrySelector: Bool
+    let title: String
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingCountrySelector = true
+                    }) {
+                        HStack {
+                            if let selectedCountry = regionService.selectedCountry {
+                                Text(selectedCountry.flagEmoji)
+                                Text(selectedCountry.label)
+                                    .fontWeight(.medium)
+                                Text("(\(selectedCountry.formattedCurrency))")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Select Country")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                if regionService.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+}
+
+struct SharedCountrySelectorView: View {
     @ObservedObject var regionService: RegionService
     @Environment(\.presentationMode) var presentationMode
     @State private var searchText = ""
@@ -231,68 +179,25 @@ struct CountrySelectorView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Search Bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    
-                    TextField("Search countries...", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .padding()
+                SearchBarView(searchText: $searchText)
+                    .padding()
                 
                 if regionService.isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading countries...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    LoadingCountriesView()
                 } else if filteredCountries.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("No countries available")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        
-                        if !searchText.isEmpty {
-                            Text("Try adjusting your search")
-                                .foregroundColor(.secondary)
-                            
-                            Button("Clear Search") {
-                                searchText = ""
-                            }
-                            .foregroundColor(.blue)
-                        } else {
-                            Button("Retry") {
-                                regionService.refreshRegions()
-                            }
-                            .foregroundColor(.blue)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyCountriesView(
+                        searchText: searchText,
+                        onClearSearch: { searchText = "" },
+                        onRetry: { regionService.refreshRegions() }
+                    )
                 } else {
                     List {
                         ForEach(filteredCountries) { country in
-                            CountryRow(
+                            CountryRowView(
                                 country: country,
                                 isSelected: regionService.selectedCountry?.id == country.id
                             ) {
+                                print("🌍 User selected country: \(country.label) (\(country.currencyCode))")
                                 regionService.selectCountry(country)
                                 presentationMode.wrappedValue.dismiss()
                             }
@@ -301,19 +206,10 @@ struct CountrySelectorView: View {
                 }
                 
                 if let errorMessage = regionService.errorMessage {
-                    VStack {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        
-                        Button("Retry") {
-                            regionService.refreshRegions()
-                        }
-                        .foregroundColor(.blue)
-                    }
-                    .background(Color(.systemGray6))
+                    ErrorBannerView(
+                        message: errorMessage,
+                        onRetry: { regionService.refreshRegions() }
+                    )
                 }
             }
             .navigationTitle("Select Country")
@@ -327,7 +223,7 @@ struct CountrySelectorView: View {
     }
 }
 
-struct CountryRow: View {
+struct CountryRowView: View {
     let country: CountrySelection
     let isSelected: Bool
     let onTap: () -> Void
@@ -371,8 +267,189 @@ struct CountryRow: View {
     }
 }
 
+// MARK: - Supporting Views
+
+struct SearchBarView: View {
+    @Binding var searchText: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+            
+            TextField("Search...", text: $searchText)
+                .textFieldStyle(PlainTextFieldStyle())
+            
+            if !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+    }
+}
+
+struct LoadingProductsView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading products...")
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct LoadingCountriesView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading countries...")
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct EmptyProductsView: View {
+    let searchText: String
+    let onClearSearch: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "cube.box")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("No products found")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            if !searchText.isEmpty {
+                Text("Try adjusting your search")
+                    .foregroundColor(.secondary)
+                
+                Button("Clear Search", action: onClearSearch)
+                    .foregroundColor(.blue)
+            } else {
+                Text("No products available")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct EmptyCountriesView: View {
+    let searchText: String
+    let onClearSearch: () -> Void
+    let onRetry: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "globe")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("No countries available")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            if !searchText.isEmpty {
+                Text("Try adjusting your search")
+                    .foregroundColor(.secondary)
+                
+                Button("Clear Search", action: onClearSearch)
+                    .foregroundColor(.blue)
+            } else {
+                Button("Retry", action: onRetry)
+                    .foregroundColor(.blue)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct ProductsGridView: View {
+    let products: [Product]
+    @ObservedObject var regionService: RegionService
+    let onProductTap: (Product) -> Void
+    
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8)
+            ], spacing: 16) {
+                ForEach(products) { product in
+                    ProductCard(
+                        product: product,
+                        currencyCode: regionService.selectedCountry?.currencyCode ?? "USD"
+                    ) {
+                        onProductTap(product)
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+struct ErrorMessagesView: View {
+    @ObservedObject var productService: ProductService
+    @ObservedObject var regionService: RegionService
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            if let errorMessage = productService.errorMessage {
+                ErrorBannerView(
+                    message: errorMessage,
+                    onRetry: { productService.fetchProducts() }
+                )
+            }
+            
+            if let errorMessage = regionService.errorMessage {
+                ErrorBannerView(
+                    message: "Region Error: \(errorMessage)",
+                    onRetry: { regionService.refreshRegions() }
+                )
+            }
+        }
+    }
+}
+
+struct ErrorBannerView: View {
+    let message: String
+    let onRetry: () -> Void
+    
+    var body: some View {
+        VStack {
+            Text(message)
+                .foregroundColor(.red)
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .padding()
+            
+            Button("Retry", action: onRetry)
+                .foregroundColor(.blue)
+        }
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .padding(.horizontal)
+    }
+}
+
 struct ProductCard: View {
     let product: Product
+    let currencyCode: String
     let onTap: () -> Void
     
     var body: some View {
@@ -412,7 +489,7 @@ struct ProductCard: View {
                     }
                     
                     HStack {
-                        Text(product.displayPrice)
+                        Text(product.displayPrice(currencyCode: currencyCode))
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
@@ -467,4 +544,7 @@ struct ProductCard: View {
 
 #Preview {
     ProductsView()
+        .environmentObject(RegionService())
+        .environmentObject(CartService())
+        .environmentObject(AuthService())
 }
