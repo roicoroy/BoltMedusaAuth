@@ -449,26 +449,41 @@ class CartService: ObservableObject {
             return
         }
         
-        // Use the exact payload structure you specified
+        // Create a simplified address payload that matches Medusa's expected format
         let addressData: [String: Any] = [
             "first_name": address.firstName ?? "",
             "last_name": address.lastName ?? "",
             "address_1": address.address1,
-            "address_2": address.address2 ?? "",
             "city": address.city,
-            "country_code": address.countryCode,
-            "postal_code": address.postalCode,
-            "phone": address.phone ?? "",
-            "company": address.company ?? "",
-            "province": address.province ?? ""
+            "country_code": address.countryCode.lowercased(), // Ensure lowercase
+            "postal_code": address.postalCode
         ]
         
+        // Add optional fields only if they have values
+        var finalAddressData = addressData
+        
+        if let address2 = address.address2, !address2.isEmpty {
+            finalAddressData["address_2"] = address2
+        }
+        
+        if let phone = address.phone, !phone.isEmpty {
+            finalAddressData["phone"] = phone
+        }
+        
+        if let company = address.company, !company.isEmpty {
+            finalAddressData["company"] = company
+        }
+        
+        if let province = address.province, !province.isEmpty {
+            finalAddressData["province"] = province
+        }
+        
         print("📦 Shipping address payload:")
-        for (key, value) in addressData {
+        for (key, value) in finalAddressData {
             print("  \(key): \(value)")
         }
         
-        performAddressRequest(url: url, addressData: addressData, addressType: "shipping", completion: completion)
+        performAddressRequest(url: url, addressData: finalAddressData, addressType: "shipping", completion: completion)
     }
     
     private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
@@ -478,26 +493,41 @@ class CartService: ObservableObject {
             return
         }
         
-        // Use the exact payload structure you specified
+        // Create a simplified address payload that matches Medusa's expected format
         let addressData: [String: Any] = [
             "first_name": address.firstName ?? "",
             "last_name": address.lastName ?? "",
             "address_1": address.address1,
-            "address_2": address.address2 ?? "",
             "city": address.city,
-            "country_code": address.countryCode,
-            "postal_code": address.postalCode,
-            "phone": address.phone ?? "",
-            "company": address.company ?? "",
-            "province": address.province ?? ""
+            "country_code": address.countryCode.lowercased(), // Ensure lowercase
+            "postal_code": address.postalCode
         ]
         
+        // Add optional fields only if they have values
+        var finalAddressData = addressData
+        
+        if let address2 = address.address2, !address2.isEmpty {
+            finalAddressData["address_2"] = address2
+        }
+        
+        if let phone = address.phone, !phone.isEmpty {
+            finalAddressData["phone"] = phone
+        }
+        
+        if let company = address.company, !company.isEmpty {
+            finalAddressData["company"] = company
+        }
+        
+        if let province = address.province, !province.isEmpty {
+            finalAddressData["province"] = province
+        }
+        
         print("💳 Billing address payload:")
-        for (key, value) in addressData {
+        for (key, value) in finalAddressData {
             print("  \(key): \(value)")
         }
         
-        performAddressRequest(url: url, addressData: addressData, addressType: "billing", completion: completion)
+        performAddressRequest(url: url, addressData: finalAddressData, addressType: "billing", completion: completion)
     }
     
     private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
@@ -516,6 +546,11 @@ class CartService: ObservableObject {
         do {
             urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
             print("🚀 Sending \(addressType) address request to: \(url)")
+            
+            // Log the exact JSON being sent
+            if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
+                print("📤 Request JSON: \(jsonString)")
+            }
         } catch {
             print("❌ Failed to encode \(addressType) address data: \(error)")
             completion(false)
@@ -532,6 +567,12 @@ class CartService: ObservableObject {
                     
                     if httpResponse.statusCode >= 400 {
                         print("❌ \(addressType.capitalized) address addition failed with status: \(httpResponse.statusCode)")
+                        
+                        // Try to parse error message from response
+                        if let errorData = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            print("❌ Error details: \(errorData)")
+                        }
+                        
                         throw URLError(.badServerResponse)
                     }
                 }
