@@ -237,9 +237,9 @@ class CartService: ObservableObject {
             .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { [weak self] completion in
+                receiveCompletion: { [weak self] completionResult in
                     self?.isLoading = false
-                    if case .failure(let error) = completion {
+                    if case .failure(let error) = completionResult {
                         self?.errorMessage = "Failed to fetch cart: \(error.localizedDescription)"
                         print("Fetch cart error: \(error)")
                     }
@@ -301,8 +301,8 @@ class CartService: ObservableObject {
             .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { completion in
-                    if case .failure(let error) = completion {
+                receiveCompletion: { completionResult in
+                    if case .failure(let error) = completionResult {
                         print("Cart customer association error: \(error)")
                         completion(false)
                     }
@@ -500,9 +500,9 @@ class CartService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func removeLineItem(lineItemId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+    func removeLineItem(lineItemId: String, onComplete: @escaping (Bool) -> Void = { _ in }) {
         guard let cart = currentCart else {
-            completion(false)
+            onComplete(false)
             return
         }
         
@@ -516,7 +516,7 @@ class CartService: ObservableObject {
                 self?.errorMessage = "Invalid URL for removing line item"
                 self?.isLoading = false
             }
-            completion(false)
+            onComplete(false)
             return
         }
         
@@ -551,18 +551,18 @@ class CartService: ObservableObject {
                         self?.isLoading = false
                         self?.errorMessage = "Failed to remove item: \(error.localizedDescription)"
                         print("Remove line item error: \(error)")
-                        completion(false)
+                        onComplete(false)
                     }
                 },
                 receiveValue: { [weak self] data in
                     // Handle different response structures for DELETE operation
-                    self?.handleRemoveLineItemResponse(data: data, completion: completion)
+                    self?.handleRemoveLineItemResponse(data: data, onComplete: onComplete)
                 }
             )
             .store(in: &cancellables)
     }
     
-    private func handleRemoveLineItemResponse(data: Data, completion: @escaping (Bool) -> Void) {
+    private func handleRemoveLineItemResponse(data: Data, onComplete: @escaping (Bool) -> Void) {
         // Log the raw response for debugging
         if let responseString = String(data: data, encoding: .utf8) {
             print("Remove Line Item Success Response: \(responseString)")
@@ -574,7 +574,7 @@ class CartService: ObservableObject {
             self.currentCart = response.cart
             self.saveCartToStorage()
             print("Line item removed successfully - cart updated")
-            completion(true)
+            onComplete(true)
             return
         } catch {
             print("Failed to decode as CartResponse: \(error)")
@@ -592,7 +592,7 @@ class CartService: ObservableObject {
                     if let cart = currentCart {
                         fetchCart(cartId: cart.id)
                     }
-                    completion(true)
+                    onComplete(true)
                     return
                 }
                 
@@ -603,7 +603,7 @@ class CartService: ObservableObject {
                     self.currentCart = cart
                     self.saveCartToStorage()
                     print("Line item removed successfully - cart found in data field")
-                    completion(true)
+                    onComplete(true)
                     return
                 }
                 
@@ -613,7 +613,7 @@ class CartService: ObservableObject {
                 if let cart = currentCart {
                     fetchCart(cartId: cart.id)
                 }
-                completion(true)
+                onComplete(true)
                 return
             }
         } catch {
@@ -626,7 +626,7 @@ class CartService: ObservableObject {
         if let cart = currentCart {
             fetchCart(cartId: cart.id)
         }
-        completion(true)
+        onComplete(true)
     }
     
     // MARK: - User Authentication Handling
