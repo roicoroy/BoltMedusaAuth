@@ -103,14 +103,14 @@ struct LoginResponse: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Try to decode customer from "customer" key first
-        self.customer = try? container.decodeIfPresent(Customer.self, forKey: .customer)
-        
-        // Try to decode token
+        // Try to decode token first
         self.token = try? container.decodeIfPresent(String.self, forKey: .token)
         
-        // If customer is nil, try to decode the entire response as a Customer
-        if self.customer == nil {
+        // Try to decode customer from "customer" key first
+        if let customerData = try? container.decodeIfPresent(Customer.self, forKey: .customer) {
+            self.customer = customerData
+        } else {
+            // If that fails, try to decode the entire response as a Customer
             self.customer = try? Customer(from: decoder)
         }
     }
