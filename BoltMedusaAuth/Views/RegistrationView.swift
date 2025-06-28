@@ -17,11 +17,13 @@ struct RegistrationView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var phone = ""
-    @State private var companyName = ""
     
     private var isFormValid: Bool {
         !email.isEmpty && 
         !password.isEmpty && 
+        !firstName.isEmpty &&
+        !lastName.isEmpty &&
+        !phone.isEmpty &&
         password == confirmPassword && 
         password.count >= 6
     }
@@ -63,7 +65,7 @@ struct RegistrationView: View {
                         
                         // First Name
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("First Name")
+                            Text("First Name *")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
@@ -73,7 +75,7 @@ struct RegistrationView: View {
                         
                         // Last Name
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Last Name")
+                            Text("Last Name *")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
@@ -81,19 +83,9 @@ struct RegistrationView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                         
-                        // Company Name
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Company Name")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            TextField("Enter your company name", text: $companyName)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                        }
-                        
                         // Phone
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Phone")
+                            Text("Phone *")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
@@ -144,18 +136,12 @@ struct RegistrationView: View {
                     
                     // Register button
                     Button(action: {
-                        let firstNameValue = firstName.isEmpty ? nil : firstName
-                        let lastNameValue = lastName.isEmpty ? nil : lastName
-                        let phoneValue = phone.isEmpty ? nil : phone
-                        let companyNameValue = companyName.isEmpty ? nil : companyName
-                        
                         authService.register(
                             email: email,
                             password: password,
-                            firstName: firstNameValue,
-                            lastName: lastNameValue,
-                            phone: phoneValue,
-                            companyName: companyNameValue
+                            firstName: firstName,
+                            lastName: lastName,
+                            phone: phone
                         )
                     }) {
                         HStack {

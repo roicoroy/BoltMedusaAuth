@@ -34,22 +34,36 @@ struct Customer: Codable, Identifiable {
     }
 }
 
-struct CustomerRegistrationRequest: Codable {
+// Step 1: Auth Registration Payload
+struct AuthRegisterPayload: Codable {
+    let firstName: String
+    let lastName: String
     let email: String
-    let password: String
-    let firstName: String?
-    let lastName: String?
-    let phone: String?
-    let companyName: String?
+    let password: String?
+    let phone: String
     
     enum CodingKeys: String, CodingKey {
         case email, password, phone
         case firstName = "first_name"
         case lastName = "last_name"
-        case companyName = "company_name"
     }
 }
 
+// Step 2: Customer Creation Payload (using JWT token)
+struct CustomerCreationPayload: Codable {
+    let email: String
+    let firstName: String
+    let lastName: String
+    let phone: String
+    
+    enum CodingKeys: String, CodingKey {
+        case email, phone
+        case firstName = "first_name"
+        case lastName = "last_name"
+    }
+}
+
+// Step 3: Login Payload
 struct CustomerLoginRequest: Codable {
     let email: String
     let password: String
@@ -70,16 +84,18 @@ struct CustomerUpdateRequest: Codable {
     }
 }
 
-struct AuthResponse: Codable {
-    let customer: Customer
-    let token: String?
+// Auth Response (contains JWT token)
+struct AuthRegisterResponse: Codable {
+    let token: String
 }
 
-struct MedusaResponse<T: Codable>: Codable {
-    let customer: T?
-    let token: String?
-}
-
+// Customer Response
 struct CustomerResponse: Codable {
     let customer: Customer
+}
+
+// Login Response
+struct LoginResponse: Codable {
+    let customer: Customer
+    let token: String?
 }

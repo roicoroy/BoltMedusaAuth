@@ -37,24 +37,28 @@ class AuthService: ObservableObject {
         }
     }
     
-    func register(email: String, password: String, firstName: String?, lastName: String?, phone: String?, companyName: String? = nil) {
+    func register(email: String, password: String, firstName: String, lastName: String, phone: String) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
         }
         
-        let request = CustomerRegistrationRequest(
-            email: email,
-            password: password,
+        // Step 1: Register auth customer
+        registerAuthCustomer(email: email, password: password, firstName: firstName, lastName: lastName, phone: phone)
+    }
+    
+    private func registerAuthCustomer(email: String, password: String, firstName: String, lastName: String, phone: String) {
+        let authPayload = AuthRegisterPayload(
             firstName: firstName,
             lastName: lastName,
-            phone: phone,
-            companyName: companyName
+            email: email,
+            password: password,
+            phone: phone
         )
         
-        guard let url = URL(string: "\(baseURL)/store/customers") else {
+        guard let url = URL(string: "\(baseURL)/auth/customer/emailpass/register") else {
             DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Invalid URL"
+                self?.errorMessage = "Invalid URL for auth registration"
                 self?.isLoading = false
             }
             return
@@ -66,10 +70,10 @@ class AuthService: ObservableObject {
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
         
         do {
-            urlRequest.httpBody = try JSONEncoder().encode(request)
+            urlRequest.httpBody = try JSONEncoder().encode(authPayload)
         } catch {
             DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Failed to encode request: \(error.localizedDescription)"
+                self?.errorMessage = "Failed to encode auth registration request: \(error.localizedDescription)"
                 self?.isLoading = false
             }
             return
@@ -78,9 +82,79 @@ class AuthService: ObservableObject {
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("Registration Response Status: \(httpResponse.statusCode)")
+                    print("Auth Registration Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("Registration Response: \(responseString)")
+                        print("Auth Registration Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: AuthRegisterResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "Auth registration failed: \(error.localizedDescription)"
+                        self?.isLoading = false
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    // Step 2: Create customer profile using JWT token
+                    self?.createCustomerProfile(
+                        token: response.token,
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
+                        phone: phone,
+                        password: password
+                    )
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func createCustomerProfile(token: String, email: String, firstName: String, lastName: String, phone: String, password: String) {
+        let customerPayload = CustomerCreationPayload(
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone
+        )
+        
+        guard let url = URL(string: "\(baseURL)/store/customers") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for customer creation"
+                self?.isLoading = false
+            }
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(customerPayload)
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode customer creation request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Customer Creation Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Customer Creation Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
@@ -93,10 +167,66 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    guard let self = self else { return }
-                    self.isLoading = false
                     if case .failure(let error) = completion {
-                        self.errorMessage = "Registration failed: \(error.localizedDescription)"
+                        self?.errorMessage = "Customer creation failed: \(error.localizedDescription)"
+                        self?.isLoading = false
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    // Step 3: Login with email and password
+                    self?.loginAfterRegistration(email: email, password: password)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func loginAfterRegistration(email: String, password: String) {
+        let loginRequest = CustomerLoginRequest(email: email, password: password)
+        
+        guard let url = URL(string: "\(baseURL)/auth/customer/emailpass") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for login"
+                self?.isLoading = false
+            }
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(loginRequest)
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode login request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Login Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Login Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: LoginResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "Login after registration failed: \(error.localizedDescription)"
                     }
                 },
                 receiveValue: { [weak self] response in
@@ -105,8 +235,10 @@ class AuthService: ObservableObject {
                     self.isAuthenticated = true
                     self.saveCustomerData(response.customer)
                     
-                    // After successful registration, automatically log in
-                    self.login(email: email, password: password)
+                    // Save token if provided
+                    if let token = response.token {
+                        UserDefaults.standard.set(token, forKey: "auth_token")
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -120,7 +252,7 @@ class AuthService: ObservableObject {
         
         let request = CustomerLoginRequest(email: email, password: password)
         
-        guard let url = URL(string: "\(baseURL)/store/auth/customer/emailpass") else {
+        guard let url = URL(string: "\(baseURL)/auth/customer/emailpass") else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL"
                 self?.isLoading = false
@@ -157,7 +289,7 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
+            .decode(type: LoginResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -172,6 +304,11 @@ class AuthService: ObservableObject {
                     self.currentCustomer = response.customer
                     self.isAuthenticated = true
                     self.saveCustomerData(response.customer)
+                    
+                    // Save token if provided
+                    if let token = response.token {
+                        UserDefaults.standard.set(token, forKey: "auth_token")
+                    }
                 }
             )
             .store(in: &cancellables)
