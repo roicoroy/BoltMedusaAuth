@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var authService: AuthService
+    @State private var showingAddAddress = false
     
     var body: some View {
         NavigationView {
@@ -71,24 +72,57 @@ struct DashboardView: View {
                 }
                 
                 // Addresses section
-                if let customer = authService.currentCustomer,
-                   let addresses = customer.addresses,
-                   !addresses.isEmpty {
-                    
-                    VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
                         Text("Addresses")
                             .font(.headline)
                             .fontWeight(.semibold)
                         
+                        Spacer()
+                        
+                        Button(action: {
+                            showingAddAddress = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Address")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                        }
+                    }
+                    
+                    if let customer = authService.currentCustomer,
+                       let addresses = customer.addresses,
+                       !addresses.isEmpty {
+                        
                         ForEach(addresses) { address in
                             AddressCard(address: address)
                         }
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "location.slash")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray)
+                            
+                            Text("No addresses added yet")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Add your first address to get started")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
                     }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
                 }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
                 
                 Spacer()
                 
@@ -113,6 +147,9 @@ struct DashboardView: View {
                 // Refresh customer data when view appears
                 authService.fetchCustomerProfile()
             }
+        }
+        .sheet(isPresented: $showingAddAddress) {
+            AddAddressView(authService: authService)
         }
     }
     
