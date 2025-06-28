@@ -141,8 +141,8 @@ struct CartLineItem: Codable, Identifiable {
     let itemTotal: Int?
     let itemSubtotal: Int?
     let itemTaxTotal: Int?
-    let total: Int
-    let subtotal: Int
+    let total: Int?  // Made optional - might not be present in API response
+    let subtotal: Int?  // Made optional - might not be present in API response
     let taxTotal: Int?
     let discountTotal: Int?
     let discountTaxTotal: Int?
@@ -201,8 +201,10 @@ struct CartLineItem: Codable, Identifiable {
         productId = try container.decode(String.self, forKey: .productId)
         quantity = try container.decode(Int.self, forKey: .quantity)
         unitPrice = try container.decode(Int.self, forKey: .unitPrice)
-        total = try container.decode(Int.self, forKey: .total)
-        subtotal = try container.decode(Int.self, forKey: .subtotal)
+        
+        // total and subtotal are now optional - calculate if missing
+        total = try container.decodeIfPresent(Int.self, forKey: .total)
+        subtotal = try container.decodeIfPresent(Int.self, forKey: .subtotal)
         
         // cartId is now optional - might not be present in API response
         cartId = try container.decodeIfPresent(String.self, forKey: .cartId)
@@ -317,11 +319,25 @@ extension CartLineItem {
     }
     
     var formattedTotal: String {
-        return formatPrice(total)
+        // Calculate total if not provided by API
+        let calculatedTotal = total ?? (unitPrice * quantity)
+        return formatPrice(calculatedTotal)
     }
     
     var formattedSubtotal: String {
-        return formatPrice(subtotal)
+        // Calculate subtotal if not provided by API
+        let calculatedSubtotal = subtotal ?? (unitPrice * quantity)
+        return formatPrice(calculatedSubtotal)
+    }
+    
+    var calculatedTotal: Int {
+        // Return API total if available, otherwise calculate
+        return total ?? (unitPrice * quantity)
+    }
+    
+    var calculatedSubtotal: Int {
+        // Return API subtotal if available, otherwise calculate
+        return subtotal ?? (unitPrice * quantity)
     }
     
     private func formatPrice(_ amount: Int) -> String {
