@@ -39,6 +39,9 @@ struct MainTabView: View {
         }
         .accentColor(.blue)
         .onAppear {
+            // Set up cart service reference in auth service for user login/logout handling
+            authService.setCartService(cartService)
+            
             // Initialize cart when app starts if region is available
             if regionService.hasSelectedRegion, cartService.currentCart == nil {
                 if let regionId = regionService.selectedRegionId {
@@ -57,6 +60,16 @@ struct MainTabView: View {
                         print("Failed to update/create cart for new country")
                     }
                 }
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { isAuthenticated in
+            // When authentication status changes, handle cart association
+            if isAuthenticated {
+                print("User logged in, cart service will handle association")
+                // Cart service will automatically associate cart when user logs in
+            } else {
+                print("User logged out, cart service will handle cleanup")
+                // Cart service will handle logout cleanup
             }
         }
     }

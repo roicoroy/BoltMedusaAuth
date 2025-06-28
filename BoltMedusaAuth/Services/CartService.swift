@@ -50,6 +50,11 @@ class CartService: ObservableObject {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
         
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
@@ -90,7 +95,16 @@ class CartService: ObservableObject {
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
                     print("Cart created successfully: \(response.cart.id) for region: \(regionId) with currency: \(response.cart.currencyCode)")
-                    completion(true)
+                    
+                    // If user is logged in and cart doesn't have customer_id, associate it
+                    if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
+                        self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
+                            print("Customer association result: \(associationSuccess)")
+                            completion(true) // Still return success even if association fails
+                        }
+                    } else {
+                        completion(true)
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -127,6 +141,11 @@ class CartService: ObservableObject {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         do {
             urlRequest.httpBody = try JSONSerialization.data(withJSONObject: updateRequest, options: [])
@@ -196,6 +215,11 @@ class CartService: ObservableObject {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
         
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
@@ -224,6 +248,73 @@ class CartService: ObservableObject {
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
                     print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
+                    
+                    // If user is logged in and cart doesn't have customer_id, associate it
+                    if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
+                        self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
+                            print("Customer association result: \(associationSuccess)")
+                        }
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Customer Association
+    
+    func associateCartWithCustomer(cartId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            print("No auth token found, cannot associate cart with customer")
+            completion(false)
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/customer") else {
+            print("Invalid URL for cart customer association")
+            completion(false)
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        // Empty body for customer association
+        urlRequest.httpBody = Data("{}".utf8)
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Associate Customer Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Associate Customer Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        print("Cart customer association error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Cart successfully associated with customer: \(response.cart.id)")
+                    if let customerId = response.cart.customerId {
+                        print("Customer ID: \(customerId)")
+                    }
+                    completion(true)
                 }
             )
             .store(in: &cancellables)
@@ -270,6 +361,11 @@ class CartService: ObservableObject {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
         
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
@@ -311,7 +407,16 @@ class CartService: ObservableObject {
                     self?.saveCartToStorage()
                     print("Line item added successfully to cart: \(response.cart.id)")
                     print("Cart now has \(response.cart.itemCount) items")
-                    completion(true)
+                    
+                    // If user is logged in and cart doesn't have customer_id, associate it
+                    if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
+                        self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
+                            print("Customer association after add item result: \(associationSuccess)")
+                            completion(true) // Still return success even if association fails
+                        }
+                    } else {
+                        completion(true)
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -343,6 +448,11 @@ class CartService: ObservableObject {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
@@ -414,6 +524,11 @@ class CartService: ObservableObject {
         urlRequest.httpMethod = "DELETE"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
@@ -514,6 +629,31 @@ class CartService: ObservableObject {
         completion(true)
     }
     
+    // MARK: - User Authentication Handling
+    
+    func handleUserLogin() {
+        // When user logs in, associate existing cart with the customer
+        if let cart = currentCart, cart.customerId == nil {
+            print("User logged in, associating existing cart with customer")
+            associateCartWithCustomer(cartId: cart.id) { success in
+                if success {
+                    print("Successfully associated cart with logged-in customer")
+                } else {
+                    print("Failed to associate cart with customer after login")
+                }
+            }
+        }
+    }
+    
+    func handleUserLogout() {
+        // When user logs out, we might want to clear the cart or keep it as anonymous
+        // For now, we'll keep the cart but it will become anonymous
+        print("User logged out, cart will remain as anonymous cart")
+        
+        // Optionally, you could clear the cart here:
+        // clearCart()
+    }
+    
     // MARK: - Utility Methods
     
     func createCartIfNeeded(regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
@@ -568,6 +708,11 @@ class CartService: ObservableObject {
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
             print("Cart saved to storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
+            if let customerId = cart.customerId {
+                print("Cart is associated with customer: \(customerId)")
+            } else {
+                print("Cart is anonymous (no customer association)")
+            }
         }
     }
     
@@ -578,6 +723,11 @@ class CartService: ObservableObject {
                 self?.currentCart = cart
             }
             print("Cart loaded from storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
+            if let customerId = cart.customerId {
+                print("Cart is associated with customer: \(customerId)")
+            } else {
+                print("Cart is anonymous (no customer association)")
+            }
             // Refresh cart data from server to ensure it's up to date
             fetchCart(cartId: cart.id)
         } else {
