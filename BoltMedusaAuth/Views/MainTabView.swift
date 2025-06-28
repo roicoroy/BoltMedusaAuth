@@ -23,6 +23,7 @@ struct MainTabView: View {
             ProductsView()
                 .environmentObject(regionService)
                 .environmentObject(cartService)
+                .environmentObject(authService)
                 .tabItem {
                     Image(systemName: "cube.box")
                     Text("Products")
@@ -36,6 +37,7 @@ struct MainTabView: View {
                 .badge(cartService.currentCart?.itemCount ?? 0)
                 .environmentObject(cartService)
                 .environmentObject(regionService)
+                .environmentObject(authService)
         }
         .accentColor(.blue)
         .onAppear {
