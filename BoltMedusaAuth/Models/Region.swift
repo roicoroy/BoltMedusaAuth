@@ -7,15 +7,50 @@
 
 import Foundation
 
-// MARK: - Region Models (Simplified for actual Medusa API)
+// MARK: - Region Models (Updated for actual Medusa API)
 struct Region: Codable, Identifiable {
     let id: String
     let name: String
     let currencyCode: String
+    let countries: [Country]?
+    let createdAt: String?
+    let updatedAt: String?
+    let deletedAt: String?
+    let metadata: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, countries, metadata
         case currencyCode = "currency_code"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case deletedAt = "deleted_at"
+    }
+}
+
+struct Country: Codable, Identifiable {
+    let iso2: String
+    let iso3: String
+    let numCode: String
+    let name: String
+    let displayName: String
+    let regionId: String
+    let metadata: String?
+    let createdAt: String?
+    let updatedAt: String?
+    let deletedAt: String?
+    
+    var id: String { iso2 } // Use iso2 as the identifier
+    
+    enum CodingKeys: String, CodingKey {
+        case name, metadata
+        case iso2 = "iso_2"
+        case iso3 = "iso_3"
+        case numCode = "num_code"
+        case displayName = "display_name"
+        case regionId = "region_id"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case deletedAt = "deleted_at"
     }
 }
 
@@ -41,11 +76,12 @@ extension Region {
         return currencyCode.uppercased()
     }
     
-    var isUK: Bool {
-        return name.lowercased().contains("uk") || 
-               name.lowercased().contains("united kingdom") ||
-               name.lowercased().contains("britain") ||
-               currencyCode.lowercased() == "gbp"
+    var hasUK: Bool {
+        return countries?.contains { country in
+            country.iso2.lowercased() == "gb" || 
+            country.name.lowercased().contains("united kingdom") ||
+            country.displayName.lowercased().contains("united kingdom")
+        } ?? false
     }
     
     var flagEmoji: String {
@@ -53,20 +89,14 @@ extension Region {
         let regionName = name.lowercased()
         let currency = currencyCode.lowercased()
         
-        if isUK || currency == "gbp" {
-            return "🇬🇧"
+        if hasUK && currency == "eur" {
+            return "🇪🇺" // European Union flag for Europe region with UK
+        } else if regionName.contains("europe") || currency == "eur" {
+            return "🇪🇺"
         } else if regionName.contains("united states") || regionName.contains("usa") || currency == "usd" {
             return "🇺🇸"
         } else if regionName.contains("canada") || currency == "cad" {
             return "🇨🇦"
-        } else if regionName.contains("germany") || regionName.contains("deutschland") || currency == "eur" {
-            return "🇪🇺"
-        } else if regionName.contains("france") {
-            return "🇫🇷"
-        } else if regionName.contains("spain") {
-            return "🇪🇸"
-        } else if regionName.contains("italy") {
-            return "🇮🇹"
         } else if regionName.contains("australia") || currency == "aud" {
             return "🇦🇺"
         } else if regionName.contains("japan") || currency == "jpy" {
@@ -79,34 +109,48 @@ extension Region {
     }
     
     var countryNames: String {
-        // Since we don't have countries in the simplified API, 
-        // we'll derive likely countries from the region name
-        let regionName = name.lowercased()
+        guard let countries = countries, !countries.isEmpty else {
+            return "No countries"
+        }
         
-        if isUK {
-            return "United Kingdom"
-        } else if regionName.contains("united states") || regionName.contains("usa") {
-            return "United States"
-        } else if regionName.contains("canada") {
-            return "Canada"
-        } else if regionName.contains("germany") {
-            return "Germany"
-        } else if regionName.contains("france") {
-            return "France"
-        } else if regionName.contains("spain") {
-            return "Spain"
-        } else if regionName.contains("italy") {
-            return "Italy"
-        } else if regionName.contains("australia") {
-            return "Australia"
-        } else if regionName.contains("japan") {
-            return "Japan"
-        } else if regionName.contains("brazil") {
-            return "Brazil"
-        } else if regionName.contains("europe") || currencyCode.lowercased() == "eur" {
-            return "European Union"
+        // If there are many countries, show a summary
+        if countries.count > 3 {
+            let firstThree = countries.prefix(3).map { $0.displayName }
+            return "\(firstThree.joined(separator: ", ")) and \(countries.count - 3) more"
         } else {
-            return name // Fallback to region name
+            return countries.map { $0.displayName }.joined(separator: ", ")
+        }
+    }
+    
+    var countryCount: Int {
+        return countries?.count ?? 0
+    }
+    
+    var ukCountry: Country? {
+        return countries?.first { country in
+            country.iso2.lowercased() == "gb"
+        }
+    }
+}
+
+extension Country {
+    var flagEmoji: String {
+        let iso = iso2.lowercased()
+        
+        switch iso {
+        case "gb": return "🇬🇧"
+        case "us": return "🇺🇸"
+        case "ca": return "🇨🇦"
+        case "de": return "🇩🇪"
+        case "fr": return "🇫🇷"
+        case "es": return "🇪🇸"
+        case "it": return "🇮🇹"
+        case "dk": return "🇩🇰"
+        case "se": return "🇸🇪"
+        case "au": return "🇦🇺"
+        case "jp": return "🇯🇵"
+        case "br": return "🇧🇷"
+        default: return "🏳️"
         }
     }
 }

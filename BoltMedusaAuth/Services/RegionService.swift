@@ -78,9 +78,12 @@ class RegionService: ObservableObject {
                     self?.setDefaultRegionIfNeeded()
                     print("Fetched \(response.regions.count) regions")
                     
-                    // Debug: Print all regions
+                    // Debug: Print all regions and their countries
                     for region in response.regions {
                         print("Region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
+                        if let countries = region.countries {
+                            print("  Countries: \(countries.map { "\($0.displayName) (\($0.iso2))" }.joined(separator: ", "))")
+                        }
                     }
                 }
             )
@@ -93,29 +96,26 @@ class RegionService: ObservableObject {
         }
         saveSelectedRegionToStorage(region)
         print("Selected region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
+        
+        if let countries = region.countries {
+            print("  Available countries: \(countries.map { $0.displayName }.joined(separator: ", "))")
+        }
     }
     
     // MARK: - Default Region Logic
     
     private func setDefaultRegionIfNeeded() {
-        // If no region is selected, try to find UK region as default
+        // If no region is selected, try to find the best default region
         guard selectedRegion == nil else { return }
         
-        // First, try to find a region that is UK-related
-        if let ukRegion = regions.first(where: { $0.isUK }) {
-            selectRegion(ukRegion)
-            print("Set UK region as default: \(ukRegion.name)")
+        // Since we only have one "Europe" region that includes UK, select it as default
+        if let europeRegion = regions.first(where: { $0.name.lowercased().contains("europe") }) {
+            selectRegion(europeRegion)
+            print("Set Europe region as default: \(europeRegion.name)")
             return
         }
         
-        // If no UK region found, try to find by GBP currency
-        if let gbpRegion = regions.first(where: { $0.currencyCode.lowercased() == "gbp" }) {
-            selectRegion(gbpRegion)
-            print("Set GBP region as default: \(gbpRegion.name)")
-            return
-        }
-        
-        // If still no UK region, use the first available region
+        // If no Europe region found, use the first available region
         if let firstRegion = regions.first {
             selectRegion(firstRegion)
             print("Set first available region as default: \(firstRegion.name)")
@@ -156,5 +156,15 @@ class RegionService: ObservableObject {
     
     var selectedRegionCurrency: String? {
         return selectedRegion?.currencyCode
+    }
+    
+    // MARK: - Country-specific helpers
+    
+    func getCountriesForSelectedRegion() -> [Country] {
+        return selectedRegion?.countries ?? []
+    }
+    
+    func hasUKInSelectedRegion() -> Bool {
+        return selectedRegion?.hasUK ?? false
     }
 }

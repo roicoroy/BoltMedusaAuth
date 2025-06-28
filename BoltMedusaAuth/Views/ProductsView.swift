@@ -47,6 +47,12 @@ struct ProductsView: View {
                                             .fontWeight(.medium)
                                         Text("(\(selectedRegion.formattedCurrency))")
                                             .foregroundColor(.secondary)
+                                        
+                                        if selectedRegion.countryCount > 0 {
+                                            Text("• \(selectedRegion.countryCount) countries")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
                                     } else {
                                         Text("Select Region")
                                             .foregroundColor(.blue)
@@ -302,8 +308,8 @@ struct RegionRow: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    if !region.countryNames.isEmpty && region.countryNames != "No countries" {
-                        Text(region.countryNames)
+                    if region.countryCount > 0 {
+                        Text("\(region.countryCount) countries: \(region.countryNames)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(2)
