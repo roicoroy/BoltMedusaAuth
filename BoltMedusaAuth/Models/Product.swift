@@ -55,6 +55,58 @@ struct Product: Codable, Identifiable {
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
     }
+    
+    // Custom decoder to handle flexible numeric types
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        handle = try container.decodeIfPresent(String.self, forKey: .handle)
+        isGiftcard = try container.decode(Bool.self, forKey: .isGiftcard)
+        status = try container.decode(ProductStatus.self, forKey: .status)
+        images = try container.decodeIfPresent([ProductImage].self, forKey: .images)
+        thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
+        options = try container.decodeIfPresent([ProductOption].self, forKey: .options)
+        variants = try container.decodeIfPresent([ProductVariant].self, forKey: .variants)
+        categories = try container.decodeIfPresent([ProductCategory].self, forKey: .categories)
+        collection = try container.decodeIfPresent(ProductCollection.self, forKey: .collection)
+        collectionId = try container.decodeIfPresent(String.self, forKey: .collectionId)
+        type = try container.decodeIfPresent(ProductType.self, forKey: .type)
+        typeId = try container.decodeIfPresent(String.self, forKey: .typeId)
+        tags = try container.decodeIfPresent([ProductTag].self, forKey: .tags)
+        hsCode = try container.decodeIfPresent(String.self, forKey: .hsCode)
+        originCountry = try container.decodeIfPresent(String.self, forKey: .originCountry)
+        midCode = try container.decodeIfPresent(String.self, forKey: .midCode)
+        material = try container.decodeIfPresent(String.self, forKey: .material)
+        discountable = try container.decodeIfPresent(Bool.self, forKey: .discountable)
+        externalId = try container.decodeIfPresent(String.self, forKey: .externalId)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+        
+        // Handle flexible numeric types (can be string or int)
+        weight = Self.decodeFlexibleInt(from: container, forKey: .weight)
+        length = Self.decodeFlexibleInt(from: container, forKey: .length)
+        height = Self.decodeFlexibleInt(from: container, forKey: .height)
+        width = Self.decodeFlexibleInt(from: container, forKey: .width)
+    }
+    
+    private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Int? {
+        // Try to decode as Int first
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue
+        }
+        // If that fails, try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            return Int(stringValue)
+        }
+        // If both fail, return nil
+        return nil
+    }
 }
 
 enum ProductStatus: String, Codable {
@@ -78,6 +130,27 @@ struct ProductImage: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
+    }
+    
+    // Custom decoder to handle flexible rank type
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        url = try container.decode(String.self, forKey: .url)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+        
+        // Handle flexible rank type
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: .rank) {
+            rank = intValue
+        } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: .rank) {
+            rank = Int(stringValue)
+        } else {
+            rank = nil
+        }
     }
 }
 
@@ -127,9 +200,9 @@ struct ProductVariant: Codable, Identifiable {
     let ean: String?
     let upc: String?
     let variantRank: Int?
-    let inventoryQuantity: Int?  // Made optional to handle missing field
-    let allowBackorder: Bool?    // Made optional to handle missing field
-    let manageInventory: Bool?   // Made optional to handle missing field
+    let inventoryQuantity: Int?
+    let allowBackorder: Bool?
+    let manageInventory: Bool?
     let hsCode: String?
     let originCountry: String?
     let midCode: String?
@@ -146,7 +219,7 @@ struct ProductVariant: Codable, Identifiable {
     let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
-        case id, title, sku, barcode, ean, upc, weight, length, height, width, material, options, metadata
+        case id, title, sku, barcode, ean, upc, material, options, metadata
         case productId = "product_id"
         case variantRank = "variant_rank"
         case inventoryQuantity = "inventory_quantity"
@@ -159,6 +232,72 @@ struct ProductVariant: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
+        case weight, length, height, width
+    }
+    
+    // Custom decoder to handle flexible numeric types
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        productId = try container.decode(String.self, forKey: .productId)
+        sku = try container.decodeIfPresent(String.self, forKey: .sku)
+        barcode = try container.decodeIfPresent(String.self, forKey: .barcode)
+        ean = try container.decodeIfPresent(String.self, forKey: .ean)
+        upc = try container.decodeIfPresent(String.self, forKey: .upc)
+        hsCode = try container.decodeIfPresent(String.self, forKey: .hsCode)
+        originCountry = try container.decodeIfPresent(String.self, forKey: .originCountry)
+        midCode = try container.decodeIfPresent(String.self, forKey: .midCode)
+        material = try container.decodeIfPresent(String.self, forKey: .material)
+        options = try container.decodeIfPresent([ProductOptionValue].self, forKey: .options)
+        calculatedPrice = try container.decodeIfPresent(CalculatedPrice.self, forKey: .calculatedPrice)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+        
+        // Handle flexible numeric types
+        variantRank = Self.decodeFlexibleInt(from: container, forKey: .variantRank)
+        inventoryQuantity = Self.decodeFlexibleInt(from: container, forKey: .inventoryQuantity)
+        weight = Self.decodeFlexibleInt(from: container, forKey: .weight)
+        length = Self.decodeFlexibleInt(from: container, forKey: .length)
+        height = Self.decodeFlexibleInt(from: container, forKey: .height)
+        width = Self.decodeFlexibleInt(from: container, forKey: .width)
+        
+        // Handle flexible boolean types
+        allowBackorder = Self.decodeFlexibleBool(from: container, forKey: .allowBackorder)
+        manageInventory = Self.decodeFlexibleBool(from: container, forKey: .manageInventory)
+    }
+    
+    private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Int? {
+        // Try to decode as Int first
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue
+        }
+        // If that fails, try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            return Int(stringValue)
+        }
+        // If both fail, return nil
+        return nil
+    }
+    
+    private static func decodeFlexibleBool(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Bool? {
+        // Try to decode as Bool first
+        if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: key) {
+            return boolValue
+        }
+        // If that fails, try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            return stringValue.lowercased() == "true" || stringValue == "1"
+        }
+        // If that fails, try to decode as Int and convert
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue != 0
+        }
+        // If all fail, return nil
+        return nil
     }
 }
 
@@ -190,6 +329,39 @@ struct CalculatedPrice: Codable, Identifiable {
         case originalAmountWithoutTax = "original_amount_without_tax"
         case currencyCode = "currency_code"
     }
+    
+    // Custom decoder to handle flexible numeric types
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        isCalculatedPricePriceList = try container.decode(Bool.self, forKey: .isCalculatedPricePriceList)
+        isCalculatedPriceTaxInclusive = try container.decode(Bool.self, forKey: .isCalculatedPriceTaxInclusive)
+        isOriginalPricePriceList = try container.decode(Bool.self, forKey: .isOriginalPricePriceList)
+        isOriginalPriceTaxInclusive = try container.decode(Bool.self, forKey: .isOriginalPriceTaxInclusive)
+        currencyCode = try container.decode(String.self, forKey: .currencyCode)
+        
+        // Handle flexible numeric types for amounts
+        calculatedAmount = Self.decodeFlexibleInt(from: container, forKey: .calculatedAmount) ?? 0
+        calculatedAmountWithTax = Self.decodeFlexibleInt(from: container, forKey: .calculatedAmountWithTax) ?? 0
+        calculatedAmountWithoutTax = Self.decodeFlexibleInt(from: container, forKey: .calculatedAmountWithoutTax) ?? 0
+        originalAmount = Self.decodeFlexibleInt(from: container, forKey: .originalAmount) ?? 0
+        originalAmountWithTax = Self.decodeFlexibleInt(from: container, forKey: .originalAmountWithTax) ?? 0
+        originalAmountWithoutTax = Self.decodeFlexibleInt(from: container, forKey: .originalAmountWithoutTax) ?? 0
+    }
+    
+    private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Int? {
+        // Try to decode as Int first
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue
+        }
+        // If that fails, try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            return Int(stringValue)
+        }
+        // If both fail, return nil
+        return nil
+    }
 }
 
 // MARK: - Fixed Product Category Model (removed circular references)
@@ -200,8 +372,6 @@ struct ProductCategory: Codable, Identifiable {
     let handle: String?
     let rank: Int?
     let parentCategoryId: String?
-    // Removed parentCategory and categoryChildren to break circular reference
-    // These will be handled at the service level if needed
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
@@ -215,7 +385,7 @@ struct ProductCategory: Codable, Identifiable {
         case deletedAt = "deleted_at"
     }
     
-    // Custom decoder to handle the API response structure
+    // Custom decoder to handle the API response structure and flexible types
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -223,15 +393,20 @@ struct ProductCategory: Codable, Identifiable {
         name = try container.decode(String.self, forKey: .name)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         handle = try container.decodeIfPresent(String.self, forKey: .handle)
-        rank = try container.decodeIfPresent(Int.self, forKey: .rank)
         parentCategoryId = try container.decodeIfPresent(String.self, forKey: .parentCategoryId)
         createdAt = try container.decode(String.self, forKey: .createdAt)
         updatedAt = try container.decode(String.self, forKey: .updatedAt)
         deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
         metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
         
-        // Ignore parent_category and category_children fields to avoid circular reference
-        // These can be reconstructed at the service level if needed
+        // Handle flexible rank type
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: .rank) {
+            rank = intValue
+        } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: .rank) {
+            rank = Int(stringValue)
+        } else {
+            rank = nil
+        }
     }
 }
 
