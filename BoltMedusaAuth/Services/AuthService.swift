@@ -209,9 +209,9 @@ class AuthService: ObservableObject {
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("Login Response Status: \(httpResponse.statusCode)")
+                    print("Login After Registration Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("Login Response: \(responseString)")
+                        print("Login After Registration Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
@@ -220,8 +220,6 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: LoginResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -229,16 +227,8 @@ class AuthService: ObservableObject {
                         self?.errorMessage = "Login after registration failed: \(error.localizedDescription)"
                     }
                 },
-                receiveValue: { [weak self] response in
-                    guard let self = self else { return }
-                    self.currentCustomer = response.customer
-                    self.isAuthenticated = true
-                    self.saveCustomerData(response.customer)
-                    
-                    // Save token if provided
-                    if let token = response.token {
-                        UserDefaults.standard.set(token, forKey: "auth_token")
-                    }
+                receiveValue: { [weak self] data in
+                    self?.handleLoginResponse(data: data)
                 }
             )
             .store(in: &cancellables)
@@ -289,8 +279,6 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: LoginResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     guard let self = self else { return }
@@ -299,19 +287,102 @@ class AuthService: ObservableObject {
                         self.errorMessage = "Login failed: \(error.localizedDescription)"
                     }
                 },
-                receiveValue: { [weak self] response in
-                    guard let self = self else { return }
-                    self.currentCustomer = response.customer
+                receiveValue: { [weak self] data in
+                    self?.handleLoginResponse(data: data)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func handleLoginResponse(data: Data) {
+        // First, let's see the raw response structure
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Raw Login Response: \(responseString)")
+        }
+        
+        // Try to parse as JSON to understand the structure
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("Login Response JSON Structure: \(json)")
+                
+                // Try different parsing approaches
+                if let customer = self.parseCustomerFromResponse(json: json) {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        self.currentCustomer = customer
+                        self.isAuthenticated = true
+                        self.saveCustomerData(customer)
+                        
+                        // Save token if provided
+                        if let token = json["token"] as? String {
+                            UserDefaults.standard.set(token, forKey: "auth_token")
+                        }
+                    }
+                    return
+                }
+            }
+        } catch {
+            print("Failed to parse JSON: \(error)")
+        }
+        
+        // Fallback: Try standard LoginResponse decoding
+        do {
+            let response = try JSONDecoder().decode(LoginResponse.self, from: data)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if let customer = response.customer {
+                    self.currentCustomer = customer
                     self.isAuthenticated = true
-                    self.saveCustomerData(response.customer)
+                    self.saveCustomerData(customer)
                     
                     // Save token if provided
                     if let token = response.token {
                         UserDefaults.standard.set(token, forKey: "auth_token")
                     }
+                } else {
+                    self.errorMessage = "No customer data in response"
                 }
-            )
-            .store(in: &cancellables)
+            }
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to parse login response: \(error.localizedDescription)"
+                print("Login parsing error: \(error)")
+            }
+        }
+    }
+    
+    private func parseCustomerFromResponse(json: [String: Any]) -> Customer? {
+        // Try to extract customer from different possible structures
+        var customerData: [String: Any]?
+        
+        // Case 1: Customer is nested under "customer" key
+        if let nestedCustomer = json["customer"] as? [String: Any] {
+            customerData = nestedCustomer
+        }
+        // Case 2: Customer data is at root level
+        else if json["id"] != nil && json["email"] != nil {
+            customerData = json
+        }
+        // Case 3: Customer might be under "data" key
+        else if let data = json["data"] as? [String: Any],
+                let nestedCustomer = data["customer"] as? [String: Any] {
+            customerData = nestedCustomer
+        }
+        
+        guard let customerJson = customerData else {
+            print("Could not find customer data in response")
+            return nil
+        }
+        
+        // Convert back to Data and decode
+        do {
+            let customerJsonData = try JSONSerialization.data(withJSONObject: customerJson, options: [])
+            let customer = try JSONDecoder().decode(Customer.self, from: customerJsonData)
+            return customer
+        } catch {
+            print("Failed to decode customer from extracted data: \(error)")
+            return nil
+        }
     }
     
     func fetchCustomerProfile() {
