@@ -295,42 +295,17 @@ class AuthService: ObservableObject {
     }
     
     private func handleLoginResponse(data: Data) {
-        // First, let's see the raw response structure
+        // Log the raw response for debugging
         if let responseString = String(data: data, encoding: .utf8) {
             print("Raw Login Response: \(responseString)")
         }
         
-        // Try to parse as JSON to understand the structure
-        do {
-            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                print("Login Response JSON Structure: \(json)")
-                
-                // Try different parsing approaches
-                if let customer = self.parseCustomerFromResponse(json: json) {
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self = self else { return }
-                        self.currentCustomer = customer
-                        self.isAuthenticated = true
-                        self.saveCustomerData(customer)
-                        
-                        // Save token if provided
-                        if let token = json["token"] as? String {
-                            UserDefaults.standard.set(token, forKey: "auth_token")
-                        }
-                    }
-                    return
-                }
-            }
-        } catch {
-            print("Failed to parse JSON: \(error)")
-        }
-        
-        // Fallback: Try standard LoginResponse decoding
+        // Strategy 1: Try to decode as LoginResponse (customer nested under "customer" key)
         do {
             let response = try JSONDecoder().decode(LoginResponse.self, from: data)
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                if let customer = response.customer {
+            if let customer = response.customer {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
                     self.currentCustomer = customer
                     self.isAuthenticated = true
                     self.saveCustomerData(customer)
@@ -339,49 +314,51 @@ class AuthService: ObservableObject {
                     if let token = response.token {
                         UserDefaults.standard.set(token, forKey: "auth_token")
                     }
-                } else {
-                    self.errorMessage = "No customer data in response"
+                }
+                return
+            }
+        } catch {
+            print("Failed to decode as LoginResponse: \(error)")
+        }
+        
+        // Strategy 2: Try to decode as DirectCustomerResponse (customer data at root level)
+        do {
+            let response = try JSONDecoder().decode(DirectCustomerResponse.self, from: data)
+            let customer = response.asCustomer
+            
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.currentCustomer = customer
+                self.isAuthenticated = true
+                self.saveCustomerData(customer)
+                
+                // Save token if provided
+                if let token = response.token {
+                    UserDefaults.standard.set(token, forKey: "auth_token")
                 }
             }
+            return
         } catch {
-            DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Failed to parse login response: \(error.localizedDescription)"
-                print("Login parsing error: \(error)")
-            }
-        }
-    }
-    
-    private func parseCustomerFromResponse(json: [String: Any]) -> Customer? {
-        // Try to extract customer from different possible structures
-        var customerData: [String: Any]?
-        
-        // Case 1: Customer is nested under "customer" key
-        if let nestedCustomer = json["customer"] as? [String: Any] {
-            customerData = nestedCustomer
-        }
-        // Case 2: Customer data is at root level
-        else if json["id"] != nil && json["email"] != nil {
-            customerData = json
-        }
-        // Case 3: Customer might be under "data" key
-        else if let data = json["data"] as? [String: Any],
-                let nestedCustomer = data["customer"] as? [String: Any] {
-            customerData = nestedCustomer
+            print("Failed to decode as DirectCustomerResponse: \(error)")
         }
         
-        guard let customerJson = customerData else {
-            print("Could not find customer data in response")
-            return nil
-        }
-        
-        // Convert back to Data and decode
+        // Strategy 3: Try to decode as Customer directly
         do {
-            let customerJsonData = try JSONSerialization.data(withJSONObject: customerJson, options: [])
-            let customer = try JSONDecoder().decode(Customer.self, from: customerJsonData)
-            return customer
+            let customer = try JSONDecoder().decode(Customer.self, from: data)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.currentCustomer = customer
+                self.isAuthenticated = true
+                self.saveCustomerData(customer)
+            }
+            return
         } catch {
-            print("Failed to decode customer from extracted data: \(error)")
-            return nil
+            print("Failed to decode as Customer: \(error)")
+        }
+        
+        // If all strategies fail, show error
+        DispatchQueue.main.async { [weak self] in
+            self?.errorMessage = "Failed to parse login response. Please check the console for details."
         }
     }
     
