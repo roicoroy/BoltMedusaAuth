@@ -127,9 +127,9 @@ struct ProductVariant: Codable, Identifiable {
     let ean: String?
     let upc: String?
     let variantRank: Int?
-    let inventoryQuantity: Int
-    let allowBackorder: Bool
-    let manageInventory: Bool
+    let inventoryQuantity: Int?  // Made optional to handle missing field
+    let allowBackorder: Bool?    // Made optional to handle missing field
+    let manageInventory: Bool?   // Made optional to handle missing field
     let hsCode: String?
     let originCountry: String?
     let midCode: String?
@@ -373,7 +373,7 @@ extension Product {
     
     var isAvailable: Bool {
         guard let variant = variants?.first else { return false }
-        return variant.inventoryQuantity > 0 || variant.allowBackorder
+        return (variant.inventoryQuantity ?? 0) > 0 || (variant.allowBackorder ?? false)
     }
     
     var categoryNames: [String] {
@@ -396,13 +396,14 @@ extension ProductVariant {
     }
     
     var isInStock: Bool {
-        return inventoryQuantity > 0
+        return (inventoryQuantity ?? 0) > 0
     }
     
     var stockStatus: String {
-        if inventoryQuantory > 0 {
-            return "\(inventoryQuantity) in stock"
-        } else if allowBackorder {
+        let quantity = inventoryQuantity ?? 0
+        if quantity > 0 {
+            return "\(quantity) in stock"
+        } else if allowBackorder == true {
             return "Backorder available"
         } else {
             return "Out of stock"
