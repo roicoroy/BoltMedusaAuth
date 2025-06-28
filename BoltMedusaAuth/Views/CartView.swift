@@ -10,8 +10,13 @@ import SwiftUI
 struct CartView: View {
     @EnvironmentObject var cartService: CartService
     @EnvironmentObject var regionService: RegionService
+    @EnvironmentObject var authService: AuthService
     @State private var showingCheckout = false
     @State private var showingCountrySelector = false
+    @State private var showingAddShippingAddress = false
+    @State private var showingAddBillingAddress = false
+    @State private var showingEditShippingAddress = false
+    @State private var showingEditBillingAddress = false
     
     var body: some View {
         NavigationView {
@@ -40,7 +45,12 @@ struct CartView: View {
                                 CartContentView(
                                     cart: cart,
                                     cartService: cartService,
-                                    showingCheckout: $showingCheckout
+                                    authService: authService,
+                                    showingCheckout: $showingCheckout,
+                                    showingAddShippingAddress: $showingAddShippingAddress,
+                                    showingAddBillingAddress: $showingAddBillingAddress,
+                                    showingEditShippingAddress: $showingEditShippingAddress,
+                                    showingEditBillingAddress: $showingEditBillingAddress
                                 )
                             }
                         } else if regionService.hasSelectedRegion {
@@ -86,6 +96,32 @@ struct CartView: View {
         .sheet(isPresented: $showingCountrySelector) {
             CountrySelectorView(regionService: regionService)
         }
+        .sheet(isPresented: $showingAddShippingAddress) {
+            if authService.isAuthenticated {
+                AddAddressView(authService: authService)
+                    .onDisappear {
+                        // Refresh cart after address is added
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            cartService.refreshCart()
+                        }
+                    }
+            } else {
+                LoginPromptView(message: "Please sign in to add shipping addresses")
+            }
+        }
+        .sheet(isPresented: $showingAddBillingAddress) {
+            if authService.isAuthenticated {
+                AddAddressView(authService: authService)
+                    .onDisappear {
+                        // Refresh cart after address is added
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            cartService.refreshCart()
+                        }
+                    }
+            } else {
+                LoginPromptView(message: "Please sign in to add billing addresses")
+            }
+        }
         .onChange(of: regionService.selectedCountry) { newCountry in
             // When country changes, update cart region if cart exists
             if let newCountry = newCountry {
@@ -100,6 +136,14 @@ struct CartView: View {
                             print("Failed to update cart for new country")
                         }
                     }
+                }
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { isAuthenticated in
+            if isAuthenticated {
+                // When user logs in, refresh cart to get customer association
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    cartService.refreshCart()
                 }
             }
         }
@@ -235,7 +279,12 @@ struct EmptyCartView: View {
 struct CartContentView: View {
     let cart: Cart
     @ObservedObject var cartService: CartService
+    @ObservedObject var authService: AuthService
     @Binding var showingCheckout: Bool
+    @Binding var showingAddShippingAddress: Bool
+    @Binding var showingAddBillingAddress: Bool
+    @Binding var showingEditShippingAddress: Bool
+    @Binding var showingEditBillingAddress: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -264,8 +313,15 @@ struct CartContentView: View {
             .padding(.horizontal)
             
             // Cart summary with customer info and addresses
-            CartSummaryView(cart: cart)
-                .padding(.horizontal)
+            CartSummaryView(
+                cart: cart,
+                authService: authService,
+                showingAddShippingAddress: $showingAddShippingAddress,
+                showingAddBillingAddress: $showingAddBillingAddress,
+                showingEditShippingAddress: $showingEditShippingAddress,
+                showingEditBillingAddress: $showingEditBillingAddress
+            )
+            .padding(.horizontal)
             
             // Checkout button
             Button(action: {
@@ -490,18 +546,32 @@ struct CartItemRow: View {
 
 struct CartSummaryView: View {
     let cart: Cart
-    @EnvironmentObject var authService: AuthService
+    @ObservedObject var authService: AuthService
+    @Binding var showingAddShippingAddress: Bool
+    @Binding var showingAddBillingAddress: Bool
+    @Binding var showingEditShippingAddress: Bool
+    @Binding var showingEditBillingAddress: Bool
     
     var body: some View {
         VStack(spacing: 16) {
             // Customer Information Section
-            CustomerInfoSection(cart: cart)
+            CustomerInfoSection(cart: cart, authService: authService)
             
             // Shipping Address Section
-            ShippingAddressSection(cart: cart)
+            ShippingAddressSection(
+                cart: cart,
+                authService: authService,
+                showingAddShippingAddress: $showingAddShippingAddress,
+                showingEditShippingAddress: $showingEditShippingAddress
+            )
             
             // Billing Address Section
-            BillingAddressSection(cart: cart)
+            BillingAddressSection(
+                cart: cart,
+                authService: authService,
+                showingAddBillingAddress: $showingAddBillingAddress,
+                showingEditBillingAddress: $showingEditBillingAddress
+            )
             
             // Price Summary Section
             PriceSummarySection(cart: cart)
@@ -514,7 +584,7 @@ struct CartSummaryView: View {
 
 struct CustomerInfoSection: View {
     let cart: Cart
-    @EnvironmentObject var authService: AuthService
+    @ObservedObject var authService: AuthService
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -583,6 +653,9 @@ struct CustomerInfoSection: View {
 
 struct ShippingAddressSection: View {
     let cart: Cart
+    @ObservedObject var authService: AuthService
+    @Binding var showingAddShippingAddress: Bool
+    @Binding var showingEditShippingAddress: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -594,11 +667,13 @@ struct ShippingAddressSection: View {
                     .fontWeight(.semibold)
                 Spacer()
                 
-                Button("Edit") {
-                    // TODO: Implement shipping address editing
+                if cart.hasShippingAddress {
+                    Button("Edit") {
+                        showingEditShippingAddress = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
                 }
-                .font(.caption)
-                .foregroundColor(.blue)
             }
             
             if let shippingAddress = cart.shippingAddress {
@@ -614,11 +689,23 @@ struct ShippingAddressSection: View {
                     }
                     
                     Button("Add Shipping Address") {
-                        // TODO: Implement add shipping address
+                        showingAddShippingAddress = true
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if !authService.isAuthenticated {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Sign in to add and save addresses")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
             }
         }
@@ -630,6 +717,9 @@ struct ShippingAddressSection: View {
 
 struct BillingAddressSection: View {
     let cart: Cart
+    @ObservedObject var authService: AuthService
+    @Binding var showingAddBillingAddress: Bool
+    @Binding var showingEditBillingAddress: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -641,11 +731,13 @@ struct BillingAddressSection: View {
                     .fontWeight(.semibold)
                 Spacer()
                 
-                Button("Edit") {
-                    // TODO: Implement billing address editing
+                if cart.hasBillingAddress {
+                    Button("Edit") {
+                        showingEditBillingAddress = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
                 }
-                .font(.caption)
-                .foregroundColor(.blue)
             }
             
             if let billingAddress = cart.billingAddress {
@@ -661,18 +753,32 @@ struct BillingAddressSection: View {
                     }
                     
                     Button("Add Billing Address") {
-                        // TODO: Implement add billing address
+                        showingAddBillingAddress = true
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    Button("Same as shipping address") {
-                        // TODO: Implement copy shipping to billing
+                    if cart.hasShippingAddress {
+                        Button("Same as shipping address") {
+                            // TODO: Implement copy shipping to billing
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if !authService.isAuthenticated {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Sign in to add and save addresses")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
             }
         }
@@ -784,7 +890,7 @@ struct AddressDisplayView: View {
                     .fontWeight(.medium)
             }
             
-            if let company = address.company {
+            if let company = address.company, !company.isEmpty {
                 Text(company)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -794,7 +900,7 @@ struct AddressDisplayView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            if let address2 = address.address2 {
+            if let address2 = address.address2, !address2.isEmpty {
                 Text(address2)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -808,7 +914,7 @@ struct AddressDisplayView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            if let phone = address.phone {
+            if let phone = address.phone, !phone.isEmpty {
                 HStack {
                     Image(systemName: "phone")
                         .font(.caption2)
@@ -840,6 +946,39 @@ struct SummaryRow: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(valueColor)
+        }
+    }
+}
+
+struct LoginPromptView: View {
+    let message: String
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Image(systemName: "person.circle")
+                    .font(.system(size: 60))
+                    .foregroundColor(.blue)
+                
+                Text("Sign In Required")
+                    .font(.title)
+                    .fontWeight(.bold)
+                
+                Text(message)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Sign In")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
         }
     }
 }

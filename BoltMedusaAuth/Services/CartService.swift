@@ -257,6 +257,8 @@ class CartService: ObservableObject {
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
                     print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
+                    print("Cart has shipping address: \(response.cart.hasShippingAddress)")
+                    print("Cart has billing address: \(response.cart.hasBillingAddress)")
                     
                     // If user is logged in and cart doesn't have customer_id, associate it
                     if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
@@ -452,6 +454,7 @@ class CartService: ObservableObject {
         
         do {
             urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
+            print("Adding \(addressType) address to cart with data: \(addressData)")
         } catch {
             print("Failed to encode \(addressType) address data: \(error)")
             completion(false)
@@ -485,10 +488,70 @@ class CartService: ObservableObject {
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
                     print("\(addressType.capitalized) address successfully added to cart")
+                    print("Cart now has shipping address: \(response.cart.hasShippingAddress)")
+                    print("Cart now has billing address: \(response.cart.hasBillingAddress)")
                     completion(true)
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    // MARK: - Manual Address Management
+    
+    func addShippingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart,
+              let customer = authService?.currentCustomer,
+              let addresses = customer.addresses,
+              let address = addresses.first(where: { $0.id == addressId }) else {
+            print("Cannot find address or cart for shipping address addition")
+            completion(false)
+            return
+        }
+        
+        addShippingAddressToCart(cartId: cart.id, address: address, completion: completion)
+    }
+    
+    func addBillingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart,
+              let customer = authService?.currentCustomer,
+              let addresses = customer.addresses,
+              let address = addresses.first(where: { $0.id == addressId }) else {
+            print("Cannot find address or cart for billing address addition")
+            completion(false)
+            return
+        }
+        
+        addBillingAddressToCart(cartId: cart.id, address: address, completion: completion)
+    }
+    
+    func copyShippingToBillingAddress(completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart,
+              let shippingAddress = cart.shippingAddress else {
+            print("No cart or shipping address to copy")
+            completion(false)
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/billing-address") else {
+            print("Invalid URL for copying shipping to billing address")
+            completion(false)
+            return
+        }
+        
+        let addressData: [String: Any] = [
+            "first_name": shippingAddress.firstName ?? "",
+            "last_name": shippingAddress.lastName ?? "",
+            "address_1": shippingAddress.address1,
+            "address_2": shippingAddress.address2 ?? "",
+            "city": shippingAddress.city,
+            "country_code": shippingAddress.countryCode,
+            "postal_code": shippingAddress.postalCode,
+            "phone": shippingAddress.phone ?? "",
+            "company": shippingAddress.company ?? "",
+            "province": shippingAddress.province ?? ""
+        ]
+        
+        performAddressRequest(url: url, addressData: addressData, addressType: "billing", completion: completion)
     }
     
     // MARK: - Line Item Management
