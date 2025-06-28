@@ -420,15 +420,16 @@ struct CartSummaryView: View {
             VStack(spacing: 8) {
                 SummaryRow(title: "Subtotal", value: cart.formattedSubtotal)
                 
-                if let taxTotal = cart.taxTotal, taxTotal > 0 {
+                // ✅ Fixed: Use direct comparison instead of optional binding
+                if cart.taxTotal > 0 {
                     SummaryRow(title: "Tax", value: cart.formattedTaxTotal)
                 }
                 
-                if let shippingTotal = cart.shippingTotal, shippingTotal > 0 {
+                if cart.shippingTotal > 0 {
                     SummaryRow(title: "Shipping", value: cart.formattedShippingTotal)
                 }
                 
-                if let discountTotal = cart.discountTotal, discountTotal > 0 {
+                if cart.discountTotal > 0 {
                     SummaryRow(title: "Discount", value: "-\(cart.formattedDiscountTotal)", valueColor: .green)
                 }
                 
