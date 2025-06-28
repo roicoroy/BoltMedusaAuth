@@ -305,39 +305,39 @@ struct DetailRow: View {
 }
 
 #Preview {
-    let sampleProduct = Product(
-        id: "prod_01",
-        title: "Sample Product",
-        subtitle: "A great product",
-        description: "This is a detailed description of the sample product.",
-        handle: "sample-product",
-        isGiftcard: false,
-        status: .published,
-        images: nil,
-        thumbnail: nil,
-        options: nil,
-        variants: nil,
-        categories: nil,
-        collection: nil,
-        collectionId: nil,
-        type: nil,
-        typeId: nil,
-        tags: nil,
-        weight: 500,
-        length: 10,
-        height: 5,
-        width: 8,
-        hsCode: nil,
-        originCountry: "US",
-        midCode: nil,
-        material: "Cotton",
-        discountable: true,
-        externalId: nil,
-        createdAt: "2023-01-01T00:00:00Z",
-        updatedAt: "2023-01-01T00:00:00Z",
-        deletedAt: nil,
-        metadata: nil
-    )
-    
-    ProductDetailView(product: sampleProduct)
+//    let sampleProduct = Product(
+//        id: "prod_01",
+//        title: "Sample Product",
+//        subtitle: "A great product",
+//        description: "This is a detailed description of the sample product.",
+//        handle: "sample-product",
+//        isGiftcard: false,
+//        status: .published,
+//        images: nil,
+//        thumbnail: nil,
+//        options: nil,
+//        variants: nil,
+//        categories: nil,
+//        collection: nil,
+//        collectionId: nil,
+//        type: nil,
+//        typeId: nil,
+//        tags: nil,
+//        weight: 500,
+//        length: 10,
+//        height: 5,
+//        width: 8,
+//        hsCode: nil,
+//        originCountry: "US",
+//        midCode: nil,
+//        material: "Cotton",
+//        discountable: true,
+//        externalId: nil,
+//        createdAt: "2023-01-01T00:00:00Z",
+//        updatedAt: "2023-01-01T00:00:00Z",
+//        deletedAt: nil,
+//        metadata: nil
+//    )
+//    
+//    ProductDetailView(product: sampleProduct)
 }
