@@ -41,8 +41,9 @@ struct MainTabView: View {
         }
         .accentColor(.blue)
         .onAppear {
-            // Set up cart service reference in auth service for user login/logout handling
+            // Set up service references for cross-communication
             authService.setCartService(cartService)
+            cartService.setAuthService(authService)
             
             // Initialize cart when app starts if region is available
             if regionService.hasSelectedRegion, cartService.currentCart == nil {

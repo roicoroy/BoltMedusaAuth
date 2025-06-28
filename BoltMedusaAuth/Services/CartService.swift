@@ -18,12 +18,21 @@ class CartService: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     
+    // Reference to auth service to get customer data
+    weak var authService: AuthService?
+    
     init() {
         loadCartFromStorage()
     }
     
     deinit {
         cancellables.removeAll()
+    }
+    
+    // MARK: - Auth Service Integration
+    
+    func setAuthService(_ authService: AuthService) {
+        self.authService = authService
     }
     
     // MARK: - Cart Management
@@ -260,7 +269,7 @@ class CartService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Customer Association
+    // MARK: - Customer Association with Addresses
     
     func associateCartWithCustomer(cartId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
@@ -301,7 +310,7 @@ class CartService: ObservableObject {
             .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { completionResult in
+                receiveCompletion: { [weak self] completionResult in
                     if case .failure(let error) = completionResult {
                         print("Cart customer association error: \(error)")
                         completion(false)
@@ -314,6 +323,168 @@ class CartService: ObservableObject {
                     if let customerId = response.cart.customerId {
                         print("Customer ID: \(customerId)")
                     }
+                    
+                    // After successful customer association, add addresses if available
+                    self?.addCustomerAddressesToCart(cartId: cartId) { addressSuccess in
+                        print("Customer addresses addition result: \(addressSuccess)")
+                        completion(true) // Return success regardless of address addition result
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func addCustomerAddressesToCart(cartId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let customer = authService?.currentCustomer,
+              let addresses = customer.addresses,
+              !addresses.isEmpty else {
+            print("No customer or addresses available for cart address setup")
+            completion(false)
+            return
+        }
+        
+        // Find default shipping and billing addresses
+        let defaultShippingAddress = addresses.first { $0.isDefaultShipping } ?? addresses.first
+        let defaultBillingAddress = addresses.first { $0.isDefaultBilling } ?? addresses.first
+        
+        var completedOperations = 0
+        let totalOperations = (defaultShippingAddress != nil ? 1 : 0) + (defaultBillingAddress != nil ? 1 : 0)
+        
+        guard totalOperations > 0 else {
+            print("No addresses to add to cart")
+            completion(false)
+            return
+        }
+        
+        var hasError = false
+        
+        let checkCompletion = {
+            completedOperations += 1
+            if completedOperations >= totalOperations {
+                completion(!hasError)
+            }
+        }
+        
+        // Add shipping address if available
+        if let shippingAddress = defaultShippingAddress {
+            addShippingAddressToCart(cartId: cartId, address: shippingAddress) { success in
+                if !success {
+                    hasError = true
+                }
+                checkCompletion()
+            }
+        }
+        
+        // Add billing address if available and different from shipping
+        if let billingAddress = defaultBillingAddress {
+            if billingAddress.id != defaultShippingAddress?.id {
+                addBillingAddressToCart(cartId: cartId, address: billingAddress) { success in
+                    if !success {
+                        hasError = true
+                    }
+                    checkCompletion()
+                }
+            } else {
+                // Same address for both shipping and billing
+                checkCompletion()
+            }
+        }
+    }
+    
+    private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/shipping-address") else {
+            print("Invalid URL for adding shipping address to cart")
+            completion(false)
+            return
+        }
+        
+        let addressData: [String: Any] = [
+            "first_name": address.firstName ?? "",
+            "last_name": address.lastName ?? "",
+            "address_1": address.address1,
+            "address_2": address.address2 ?? "",
+            "city": address.city,
+            "country_code": address.countryCode,
+            "postal_code": address.postalCode,
+            "phone": address.phone ?? "",
+            "company": address.company ?? "",
+            "province": address.province ?? ""
+        ]
+        
+        performAddressRequest(url: url, addressData: addressData, addressType: "shipping", completion: completion)
+    }
+    
+    private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/billing-address") else {
+            print("Invalid URL for adding billing address to cart")
+            completion(false)
+            return
+        }
+        
+        let addressData: [String: Any] = [
+            "first_name": address.firstName ?? "",
+            "last_name": address.lastName ?? "",
+            "address_1": address.address1,
+            "address_2": address.address2 ?? "",
+            "city": address.city,
+            "country_code": address.countryCode,
+            "postal_code": address.postalCode,
+            "phone": address.phone ?? "",
+            "company": address.company ?? "",
+            "province": address.province ?? ""
+        ]
+        
+        performAddressRequest(url: url, addressData: addressData, addressType: "billing", completion: completion)
+    }
+    
+    private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            print("No auth token found for \(addressType) address addition")
+            completion(false)
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
+        } catch {
+            print("Failed to encode \(addressType) address data: \(error)")
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Add \(addressType.capitalized) Address Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Add \(addressType.capitalized) Address Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completionResult in
+                    if case .failure(let error) = completionResult {
+                        print("Failed to add \(addressType) address to cart: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("\(addressType.capitalized) address successfully added to cart")
                     completion(true)
                 }
             )
