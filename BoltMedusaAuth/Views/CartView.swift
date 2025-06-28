@@ -16,234 +16,59 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Country Selector Header (same as ProductsView)
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Shopping Country")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Button(action: {
-                                showingCountrySelector = true
-                            }) {
-                                HStack {
-                                    if let selectedCountry = regionService.selectedCountry {
-                                        Text(selectedCountry.flagEmoji)
-                                        Text(selectedCountry.label)
-                                            .fontWeight(.medium)
-                                        Text("(\(selectedCountry.formattedCurrency))")
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("Select Country")
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .foregroundColor(.primary)
-                        }
-                        
-                        Spacer()
-                        
-                        if regionService.isLoading || cartService.isLoading {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                }
-                .padding()
-                .background(Color(.systemBackground))
+                // Country Selector Header (fixed at top)
+                CountryHeaderView(
+                    regionService: regionService,
+                    showingCountrySelector: $showingCountrySelector
+                )
                 
-                // Cart Content
-                if !regionService.hasSelectedRegion {
-                    // No country selected state
-                    VStack(spacing: 20) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 80))
-                            .foregroundColor(.gray)
-                        
-                        Text("Select a Country")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        
-                        Text("Choose your shopping country to view your cart")
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        Button("Select Country") {
-                            showingCountrySelector = true
-                        }
-                        .foregroundColor(.blue)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if cartService.isLoading && cartService.currentCart == nil {
-                    // Loading state for initial cart creation
+                // Main scrollable content
+                ScrollView {
                     VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading cart...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let cart = cartService.currentCart {
-                    if cart.isEmpty {
-                        // Empty cart state
-                        VStack(spacing: 20) {
-                            Image(systemName: "cart")
-                                .font(.system(size: 80))
-                                .foregroundColor(.gray)
-                            
-                            Text("Your cart is empty")
-                                .font(.title2)
-                                .fontWeight(.medium)
-                            
-                            Text("Add some products to get started")
-                                .foregroundColor(.secondary)
-                            
-                            if let selectedCountry = regionService.selectedCountry {
-                                VStack(spacing: 8) {
-                                    HStack {
-                                        Text("Shopping in:")
-                                            .foregroundColor(.secondary)
-                                        Text(selectedCountry.flagEmoji)
-                                        Text(selectedCountry.label)
-                                            .fontWeight(.medium)
-                                        Text("(\(selectedCountry.formattedCurrency))")
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .font(.caption)
-                                }
+                        if !regionService.hasSelectedRegion {
+                            // No country selected state
+                            NoCountrySelectedView(showingCountrySelector: $showingCountrySelector)
+                        } else if cartService.isLoading && cartService.currentCart == nil {
+                            // Loading state for initial cart creation
+                            LoadingCartView()
+                        } else if let cart = cartService.currentCart {
+                            if cart.isEmpty {
+                                // Empty cart state
+                                EmptyCartView(regionService: regionService)
+                            } else {
+                                // Cart with items
+                                CartContentView(
+                                    cart: cart,
+                                    cartService: cartService,
+                                    showingCheckout: $showingCheckout
+                                )
                             }
+                        } else if regionService.hasSelectedRegion {
+                            // No cart state but country is selected
+                            NoCartView(
+                                regionService: regionService,
+                                cartService: cartService
+                            )
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        // Cart with items
-                        VStack(spacing: 0) {
-                            // Cart items list
-                            ScrollView {
-                                LazyVStack(spacing: 12) {
-                                    ForEach(cart.items ?? []) { item in
-                                        CartItemRow(
-                                            item: item,
-                                            currencyCode: cart.currencyCode,
-                                            onQuantityChange: { newQuantity in
-                                                if newQuantity > 0 {
-                                                    cartService.updateLineItem(
-                                                        lineItemId: item.id,
-                                                        quantity: newQuantity
-                                                    )
-                                                } else {
-                                                    cartService.removeLineItem(lineItemId: item.id)
-                                                }
-                                            },
-                                            onRemove: {
-                                                cartService.removeLineItem(lineItemId: item.id)
-                                            }
-                                        )
-                                    }
-                                }
-                                .padding()
-                            }
-                            
-                            Divider()
-                            
-                            // Cart summary with customer info and addresses
-                            CartSummaryView(cart: cart)
-                            
-                            // Checkout button
-                            Button(action: {
-                                showingCheckout = true
-                            }) {
-                                HStack {
-                                    Text("Proceed to Checkout")
-                                        .fontWeight(.semibold)
-                                    
-                                    Spacer()
-                                    
-                                    Text(cart.formattedTotal)
-                                        .fontWeight(.bold)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                            }
-                            .padding()
-                        }
+                        
+                        // Error messages
+                        ErrorMessagesView(
+                            cartService: cartService,
+                            regionService: regionService
+                        )
+                        
+                        // Add some bottom padding
+                        Spacer(minLength: 20)
                     }
-                } else if regionService.hasSelectedRegion {
-                    // No cart state but country is selected
-                    VStack(spacing: 20) {
-                        Image(systemName: "cart.badge.questionmark")
-                            .font(.system(size: 80))
-                            .foregroundColor(.gray)
-                        
-                        Text("No cart found")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        
-                        Text("Start shopping to create a cart")
-                            .foregroundColor(.secondary)
-                        
-                        if let selectedCountry = regionService.selectedCountry {
-                            Button("Create Cart") {
-                                cartService.createCartIfNeeded(regionId: selectedCountry.regionId)
-                            }
-                            .foregroundColor(.blue)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical)
                 }
-                
-                // Error messages
-                VStack {
-                    if let errorMessage = cartService.errorMessage {
-                        VStack {
-                            Text(errorMessage)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .padding()
-                            
-                            Button("Retry") {
-                                cartService.refreshCart()
-                            }
-                            .foregroundColor(.blue)
-                        }
-                        .background(Color(.systemGray6))
-                    }
-                    
-                    if let errorMessage = regionService.errorMessage {
-                        VStack {
-                            Text("Region Error: \(errorMessage)")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .padding()
-                            
-                            Button("Retry Regions") {
-                                regionService.refreshRegions()
-                            }
-                            .foregroundColor(.blue)
-                        }
-                        .background(Color(.systemGray6))
-                    }
+                .refreshable {
+                    cartService.refreshCart()
+                    regionService.refreshRegions()
                 }
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
-            .refreshable {
-                cartService.refreshCart()
-                regionService.refreshRegions()
-            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if let cart = cartService.currentCart, !cart.isEmpty {
@@ -276,6 +101,264 @@ struct CartView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct CountryHeaderView: View {
+    @ObservedObject var regionService: RegionService
+    @Binding var showingCountrySelector: Bool
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Shopping Country")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingCountrySelector = true
+                    }) {
+                        HStack {
+                            if let selectedCountry = regionService.selectedCountry {
+                                Text(selectedCountry.flagEmoji)
+                                Text(selectedCountry.label)
+                                    .fontWeight(.medium)
+                                Text("(\(selectedCountry.formattedCurrency))")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Select Country")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                if regionService.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+}
+
+struct NoCountrySelectedView: View {
+    @Binding var showingCountrySelector: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "globe")
+                .font(.system(size: 80))
+                .foregroundColor(.gray)
+            
+            Text("Select a Country")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("Choose your shopping country to view your cart")
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button("Select Country") {
+                showingCountrySelector = true
+            }
+            .foregroundColor(.blue)
+        }
+        .padding()
+    }
+}
+
+struct LoadingCartView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading cart...")
+                .foregroundColor(.secondary)
+        }
+        .padding()
+    }
+}
+
+struct EmptyCartView: View {
+    @ObservedObject var regionService: RegionService
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "cart")
+                .font(.system(size: 80))
+                .foregroundColor(.gray)
+            
+            Text("Your cart is empty")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("Add some products to get started")
+                .foregroundColor(.secondary)
+            
+            if let selectedCountry = regionService.selectedCountry {
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Shopping in:")
+                            .foregroundColor(.secondary)
+                        Text(selectedCountry.flagEmoji)
+                        Text(selectedCountry.label)
+                            .fontWeight(.medium)
+                        Text("(\(selectedCountry.formattedCurrency))")
+                            .foregroundColor(.secondary)
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        .padding()
+    }
+}
+
+struct CartContentView: View {
+    let cart: Cart
+    @ObservedObject var cartService: CartService
+    @Binding var showingCheckout: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Cart items
+            LazyVStack(spacing: 12) {
+                ForEach(cart.items ?? []) { item in
+                    CartItemRow(
+                        item: item,
+                        currencyCode: cart.currencyCode,
+                        onQuantityChange: { newQuantity in
+                            if newQuantity > 0 {
+                                cartService.updateLineItem(
+                                    lineItemId: item.id,
+                                    quantity: newQuantity
+                                )
+                            } else {
+                                cartService.removeLineItem(lineItemId: item.id)
+                            }
+                        },
+                        onRemove: {
+                            cartService.removeLineItem(lineItemId: item.id)
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal)
+            
+            // Cart summary with customer info and addresses
+            CartSummaryView(cart: cart)
+                .padding(.horizontal)
+            
+            // Checkout button
+            Button(action: {
+                showingCheckout = true
+            }) {
+                HStack {
+                    Text("Proceed to Checkout")
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Text(cart.formattedTotal)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct NoCartView: View {
+    @ObservedObject var regionService: RegionService
+    @ObservedObject var cartService: CartService
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "cart.badge.questionmark")
+                .font(.system(size: 80))
+                .foregroundColor(.gray)
+            
+            Text("No cart found")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("Start shopping to create a cart")
+                .foregroundColor(.secondary)
+            
+            if let selectedCountry = regionService.selectedCountry {
+                Button("Create Cart") {
+                    cartService.createCartIfNeeded(regionId: selectedCountry.regionId)
+                }
+                .foregroundColor(.blue)
+            }
+        }
+        .padding()
+    }
+}
+
+struct ErrorMessagesView: View {
+    @ObservedObject var cartService: CartService
+    @ObservedObject var regionService: RegionService
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            if let errorMessage = cartService.errorMessage {
+                VStack {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                    
+                    Button("Retry") {
+                        cartService.refreshCart()
+                    }
+                    .foregroundColor(.blue)
+                }
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .padding(.horizontal)
+            }
+            
+            if let errorMessage = regionService.errorMessage {
+                VStack {
+                    Text("Region Error: \(errorMessage)")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                    
+                    Button("Retry Regions") {
+                        regionService.refreshRegions()
+                    }
+                    .foregroundColor(.blue)
+                }
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .padding(.horizontal)
             }
         }
     }
@@ -425,6 +508,7 @@ struct CartSummaryView: View {
         }
         .padding()
         .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 }
 
