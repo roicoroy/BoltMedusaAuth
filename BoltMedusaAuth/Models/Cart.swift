@@ -14,22 +14,22 @@ struct Cart: Codable, Identifiable {
     let originalItemTotal: Int?
     let originalItemSubtotal: Int?
     let originalItemTaxTotal: Int?
-    let itemTotal: Int
-    let itemSubtotal: Int
-    let itemTaxTotal: Int
+    let itemTotal: Int?
+    let itemSubtotal: Int?
+    let itemTaxTotal: Int?
     let originalTotal: Int?
     let originalSubtotal: Int?
     let originalTaxTotal: Int?
     let total: Int
     let subtotal: Int
-    let taxTotal: Int
-    let discountTotal: Int
-    let discountTaxTotal: Int
-    let giftCardTotal: Int
-    let giftCardTaxTotal: Int
-    let shippingTotal: Int
-    let shippingSubtotal: Int
-    let shippingTaxTotal: Int
+    let taxTotal: Int?
+    let discountTotal: Int?
+    let discountTaxTotal: Int?
+    let giftCardTotal: Int?
+    let giftCardTaxTotal: Int?
+    let shippingTotal: Int?
+    let shippingSubtotal: Int?
+    let shippingTaxTotal: Int?
     let originalShippingTotal: Int?
     let originalShippingSubtotal: Int?
     let originalShippingTaxTotal: Int?
@@ -70,30 +70,30 @@ struct Cart: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Required fields
+        // Essential required fields
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
-        itemTotal = try container.decode(Int.self, forKey: .itemTotal)
-        itemSubtotal = try container.decode(Int.self, forKey: .itemSubtotal)
-        itemTaxTotal = try container.decode(Int.self, forKey: .itemTaxTotal)
         total = try container.decode(Int.self, forKey: .total)
         subtotal = try container.decode(Int.self, forKey: .subtotal)
-        taxTotal = try container.decode(Int.self, forKey: .taxTotal)
-        discountTotal = try container.decode(Int.self, forKey: .discountTotal)
-        discountTaxTotal = try container.decode(Int.self, forKey: .discountTaxTotal)
-        giftCardTotal = try container.decode(Int.self, forKey: .giftCardTotal)
-        giftCardTaxTotal = try container.decode(Int.self, forKey: .giftCardTaxTotal)
-        shippingTotal = try container.decode(Int.self, forKey: .shippingTotal)
-        shippingSubtotal = try container.decode(Int.self, forKey: .shippingSubtotal)
-        shippingTaxTotal = try container.decode(Int.self, forKey: .shippingTaxTotal)
         
-        // Optional fields that might not be present in all responses
+        // All other fields are optional since API responses vary
         originalItemTotal = try container.decodeIfPresent(Int.self, forKey: .originalItemTotal)
         originalItemSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalItemSubtotal)
         originalItemTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalItemTaxTotal)
+        itemTotal = try container.decodeIfPresent(Int.self, forKey: .itemTotal)
+        itemSubtotal = try container.decodeIfPresent(Int.self, forKey: .itemSubtotal)
+        itemTaxTotal = try container.decodeIfPresent(Int.self, forKey: .itemTaxTotal)
         originalTotal = try container.decodeIfPresent(Int.self, forKey: .originalTotal)
         originalSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalSubtotal)
         originalTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalTaxTotal)
+        taxTotal = try container.decodeIfPresent(Int.self, forKey: .taxTotal)
+        discountTotal = try container.decodeIfPresent(Int.self, forKey: .discountTotal)
+        discountTaxTotal = try container.decodeIfPresent(Int.self, forKey: .discountTaxTotal)
+        giftCardTotal = try container.decodeIfPresent(Int.self, forKey: .giftCardTotal)
+        giftCardTaxTotal = try container.decodeIfPresent(Int.self, forKey: .giftCardTaxTotal)
+        shippingTotal = try container.decodeIfPresent(Int.self, forKey: .shippingTotal)
+        shippingSubtotal = try container.decodeIfPresent(Int.self, forKey: .shippingSubtotal)
+        shippingTaxTotal = try container.decodeIfPresent(Int.self, forKey: .shippingTaxTotal)
         originalShippingTotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingTotal)
         originalShippingSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingSubtotal)
         originalShippingTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingTaxTotal)
@@ -129,28 +129,28 @@ struct CartLineItem: Codable, Identifiable {
     let quantity: Int
     let unitPrice: Int
     let compareAtUnitPrice: Int?
-    let isDiscountable: Bool
-    let isGiftCard: Bool
-    let shouldMerge: Bool
-    let allowDiscounts: Bool
-    let hasShipping: Bool
-    let isTaxInclusive: Bool
+    let isDiscountable: Bool?
+    let isGiftCard: Bool?
+    let shouldMerge: Bool?
+    let allowDiscounts: Bool?
+    let hasShipping: Bool?
+    let isTaxInclusive: Bool?
     let originalTotal: Int?
     let originalSubtotal: Int?
     let originalTaxTotal: Int?
-    let itemTotal: Int
-    let itemSubtotal: Int
-    let itemTaxTotal: Int
+    let itemTotal: Int?
+    let itemSubtotal: Int?
+    let itemTaxTotal: Int?
     let total: Int
     let subtotal: Int
-    let taxTotal: Int
-    let discountTotal: Int
-    let discountTaxTotal: Int
+    let taxTotal: Int?
+    let discountTotal: Int?
+    let discountTaxTotal: Int?
     let refundableTotal: Int?
     let refundableSubtotal: Int?
     let refundableTaxTotal: Int?
-    let createdAt: String
-    let updatedAt: String
+    let createdAt: String?
+    let updatedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id, title, subtitle, thumbnail, quantity
@@ -194,7 +194,7 @@ struct CartLineItem: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Required fields
+        // Essential required fields
         id = try container.decode(String.self, forKey: .id)
         cartId = try container.decode(String.self, forKey: .cartId)
         title = try container.decode(String.self, forKey: .title)
@@ -202,24 +202,10 @@ struct CartLineItem: Codable, Identifiable {
         productId = try container.decode(String.self, forKey: .productId)
         quantity = try container.decode(Int.self, forKey: .quantity)
         unitPrice = try container.decode(Int.self, forKey: .unitPrice)
-        isDiscountable = try container.decode(Bool.self, forKey: .isDiscountable)
-        isGiftCard = try container.decode(Bool.self, forKey: .isGiftCard)
-        shouldMerge = try container.decode(Bool.self, forKey: .shouldMerge)
-        allowDiscounts = try container.decode(Bool.self, forKey: .allowDiscounts)
-        hasShipping = try container.decode(Bool.self, forKey: .hasShipping)
-        isTaxInclusive = try container.decode(Bool.self, forKey: .isTaxInclusive)
-        itemTotal = try container.decode(Int.self, forKey: .itemTotal)
-        itemSubtotal = try container.decode(Int.self, forKey: .itemSubtotal)
-        itemTaxTotal = try container.decode(Int.self, forKey: .itemTaxTotal)
         total = try container.decode(Int.self, forKey: .total)
         subtotal = try container.decode(Int.self, forKey: .subtotal)
-        taxTotal = try container.decode(Int.self, forKey: .taxTotal)
-        discountTotal = try container.decode(Int.self, forKey: .discountTotal)
-        discountTaxTotal = try container.decode(Int.self, forKey: .discountTaxTotal)
-        createdAt = try container.decode(String.self, forKey: .createdAt)
-        updatedAt = try container.decode(String.self, forKey: .updatedAt)
         
-        // Optional fields
+        // All other fields are optional since API responses vary
         subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle)
         thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
         productTitle = try container.decodeIfPresent(String.self, forKey: .productTitle)
@@ -231,12 +217,26 @@ struct CartLineItem: Codable, Identifiable {
         variantTitle = try container.decodeIfPresent(String.self, forKey: .variantTitle)
         variantSku = try container.decodeIfPresent(String.self, forKey: .variantSku)
         compareAtUnitPrice = try container.decodeIfPresent(Int.self, forKey: .compareAtUnitPrice)
+        isDiscountable = try container.decodeIfPresent(Bool.self, forKey: .isDiscountable)
+        isGiftCard = try container.decodeIfPresent(Bool.self, forKey: .isGiftCard)
+        shouldMerge = try container.decodeIfPresent(Bool.self, forKey: .shouldMerge)
+        allowDiscounts = try container.decodeIfPresent(Bool.self, forKey: .allowDiscounts)
+        hasShipping = try container.decodeIfPresent(Bool.self, forKey: .hasShipping)
+        isTaxInclusive = try container.decodeIfPresent(Bool.self, forKey: .isTaxInclusive)
         originalTotal = try container.decodeIfPresent(Int.self, forKey: .originalTotal)
         originalSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalSubtotal)
         originalTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalTaxTotal)
+        itemTotal = try container.decodeIfPresent(Int.self, forKey: .itemTotal)
+        itemSubtotal = try container.decodeIfPresent(Int.self, forKey: .itemSubtotal)
+        itemTaxTotal = try container.decodeIfPresent(Int.self, forKey: .itemTaxTotal)
+        taxTotal = try container.decodeIfPresent(Int.self, forKey: .taxTotal)
+        discountTotal = try container.decodeIfPresent(Int.self, forKey: .discountTotal)
+        discountTaxTotal = try container.decodeIfPresent(Int.self, forKey: .discountTaxTotal)
         refundableTotal = try container.decodeIfPresent(Int.self, forKey: .refundableTotal)
         refundableSubtotal = try container.decodeIfPresent(Int.self, forKey: .refundableSubtotal)
         refundableTaxTotal = try container.decodeIfPresent(Int.self, forKey: .refundableTaxTotal)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
     }
 }
 
@@ -278,15 +278,15 @@ extension Cart {
     }
     
     var formattedTaxTotal: String {
-        return formatPrice(taxTotal)
+        return formatPrice(taxTotal ?? 0)
     }
     
     var formattedShippingTotal: String {
-        return formatPrice(shippingTotal)
+        return formatPrice(shippingTotal ?? 0)
     }
     
     var formattedDiscountTotal: String {
-        return formatPrice(discountTotal)
+        return formatPrice(discountTotal ?? 0)
     }
     
     var itemCount: Int {
