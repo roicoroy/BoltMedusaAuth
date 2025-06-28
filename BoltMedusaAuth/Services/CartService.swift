@@ -345,15 +345,20 @@ class CartService: ObservableObject {
             return
         }
         
+        print("🏠 Adding customer addresses to cart. Customer has \(addresses.count) address(es)")
+        
         // Find default shipping and billing addresses
         let defaultShippingAddress = addresses.first { $0.isDefaultShipping } ?? addresses.first
         let defaultBillingAddress = addresses.first { $0.isDefaultBilling } ?? addresses.first
+        
+        print("📦 Default shipping address: \(defaultShippingAddress?.addressName ?? "First address")")
+        print("💳 Default billing address: \(defaultBillingAddress?.addressName ?? "First address")")
         
         var completedOperations = 0
         let totalOperations = (defaultShippingAddress != nil ? 1 : 0) + (defaultBillingAddress != nil ? 1 : 0)
         
         guard totalOperations > 0 else {
-            print("No addresses to add to cart")
+            print("❌ No addresses to add to cart")
             completion(false)
             return
         }
@@ -362,6 +367,7 @@ class CartService: ObservableObject {
         
         let checkCompletion = {
             completedOperations += 1
+            print("✅ Completed \(completedOperations)/\(totalOperations) address operations")
             if completedOperations >= totalOperations {
                 completion(!hasError)
             }
@@ -369,9 +375,13 @@ class CartService: ObservableObject {
         
         // Add shipping address if available
         if let shippingAddress = defaultShippingAddress {
+            print("📦 Adding shipping address: \(shippingAddress.address1), \(shippingAddress.city)")
             addShippingAddressToCart(cartId: cartId, address: shippingAddress) { success in
                 if !success {
                     hasError = true
+                    print("❌ Failed to add shipping address")
+                } else {
+                    print("✅ Successfully added shipping address")
                 }
                 checkCompletion()
             }
@@ -380,14 +390,19 @@ class CartService: ObservableObject {
         // Add billing address if available and different from shipping
         if let billingAddress = defaultBillingAddress {
             if billingAddress.id != defaultShippingAddress?.id {
+                print("💳 Adding billing address: \(billingAddress.address1), \(billingAddress.city)")
                 addBillingAddressToCart(cartId: cartId, address: billingAddress) { success in
                     if !success {
                         hasError = true
+                        print("❌ Failed to add billing address")
+                    } else {
+                        print("✅ Successfully added billing address")
                     }
                     checkCompletion()
                 }
             } else {
                 // Same address for both shipping and billing
+                print("📦💳 Using same address for both shipping and billing")
                 checkCompletion()
             }
         }
@@ -395,11 +410,12 @@ class CartService: ObservableObject {
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
         guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/shipping-address") else {
-            print("Invalid URL for adding shipping address to cart")
+            print("❌ Invalid URL for adding shipping address to cart")
             completion(false)
             return
         }
         
+        // Use the exact payload structure you specified
         let addressData: [String: Any] = [
             "first_name": address.firstName ?? "",
             "last_name": address.lastName ?? "",
@@ -412,17 +428,23 @@ class CartService: ObservableObject {
             "company": address.company ?? "",
             "province": address.province ?? ""
         ]
+        
+        print("📦 Shipping address payload:")
+        for (key, value) in addressData {
+            print("  \(key): \(value)")
+        }
         
         performAddressRequest(url: url, addressData: addressData, addressType: "shipping", completion: completion)
     }
     
     private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
         guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/billing-address") else {
-            print("Invalid URL for adding billing address to cart")
+            print("❌ Invalid URL for adding billing address to cart")
             completion(false)
             return
         }
         
+        // Use the exact payload structure you specified
         let addressData: [String: Any] = [
             "first_name": address.firstName ?? "",
             "last_name": address.lastName ?? "",
@@ -436,12 +458,17 @@ class CartService: ObservableObject {
             "province": address.province ?? ""
         ]
         
+        print("💳 Billing address payload:")
+        for (key, value) in addressData {
+            print("  \(key): \(value)")
+        }
+        
         performAddressRequest(url: url, addressData: addressData, addressType: "billing", completion: completion)
     }
     
     private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
         guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
-            print("No auth token found for \(addressType) address addition")
+            print("❌ No auth token found for \(addressType) address addition")
             completion(false)
             return
         }
@@ -454,9 +481,9 @@ class CartService: ObservableObject {
         
         do {
             urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
-            print("Adding \(addressType) address to cart with data: \(addressData)")
+            print("🚀 Sending \(addressType) address request to: \(url)")
         } catch {
-            print("Failed to encode \(addressType) address data: \(error)")
+            print("❌ Failed to encode \(addressType) address data: \(error)")
             completion(false)
             return
         }
@@ -464,12 +491,13 @@ class CartService: ObservableObject {
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("Add \(addressType.capitalized) Address Response Status: \(httpResponse.statusCode)")
+                    print("📍 Add \(addressType.capitalized) Address Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("Add \(addressType.capitalized) Address Response: \(responseString)")
+                        print("📍 Add \(addressType.capitalized) Address Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
+                        print("❌ \(addressType.capitalized) address addition failed with status: \(httpResponse.statusCode)")
                         throw URLError(.badServerResponse)
                     }
                 }
@@ -480,16 +508,30 @@ class CartService: ObservableObject {
             .sink(
                 receiveCompletion: { completionResult in
                     if case .failure(let error) = completionResult {
-                        print("Failed to add \(addressType) address to cart: \(error)")
+                        print("❌ Failed to add \(addressType) address to cart: \(error)")
                         completion(false)
                     }
                 },
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("\(addressType.capitalized) address successfully added to cart")
-                    print("Cart now has shipping address: \(response.cart.hasShippingAddress)")
-                    print("Cart now has billing address: \(response.cart.hasBillingAddress)")
+                    print("✅ \(addressType.capitalized) address successfully added to cart")
+                    print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
+                    print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
+                    
+                    // Log the address details for verification
+                    if addressType == "shipping", let shippingAddress = response.cart.shippingAddress {
+                        print("📦 Shipping address details:")
+                        print("   Name: \(shippingAddress.fullName)")
+                        print("   Address: \(shippingAddress.singleLineAddress)")
+                    }
+                    
+                    if addressType == "billing", let billingAddress = response.cart.billingAddress {
+                        print("💳 Billing address details:")
+                        print("   Name: \(billingAddress.fullName)")
+                        print("   Address: \(billingAddress.singleLineAddress)")
+                    }
+                    
                     completion(true)
                 }
             )
@@ -868,12 +910,12 @@ class CartService: ObservableObject {
     func handleUserLogin() {
         // When user logs in, associate existing cart with the customer
         if let cart = currentCart, cart.customerId == nil {
-            print("User logged in, associating existing cart with customer")
+            print("👤 User logged in, associating existing cart with customer")
             associateCartWithCustomer(cartId: cart.id) { success in
                 if success {
-                    print("Successfully associated cart with logged-in customer")
+                    print("✅ Successfully associated cart with logged-in customer and added addresses")
                 } else {
-                    print("Failed to associate cart with customer after login")
+                    print("❌ Failed to associate cart with customer after login")
                 }
             }
         }
@@ -882,7 +924,7 @@ class CartService: ObservableObject {
     func handleUserLogout() {
         // When user logs out, we might want to clear the cart or keep it as anonymous
         // For now, we'll keep the cart but it will become anonymous
-        print("User logged out, cart will remain as anonymous cart")
+        print("👤 User logged out, cart will remain as anonymous cart")
         
         // Optionally, you could clear the cart here:
         // clearCart()
@@ -941,12 +983,14 @@ class CartService: ObservableObject {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
-            print("Cart saved to storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
+            print("💾 Cart saved to storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
             if let customerId = cart.customerId {
-                print("Cart is associated with customer: \(customerId)")
+                print("👤 Cart is associated with customer: \(customerId)")
             } else {
-                print("Cart is anonymous (no customer association)")
+                print("👤 Cart is anonymous (no customer association)")
             }
+            print("📦 Cart has shipping address: \(cart.hasShippingAddress)")
+            print("💳 Cart has billing address: \(cart.hasBillingAddress)")
         }
     }
     
@@ -956,16 +1000,18 @@ class CartService: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            print("Cart loaded from storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
+            print("💾 Cart loaded from storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
             if let customerId = cart.customerId {
-                print("Cart is associated with customer: \(customerId)")
+                print("👤 Cart is associated with customer: \(customerId)")
             } else {
-                print("Cart is anonymous (no customer association)")
+                print("👤 Cart is anonymous (no customer association)")
             }
+            print("📦 Cart has shipping address: \(cart.hasShippingAddress)")
+            print("💳 Cart has billing address: \(cart.hasBillingAddress)")
             // Refresh cart data from server to ensure it's up to date
             fetchCart(cartId: cart.id)
         } else {
-            print("No cart found in storage")
+            print("💾 No cart found in storage")
         }
     }
 }
