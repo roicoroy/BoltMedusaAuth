@@ -302,59 +302,97 @@ class AuthService: ObservableObject {
             print("Raw Login Response: \(responseString)")
         }
         
-        // Strategy 1: Try to decode as LoginResponse (customer nested under "customer" key)
+        // Parse as JSON to understand the structure
         do {
-            let response = try JSONDecoder().decode(LoginResponse.self, from: data)
-            if let customer = response.customer {
-                // Already on main thread due to receive(on: DispatchQueue.main)
-                self.currentCustomer = customer
-                self.isAuthenticated = true
-                self.saveCustomerData(customer)
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("Login Response JSON Structure: \(json)")
                 
-                // Save token if provided
-                if let token = response.token {
-                    UserDefaults.standard.set(token, forKey: "auth_token")
+                // Try to extract customer data from various possible structures
+                if let customer = extractCustomerFromJSON(json) {
+                    // Already on main thread due to receive(on: DispatchQueue.main)
+                    self.currentCustomer = customer
+                    self.isAuthenticated = true
+                    self.saveCustomerData(customer)
+                    
+                    // Save token if provided
+                    if let token = json["token"] as? String {
+                        UserDefaults.standard.set(token, forKey: "auth_token")
+                    }
+                    return
                 }
-                return
             }
         } catch {
-            print("Failed to decode as LoginResponse: \(error)")
+            print("Failed to parse JSON: \(error)")
         }
         
-        // Strategy 2: Try to decode as DirectCustomerResponse (customer data at root level)
-        do {
-            let response = try JSONDecoder().decode(DirectCustomerResponse.self, from: data)
-            let customer = response.asCustomer
-            
-            // Already on main thread due to receive(on: DispatchQueue.main)
-            self.currentCustomer = customer
-            self.isAuthenticated = true
-            self.saveCustomerData(customer)
-            
-            // Save token if provided
-            if let token = response.token {
-                UserDefaults.standard.set(token, forKey: "auth_token")
-            }
-            return
-        } catch {
-            print("Failed to decode as DirectCustomerResponse: \(error)")
-        }
-        
-        // Strategy 3: Try to decode as Customer directly
-        do {
-            let customer = try JSONDecoder().decode(Customer.self, from: data)
-            // Already on main thread due to receive(on: DispatchQueue.main)
-            self.currentCustomer = customer
-            self.isAuthenticated = true
-            self.saveCustomerData(customer)
-            return
-        } catch {
-            print("Failed to decode as Customer: \(error)")
-        }
-        
-        // If all strategies fail, show error
-        // Already on main thread due to receive(on: DispatchQueue.main)
+        // If JSON parsing fails, show error
         self.errorMessage = "Failed to parse login response. Please check the console for details."
+    }
+    
+    private func extractCustomerFromJSON(_ json: [String: Any]) -> Customer? {
+        // Strategy 1: Customer is nested under "customer" key
+        if let customerData = json["customer"] as? [String: Any] {
+            return parseCustomerFromDictionary(customerData)
+        }
+        
+        // Strategy 2: Customer data is at root level (check for required fields)
+        if json["id"] != nil && json["email"] != nil {
+            return parseCustomerFromDictionary(json)
+        }
+        
+        // Strategy 3: Customer might be under "data" key
+        if let data = json["data"] as? [String: Any] {
+            if let customerData = data["customer"] as? [String: Any] {
+                return parseCustomerFromDictionary(customerData)
+            }
+            // Or customer data might be directly in data
+            if data["id"] != nil && data["email"] != nil {
+                return parseCustomerFromDictionary(data)
+            }
+        }
+        
+        // Strategy 4: Check if there's a user field instead of customer
+        if let userData = json["user"] as? [String: Any] {
+            return parseCustomerFromDictionary(userData)
+        }
+        
+        print("Could not find customer data in any expected location")
+        return nil
+    }
+    
+    private func parseCustomerFromDictionary(_ dict: [String: Any]) -> Customer? {
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: dict, options: [])
+            let customer = try JSONDecoder().decode(Customer.self, from: jsonData)
+            return customer
+        } catch {
+            print("Failed to decode customer from dictionary: \(error)")
+            
+            // Try to create a minimal customer object with available data
+            guard let id = dict["id"] as? String,
+                  let email = dict["email"] as? String else {
+                print("Missing required fields: id or email")
+                return nil
+            }
+            
+            // Create customer with minimal required fields and handle missing optional fields
+            let customer = Customer(
+                id: id,
+                email: email,
+                defaultBillingAddressId: dict["default_billing_address_id"] as? String,
+                defaultShippingAddressId: dict["default_shipping_address_id"] as? String,
+                companyName: dict["company_name"] as? String,
+                firstName: dict["first_name"] as? String,
+                lastName: dict["last_name"] as? String,
+                addresses: nil, // We'll handle addresses separately if needed
+                phone: dict["phone"] as? String,
+                createdAt: dict["created_at"] as? String ?? "",
+                updatedAt: dict["updated_at"] as? String ?? "",
+                deletedAt: dict["deleted_at"] as? String
+            )
+            
+            return customer
+        }
     }
     
     func fetchCustomerProfile() {
