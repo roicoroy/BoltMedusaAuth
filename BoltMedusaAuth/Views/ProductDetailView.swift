@@ -10,8 +10,11 @@ import SwiftUI
 struct ProductDetailView: View {
     let product: Product
     @Environment(\.presentationMode) var presentationMode
+    @StateObject private var cartService = CartService()
     @State private var selectedVariant: ProductVariant?
     @State private var selectedImageIndex = 0
+    @State private var quantity = 1
+    @State private var showingAddToCartSuccess = false
     
     var body: some View {
         NavigationView {
@@ -132,6 +135,74 @@ struct ProductDetailView: View {
                             Divider()
                         }
                         
+                        // Quantity Selector
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Quantity")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            HStack {
+                                Button(action: {
+                                    if quantity > 1 {
+                                        quantity -= 1
+                                    }
+                                }) {
+                                    Image(systemName: "minus.circle")
+                                        .font(.title2)
+                                        .foregroundColor(quantity > 1 ? .blue : .gray)
+                                }
+                                .disabled(quantity <= 1)
+                                
+                                Text("\(quantity)")
+                                    .font(.title3)
+                                    .fontWeight(.medium)
+                                    .frame(minWidth: 40)
+                                
+                                Button(action: {
+                                    quantity += 1
+                                }) {
+                                    Image(systemName: "plus.circle")
+                                        .font(.title2)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                Spacer()
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        // Add to Cart Button
+                        Button(action: {
+                            addToCart()
+                        }) {
+                            HStack {
+                                if cartService.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                }
+                                
+                                Image(systemName: "cart.badge.plus")
+                                Text("Add to Cart")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                        .disabled(cartService.isLoading || selectedVariant == nil)
+                        
+                        // Error message
+                        if let errorMessage = cartService.errorMessage {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .padding(.horizontal)
+                        }
+                        
                         // Product Details
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Product Details")
@@ -200,6 +271,25 @@ struct ProductDetailView: View {
         .onAppear {
             selectedVariant = product.variants?.first
         }
+        .alert("Added to Cart", isPresented: $showingAddToCartSuccess) {
+            Button("Continue Shopping") { }
+            Button("View Cart") {
+                // This would navigate to cart view
+                presentationMode.wrappedValue.dismiss()
+            }
+        } message: {
+            Text("\(product.title) has been added to your cart.")
+        }
+    }
+    
+    private func addToCart() {
+        guard let variant = selectedVariant else { return }
+        
+        cartService.addLineItem(variantId: variant.id, quantity: quantity) { success in
+            if success {
+                showingAddToCartSuccess = true
+            }
+        }
     }
     
     private func formatDimensions() -> String? {
@@ -240,25 +330,6 @@ struct VariantCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct DetailRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.medium)
-        }
     }
 }
 

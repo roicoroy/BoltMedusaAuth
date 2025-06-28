@@ -1,0 +1,399 @@
+//
+//  CartService.swift
+//  BoltMedusaAuth
+//
+//  Created by Ricardo Bento on 28/06/2025.
+//
+
+import Foundation
+import Combine
+
+class CartService: ObservableObject {
+    @Published var currentCart: Cart?
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
+    private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
+    
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        loadCartFromStorage()
+    }
+    
+    deinit {
+        cancellables.removeAll()
+    }
+    
+    // MARK: - Cart Management
+    
+    func createCart(currencyCode: String = "usd", completion: @escaping (Bool) -> Void = { _ in }) {
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for cart creation"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        let request = CreateCartRequest(currencyCode: currencyCode, region: nil)
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(request)
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode cart request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Create Cart Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Create Cart Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to create cart: \(error.localizedDescription)"
+                        print("Create cart error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Cart created successfully: \(response.cart.id)")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func fetchCart(cartId: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for cart fetch"
+                self?.isLoading = false
+            }
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Fetch Cart Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Fetch Cart Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "Failed to fetch cart: \(error.localizedDescription)"
+                        print("Fetch cart error: \(error)")
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Cart fetched successfully")
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Line Item Management
+    
+    func addLineItem(variantId: String, quantity: Int = 1, completion: @escaping (Bool) -> Void = { _ in }) {
+        // Create cart if it doesn't exist
+        guard let cart = currentCart else {
+            createCart { [weak self] success in
+                if success {
+                    self?.addLineItem(variantId: variantId, quantity: quantity, completion: completion)
+                } else {
+                    completion(false)
+                }
+            }
+            return
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/line-items") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for adding line item"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        let request = AddLineItemRequest(variantId: variantId, quantity: quantity)
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(request)
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode line item request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Add Line Item Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Add Line Item Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to add item to cart: \(error.localizedDescription)"
+                        print("Add line item error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Line item added successfully")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func updateLineItem(lineItemId: String, quantity: Int, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart else {
+            completion(false)
+            return
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/line-items/\(lineItemId)") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for updating line item"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        let request = UpdateLineItemRequest(quantity: quantity)
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(request)
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode update request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Update Line Item Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Update Line Item Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to update item: \(error.localizedDescription)"
+                        print("Update line item error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Line item updated successfully")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func removeLineItem(lineItemId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart else {
+            completion(false)
+            return
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/line-items/\(lineItemId)") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for removing line item"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Remove Line Item Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Remove Line Item Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to remove item: \(error.localizedDescription)"
+                        print("Remove line item error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Line item removed successfully")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Utility Methods
+    
+    func clearCart() {
+        DispatchQueue.main.async { [weak self] in
+            self?.currentCart = nil
+        }
+        UserDefaults.standard.removeObject(forKey: "medusa_cart")
+    }
+    
+    func refreshCart() {
+        guard let cart = currentCart else { return }
+        fetchCart(cartId: cart.id)
+    }
+    
+    // MARK: - Storage
+    
+    private func saveCartToStorage() {
+        guard let cart = currentCart else { return }
+        if let encoded = try? JSONEncoder().encode(cart) {
+            UserDefaults.standard.set(encoded, forKey: "medusa_cart")
+        }
+    }
+    
+    private func loadCartFromStorage() {
+        if let cartData = UserDefaults.standard.data(forKey: "medusa_cart"),
+           let cart = try? JSONDecoder().decode(Cart.self, from: cartData) {
+            DispatchQueue.main.async { [weak self] in
+                self?.currentCart = cart
+            }
+            // Refresh cart data from server
+            fetchCart(cartId: cart.id)
+        }
+    }
+}
