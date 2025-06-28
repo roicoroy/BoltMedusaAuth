@@ -18,7 +18,7 @@ struct Customer: Codable, Identifiable {
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: Any]?
+    let metadata: AnyCodable?
     
     enum CodingKeys: String, CodingKey {
         case id, email, phone, metadata
@@ -30,42 +30,57 @@ struct Customer: Codable, Identifiable {
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
     }
+}
+
+// Helper struct to handle Any type in JSON
+struct AnyCodable: Codable {
+    let value: Any
+    
+    init(_ value: Any) {
+        self.value = value
+    }
     
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.singleValueContainer()
         
-        id = try container.decode(String.self, forKey: .id)
-        email = try container.decode(String.self, forKey: .email)
-        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
-        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
-        billingAddressId = try container.decodeIfPresent(String.self, forKey: .billingAddressId)
-        phone = try container.decodeIfPresent(String.self, forKey: .phone)
-        hasAccount = try container.decode(Bool.self, forKey: .hasAccount)
-        createdAt = try container.decode(String.self, forKey: .createdAt)
-        updatedAt = try container.decode(String.self, forKey: .updatedAt)
-        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
-        
-        // Handle metadata as optional dictionary
-        if let metadataValue = try? container.decodeIfPresent([String: Any].self, forKey: .metadata) {
-            metadata = metadataValue
+        if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+            value = dictionary.mapValues { $0.value }
         } else {
-            metadata = nil
+            value = NSNull()
         }
     }
     
     func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+        var container = encoder.singleValueContainer()
         
-        try container.encode(id, forKey: .id)
-        try container.encode(email, forKey: .email)
-        try container.encodeIfPresent(firstName, forKey: .firstName)
-        try container.encodeIfPresent(lastName, forKey: .lastName)
-        try container.encodeIfPresent(billingAddressId, forKey: .billingAddressId)
-        try container.encodeIfPresent(phone, forKey: .phone)
-        try container.encode(hasAccount, forKey: .hasAccount)
-        try container.encode(createdAt, forKey: .createdAt)
-        try container.encode(updatedAt, forKey: .updatedAt)
-        try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
+        switch value {
+        case let bool as Bool:
+            try container.encode(bool)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let string as String:
+            try container.encode(string)
+        case let array as [Any]:
+            let codableArray = array.map { AnyCodable($0) }
+            try container.encode(codableArray)
+        case let dictionary as [String: Any]:
+            let codableDictionary = dictionary.mapValues { AnyCodable($0) }
+            try container.encode(codableDictionary)
+        default:
+            try container.encodeNil()
+        }
     }
 }
 
