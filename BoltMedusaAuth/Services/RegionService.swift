@@ -77,6 +77,11 @@ class RegionService: ObservableObject {
                     self?.regions = response.regions
                     self?.setDefaultRegionIfNeeded()
                     print("Fetched \(response.regions.count) regions")
+                    
+                    // Debug: Print all regions
+                    for region in response.regions {
+                        print("Region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -87,7 +92,7 @@ class RegionService: ObservableObject {
             self?.selectedRegion = region
         }
         saveSelectedRegionToStorage(region)
-        print("Selected region: \(region.name) (\(region.id))")
+        print("Selected region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
     }
     
     // MARK: - Default Region Logic
@@ -96,21 +101,17 @@ class RegionService: ObservableObject {
         // If no region is selected, try to find UK region as default
         guard selectedRegion == nil else { return }
         
-        // First, try to find a region that contains UK/GB
+        // First, try to find a region that is UK-related
         if let ukRegion = regions.first(where: { $0.isUK }) {
             selectRegion(ukRegion)
             print("Set UK region as default: \(ukRegion.name)")
             return
         }
         
-        // If no UK region found, try to find by name containing "UK" or "United Kingdom"
-        if let ukRegion = regions.first(where: { 
-            $0.name.lowercased().contains("uk") || 
-            $0.name.lowercased().contains("united kingdom") ||
-            $0.name.lowercased().contains("britain")
-        }) {
-            selectRegion(ukRegion)
-            print("Set UK-named region as default: \(ukRegion.name)")
+        // If no UK region found, try to find by GBP currency
+        if let gbpRegion = regions.first(where: { $0.currencyCode.lowercased() == "gbp" }) {
+            selectRegion(gbpRegion)
+            print("Set GBP region as default: \(gbpRegion.name)")
             return
         }
         

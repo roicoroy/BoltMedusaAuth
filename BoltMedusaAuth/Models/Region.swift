@@ -7,73 +7,15 @@
 
 import Foundation
 
-// MARK: - Region Models
+// MARK: - Region Models (Simplified for actual Medusa API)
 struct Region: Codable, Identifiable {
     let id: String
     let name: String
     let currencyCode: String
-    let taxRate: Double?
-    let taxCode: String?
-    let giftCardsTaxable: Bool?
-    let automaticTaxes: Bool?
-    let taxInclusivePricing: Bool?
-    let countries: [Country]?
-    let paymentProviders: [PaymentProvider]?
-    let fulfillmentProviders: [FulfillmentProvider]?
-    let createdAt: String
-    let updatedAt: String
-    let deletedAt: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, countries
+        case id, name
         case currencyCode = "currency_code"
-        case taxRate = "tax_rate"
-        case taxCode = "tax_code"
-        case giftCardsTaxable = "gift_cards_taxable"
-        case automaticTaxes = "automatic_taxes"
-        case taxInclusivePricing = "tax_inclusive_pricing"
-        case paymentProviders = "payment_providers"
-        case fulfillmentProviders = "fulfillment_providers"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case deletedAt = "deleted_at"
-    }
-}
-
-struct Country: Codable, Identifiable {
-    let id: String
-    let iso2: String
-    let iso3: String
-    let numCode: Int
-    let name: String
-    let displayName: String
-    let regionId: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case id, iso2, iso3, name
-        case numCode = "num_code"
-        case displayName = "display_name"
-        case regionId = "region_id"
-    }
-}
-
-struct PaymentProvider: Codable, Identifiable {
-    let id: String
-    let isInstalled: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case isInstalled = "is_installed"
-    }
-}
-
-struct FulfillmentProvider: Codable, Identifiable {
-    let id: String
-    let isInstalled: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case isInstalled = "is_installed"
     }
 }
 
@@ -99,73 +41,72 @@ extension Region {
         return currencyCode.uppercased()
     }
     
-    var countryNames: String {
-        guard let countries = countries, !countries.isEmpty else {
-            return "No countries"
-        }
-        return countries.map { $0.displayName }.joined(separator: ", ")
-    }
-    
     var isUK: Bool {
-        return countries?.contains { $0.iso2.lowercased() == "gb" || $0.iso2.lowercased() == "uk" } ?? false
+        return name.lowercased().contains("uk") || 
+               name.lowercased().contains("united kingdom") ||
+               name.lowercased().contains("britain") ||
+               currencyCode.lowercased() == "gbp"
     }
     
     var flagEmoji: String {
-        // Return flag emoji based on primary country
-        guard let primaryCountry = countries?.first else { return "🌍" }
+        // Return flag emoji based on region name or currency
+        let regionName = name.lowercased()
+        let currency = currencyCode.lowercased()
         
-        switch primaryCountry.iso2.lowercased() {
-        case "gb", "uk":
+        if isUK || currency == "gbp" {
             return "🇬🇧"
-        case "us":
+        } else if regionName.contains("united states") || regionName.contains("usa") || currency == "usd" {
             return "🇺🇸"
-        case "ca":
+        } else if regionName.contains("canada") || currency == "cad" {
             return "🇨🇦"
-        case "de":
-            return "🇩🇪"
-        case "fr":
+        } else if regionName.contains("germany") || regionName.contains("deutschland") || currency == "eur" {
+            return "🇪🇺"
+        } else if regionName.contains("france") {
             return "🇫🇷"
-        case "es":
+        } else if regionName.contains("spain") {
             return "🇪🇸"
-        case "it":
+        } else if regionName.contains("italy") {
             return "🇮🇹"
-        case "au":
+        } else if regionName.contains("australia") || currency == "aud" {
             return "🇦🇺"
-        case "jp":
+        } else if regionName.contains("japan") || currency == "jpy" {
             return "🇯🇵"
-        case "br":
+        } else if regionName.contains("brazil") || currency == "brl" {
             return "🇧🇷"
-        default:
+        } else {
             return "🌍"
         }
     }
-}
-
-extension Country {
-    var flagEmoji: String {
-        switch iso2.lowercased() {
-        case "gb", "uk":
-            return "🇬🇧"
-        case "us":
-            return "🇺🇸"
-        case "ca":
-            return "🇨🇦"
-        case "de":
-            return "🇩🇪"
-        case "fr":
-            return "🇫🇷"
-        case "es":
-            return "🇪🇸"
-        case "it":
-            return "🇮🇹"
-        case "au":
-            return "🇦🇺"
-        case "jp":
-            return "🇯🇵"
-        case "br":
-            return "🇧🇷"
-        default:
-            return "🌍"
+    
+    var countryNames: String {
+        // Since we don't have countries in the simplified API, 
+        // we'll derive likely countries from the region name
+        let regionName = name.lowercased()
+        
+        if isUK {
+            return "United Kingdom"
+        } else if regionName.contains("united states") || regionName.contains("usa") {
+            return "United States"
+        } else if regionName.contains("canada") {
+            return "Canada"
+        } else if regionName.contains("germany") {
+            return "Germany"
+        } else if regionName.contains("france") {
+            return "France"
+        } else if regionName.contains("spain") {
+            return "Spain"
+        } else if regionName.contains("italy") {
+            return "Italy"
+        } else if regionName.contains("australia") {
+            return "Australia"
+        } else if regionName.contains("japan") {
+            return "Japan"
+        } else if regionName.contains("brazil") {
+            return "Brazil"
+        } else if regionName.contains("europe") || currencyCode.lowercased() == "eur" {
+            return "European Union"
+        } else {
+            return name // Fallback to region name
         }
     }
 }
