@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - Product Models
 struct Product: Codable, Identifiable {
@@ -598,6 +599,17 @@ extension ProductVariant {
             return "Backorder available"
         } else {
             return "Out of stock"
+        }
+    }
+    
+    var stockStatusColor: Color {
+        let quantity = inventoryQuantity ?? 0
+        if quantity > 0 {
+            return .green
+        } else if allowBackorder == true {
+            return .orange
+        } else {
+            return .red
         }
     }
 }

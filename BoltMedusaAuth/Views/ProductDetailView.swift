@@ -270,7 +270,7 @@ struct VariantCard: View {
                 
                 Text(variant.stockStatus)
                     .font(.caption2)
-                    .foregroundColor(variant.isInStock ? .green : (variant.allowBackorder ? .orange : .red))
+                    .foregroundColor(variant.stockStatusColor)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
