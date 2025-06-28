@@ -13,7 +13,7 @@ struct ProductsView: View {
     @State private var searchText = ""
     @State private var selectedProduct: Product?
     @State private var showingProductDetail = false
-    @State private var showingRegionSelector = false
+    @State private var showingCountrySelector = false
     
     private var filteredProducts: [Product] {
         if searchText.isEmpty {
@@ -29,32 +29,26 @@ struct ProductsView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Region Selector Header
+                // Country Selector Header
                 VStack(spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Shopping Region")
+                            Text("Shopping Country")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             
                             Button(action: {
-                                showingRegionSelector = true
+                                showingCountrySelector = true
                             }) {
                                 HStack {
-                                    if let selectedRegion = regionService.selectedRegion {
-                                        Text(selectedRegion.flagEmoji)
-                                        Text(selectedRegion.name)
+                                    if let selectedCountry = regionService.selectedCountry {
+                                        Text(selectedCountry.flagEmoji)
+                                        Text(selectedCountry.label)
                                             .fontWeight(.medium)
-                                        Text("(\(selectedRegion.formattedCurrency))")
+                                        Text("(\(selectedCountry.formattedCurrency))")
                                             .foregroundColor(.secondary)
-                                        
-                                        if selectedRegion.countryCount > 0 {
-                                            Text("• \(selectedRegion.countryCount) countries")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
                                     } else {
-                                        Text("Select Region")
+                                        Text("Select Country")
                                             .foregroundColor(.blue)
                                     }
                                     
@@ -198,8 +192,8 @@ struct ProductsView: View {
                 ProductDetailView(product: product, regionService: regionService)
             }
         }
-        .sheet(isPresented: $showingRegionSelector) {
-            RegionSelectorView(regionService: regionService)
+        .sheet(isPresented: $showingCountrySelector) {
+            CountrySelectorView(regionService: regionService)
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
@@ -216,45 +210,90 @@ struct ProductsView: View {
     }
 }
 
-struct RegionSelectorView: View {
+struct CountrySelectorView: View {
     @ObservedObject var regionService: RegionService
     @Environment(\.presentationMode) var presentationMode
+    @State private var searchText = ""
+    
+    private var filteredCountries: [CountrySelection] {
+        if searchText.isEmpty {
+            return regionService.countryList
+        } else {
+            return regionService.countryList.filter { country in
+                country.label.localizedCaseInsensitiveContains(searchText) ||
+                country.country.localizedCaseInsensitiveContains(searchText) ||
+                country.formattedCurrency.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    
+                    TextField("Search countries...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding()
+                
                 if regionService.isLoading {
                     VStack(spacing: 16) {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Loading regions...")
+                        Text("Loading countries...")
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if regionService.regions.isEmpty {
+                } else if filteredCountries.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "globe")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                         
-                        Text("No regions available")
+                        Text("No countries available")
                             .font(.title2)
                             .fontWeight(.medium)
                         
-                        Button("Retry") {
-                            regionService.refreshRegions()
+                        if !searchText.isEmpty {
+                            Text("Try adjusting your search")
+                                .foregroundColor(.secondary)
+                            
+                            Button("Clear Search") {
+                                searchText = ""
+                            }
+                            .foregroundColor(.blue)
+                        } else {
+                            Button("Retry") {
+                                regionService.refreshRegions()
+                            }
+                            .foregroundColor(.blue)
                         }
-                        .foregroundColor(.blue)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
-                        ForEach(regionService.regions) { region in
-                            RegionRow(
-                                region: region,
-                                isSelected: regionService.selectedRegion?.id == region.id
+                        ForEach(filteredCountries) { country in
+                            CountryRow(
+                                country: country,
+                                isSelected: regionService.selectedCountry?.id == country.id
                             ) {
-                                regionService.selectRegion(region)
+                                regionService.selectCountry(country)
                                 presentationMode.wrappedValue.dismiss()
                             }
                         }
@@ -277,7 +316,7 @@ struct RegionSelectorView: View {
                     .background(Color(.systemGray6))
                 }
             }
-            .navigationTitle("Select Region")
+            .navigationTitle("Select Country")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
                 trailing: Button("Done") {
@@ -288,31 +327,33 @@ struct RegionSelectorView: View {
     }
 }
 
-struct RegionRow: View {
-    let region: Region
+struct CountryRow: View {
+    let country: CountrySelection
     let isSelected: Bool
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
             HStack {
-                Text(region.flagEmoji)
+                Text(country.flagEmoji)
                     .font(.title2)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(region.name)
+                    Text(country.label)
                         .font(.headline)
                         .foregroundColor(.primary)
                     
-                    Text(region.formattedCurrency)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    if region.countryCount > 0 {
-                        Text("\(region.countryCount) countries: \(region.countryNames)")
+                    HStack {
+                        Text(country.formattedCurrency)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("•")
+                            .foregroundColor(.secondary)
+                        
+                        Text(country.country.uppercased())
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .lineLimit(2)
                     }
                 }
                 

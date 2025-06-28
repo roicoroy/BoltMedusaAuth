@@ -11,12 +11,12 @@ struct CartView: View {
     @EnvironmentObject var cartService: CartService
     @EnvironmentObject var regionService: RegionService
     @State private var showingCheckout = false
-    @State private var showingRegionSelector = false
+    @State private var showingCountrySelector = false
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Region Header (if no region selected)
+                // Country Header (if no country selected)
                 if !regionService.hasSelectedRegion {
                     VStack(spacing: 12) {
                         HStack {
@@ -24,11 +24,11 @@ struct CartView: View {
                                 .foregroundColor(.orange)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Region Required")
+                                Text("Country Required")
                                     .font(.headline)
                                     .foregroundColor(.primary)
                                 
-                                Text("Please select a shopping region to view your cart")
+                                Text("Please select a shopping country to view your cart")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -37,9 +37,9 @@ struct CartView: View {
                         }
                         
                         Button(action: {
-                            showingRegionSelector = true
+                            showingCountrySelector = true
                         }) {
-                            Text("Select Region")
+                            Text("Select Country")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                                 .padding()
@@ -78,21 +78,21 @@ struct CartView: View {
                             Text("Add some products to get started")
                                 .foregroundColor(.secondary)
                             
-                            if let selectedRegion = regionService.selectedRegion {
+                            if let selectedCountry = regionService.selectedCountry {
                                 VStack(spacing: 8) {
                                     HStack {
                                         Text("Shopping in:")
                                             .foregroundColor(.secondary)
-                                        Text(selectedRegion.flagEmoji)
-                                        Text(selectedRegion.name)
+                                        Text(selectedCountry.flagEmoji)
+                                        Text(selectedCountry.label)
                                             .fontWeight(.medium)
-                                        Text("(\(selectedRegion.formattedCurrency))")
+                                        Text("(\(selectedCountry.formattedCurrency))")
                                             .foregroundColor(.secondary)
                                     }
                                     .font(.caption)
                                     
-                                    Button("Change Region") {
-                                        showingRegionSelector = true
+                                    Button("Change Country") {
+                                        showingCountrySelector = true
                                     }
                                     .font(.caption)
                                     .foregroundColor(.blue)
@@ -103,25 +103,25 @@ struct CartView: View {
                     } else {
                         // Cart with items
                         VStack(spacing: 0) {
-                            // Current region display
-                            if let selectedRegion = regionService.selectedRegion {
+                            // Current country display
+                            if let selectedCountry = regionService.selectedCountry {
                                 HStack {
                                     Text("Shopping in:")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     
-                                    Text(selectedRegion.flagEmoji)
-                                    Text(selectedRegion.name)
+                                    Text(selectedCountry.flagEmoji)
+                                    Text(selectedCountry.label)
                                         .font(.caption)
                                         .fontWeight(.medium)
-                                    Text("(\(selectedRegion.formattedCurrency))")
+                                    Text("(\(selectedCountry.formattedCurrency))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     
                                     Spacer()
                                     
                                     Button("Change") {
-                                        showingRegionSelector = true
+                                        showingCountrySelector = true
                                     }
                                     .font(.caption)
                                     .foregroundColor(.blue)
@@ -183,7 +183,7 @@ struct CartView: View {
                         }
                     }
                 } else if regionService.hasSelectedRegion {
-                    // No cart state but region is selected
+                    // No cart state but country is selected
                     VStack(spacing: 20) {
                         Image(systemName: "cart.badge.questionmark")
                             .font(.system(size: 80))
@@ -196,21 +196,21 @@ struct CartView: View {
                         Text("Start shopping to create a cart")
                             .foregroundColor(.secondary)
                         
-                        if let selectedRegion = regionService.selectedRegion {
+                        if let selectedCountry = regionService.selectedCountry {
                             VStack(spacing: 8) {
                                 HStack {
                                     Text("Shopping in:")
                                         .foregroundColor(.secondary)
-                                    Text(selectedRegion.flagEmoji)
-                                    Text(selectedRegion.name)
+                                    Text(selectedCountry.flagEmoji)
+                                    Text(selectedCountry.label)
                                         .fontWeight(.medium)
-                                    Text("(\(selectedRegion.formattedCurrency))")
+                                    Text("(\(selectedCountry.formattedCurrency))")
                                         .foregroundColor(.secondary)
                                 }
                                 .font(.caption)
                                 
                                 Button("Create Cart") {
-                                    cartService.createCartIfNeeded(regionId: selectedRegion.id)
+                                    cartService.createCartIfNeeded(regionId: selectedCountry.regionId)
                                 }
                                 .foregroundColor(.blue)
                             }
@@ -218,22 +218,22 @@ struct CartView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    // No region selected and no cart
+                    // No country selected and no cart
                     VStack(spacing: 20) {
                         Image(systemName: "globe")
                             .font(.system(size: 80))
                             .foregroundColor(.gray)
                         
-                        Text("Select a Region")
+                        Text("Select a Country")
                             .font(.title2)
                             .fontWeight(.medium)
                         
-                        Text("Choose your shopping region to get started")
+                        Text("Choose your shopping country to get started")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
-                        Button("Select Region") {
-                            showingRegionSelector = true
+                        Button("Select Country") {
+                            showingCountrySelector = true
                         }
                         .foregroundColor(.blue)
                     }
@@ -276,8 +276,8 @@ struct CartView: View {
         .sheet(isPresented: $showingCheckout) {
             CheckoutView(cart: cartService.currentCart)
         }
-        .sheet(isPresented: $showingRegionSelector) {
-            RegionSelectorView(regionService: regionService)
+        .sheet(isPresented: $showingCountrySelector) {
+            CountrySelectorView(regionService: regionService)
         }
     }
 }
@@ -419,15 +419,15 @@ struct CartSummaryView: View {
             VStack(spacing: 8) {
                 SummaryRow(title: "Subtotal", value: cart.formattedSubtotal)
                 
-                if cart.taxTotal! > 0 {
+                if let taxTotal = cart.taxTotal, taxTotal > 0 {
                     SummaryRow(title: "Tax", value: cart.formattedTaxTotal)
                 }
                 
-                if cart.shippingTotal! > 0 {
+                if let shippingTotal = cart.shippingTotal, shippingTotal > 0 {
                     SummaryRow(title: "Shipping", value: cart.formattedShippingTotal)
                 }
                 
-                if cart.discountTotal! > 0 {
+                if let discountTotal = cart.discountTotal, discountTotal > 0 {
                     SummaryRow(title: "Discount", value: "-\(cart.formattedDiscountTotal)", valueColor: .green)
                 }
                 

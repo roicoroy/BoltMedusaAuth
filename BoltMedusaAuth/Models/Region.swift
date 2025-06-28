@@ -54,6 +54,45 @@ struct Country: Codable, Identifiable {
     }
 }
 
+// MARK: - Country Selection Model (flattened from regions)
+struct CountrySelection: Codable, Identifiable {
+    let country: String        // iso2 code (e.g., "gb", "fr")
+    let label: String          // display name (e.g., "United Kingdom")
+    let currencyCode: String   // currency (e.g., "eur")
+    let regionId: String       // region ID for cart creation
+    
+    var id: String { country } // Use country code as identifier
+    
+    // Computed properties for display
+    var flagEmoji: String {
+        let iso = country.lowercased()
+        
+        switch iso {
+        case "gb": return "🇬🇧"
+        case "us": return "🇺🇸"
+        case "ca": return "🇨🇦"
+        case "de": return "🇩🇪"
+        case "fr": return "🇫🇷"
+        case "es": return "🇪🇸"
+        case "it": return "🇮🇹"
+        case "dk": return "🇩🇰"
+        case "se": return "🇸🇪"
+        case "au": return "🇦🇺"
+        case "jp": return "🇯🇵"
+        case "br": return "🇧🇷"
+        default: return "🏳️"
+        }
+    }
+    
+    var formattedCurrency: String {
+        return currencyCode.uppercased()
+    }
+    
+    var displayText: String {
+        return "\(flagEmoji) \(label)"
+    }
+}
+
 // MARK: - API Response Models
 struct RegionsResponse: Codable {
     let regions: [Region]
@@ -129,6 +168,20 @@ extension Region {
     var ukCountry: Country? {
         return countries?.first { country in
             country.iso2.lowercased() == "gb"
+        }
+    }
+    
+    // Convert region's countries to CountrySelection objects
+    func toCountrySelections() -> [CountrySelection] {
+        guard let countries = countries else { return [] }
+        
+        return countries.map { country in
+            CountrySelection(
+                country: country.iso2,
+                label: country.displayName,
+                currencyCode: currencyCode,
+                regionId: id
+            )
         }
     }
 }

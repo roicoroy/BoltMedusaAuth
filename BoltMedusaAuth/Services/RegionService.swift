@@ -10,17 +10,19 @@ import Combine
 
 class RegionService: ObservableObject {
     @Published var regions: [Region] = []
-    @Published var selectedRegion: Region?
+    @Published var countryList: [CountrySelection] = []
+    @Published var selectedCountry: CountrySelection?
     @Published var isLoading = false
     @Published var errorMessage: String?
     
     private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
     private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
+    private let defaultCountryCode = "gb" // Default to UK
     
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        loadSelectedRegionFromStorage()
+        loadSelectedCountryFromStorage()
         fetchRegions()
     }
     
@@ -75,68 +77,81 @@ class RegionService: ObservableObject {
                 },
                 receiveValue: { [weak self] response in
                     self?.regions = response.regions
-                    self?.setDefaultRegionIfNeeded()
+                    self?.processCountries(from: response.regions)
                     print("Fetched \(response.regions.count) regions")
-                    
-                    // Debug: Print all regions and their countries
-                    for region in response.regions {
-                        print("Region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
-                        if let countries = region.countries {
-                            print("  Countries: \(countries.map { "\($0.displayName) (\($0.iso2))" }.joined(separator: ", "))")
-                        }
-                    }
                 }
             )
             .store(in: &cancellables)
     }
     
-    func selectRegion(_ region: Region) {
-        DispatchQueue.main.async { [weak self] in
-            self?.selectedRegion = region
-        }
-        saveSelectedRegionToStorage(region)
-        print("Selected region: \(region.name) (\(region.id)) - Currency: \(region.currencyCode)")
+    // MARK: - Country Processing (following the example pattern)
+    
+    private func processCountries(from regions: [Region]) {
+        // Flatten all countries from all regions into a single list
+        let newCountryList: [CountrySelection] = regions.compactMap { region in
+            return region.countries?.map { country in
+                CountrySelection(
+                    country: country.iso2,
+                    label: country.displayName,
+                    currencyCode: region.currencyCode,
+                    regionId: region.id
+                )
+            }
+        }.flatMap { $0 }
+        .sorted { $0.label.localizedCompare($1.label) == .orderedAscending }
         
-        if let countries = region.countries {
-            print("  Available countries: \(countries.map { $0.displayName }.joined(separator: ", "))")
+        DispatchQueue.main.async { [weak self] in
+            self?.countryList = newCountryList
+            self?.setDefaultCountryIfNeeded()
+        }
+        
+        print("Processed \(newCountryList.count) countries from regions:")
+        for country in newCountryList {
+            print("  \(country.flagEmoji) \(country.label) (\(country.country.uppercased())) - \(country.formattedCurrency) - Region: \(country.regionId)")
         }
     }
     
-    // MARK: - Default Region Logic
-    
-    private func setDefaultRegionIfNeeded() {
-        // If no region is selected, try to find the best default region
-        guard selectedRegion == nil else { return }
+    private func setDefaultCountryIfNeeded() {
+        // If no country is selected, try to find the default country
+        guard selectedCountry == nil else { return }
         
-        // Since we only have one "Europe" region that includes UK, select it as default
-        if let europeRegion = regions.first(where: { $0.name.lowercased().contains("europe") }) {
-            selectRegion(europeRegion)
-            print("Set Europe region as default: \(europeRegion.name)")
+        // Look for the default country code (UK)
+        if let defaultCountry = countryList.first(where: { $0.country.lowercased() == defaultCountryCode }) {
+            selectCountry(defaultCountry)
+            print("Set default country: \(defaultCountry.label) (\(defaultCountry.country.uppercased()))")
             return
         }
         
-        // If no Europe region found, use the first available region
-        if let firstRegion = regions.first {
-            selectRegion(firstRegion)
-            print("Set first available region as default: \(firstRegion.name)")
+        // If default country not found, use the first available country
+        if let firstCountry = countryList.first {
+            selectCountry(firstCountry)
+            print("Set first available country as default: \(firstCountry.label)")
         }
+    }
+    
+    func selectCountry(_ country: CountrySelection) {
+        DispatchQueue.main.async { [weak self] in
+            self?.selectedCountry = country
+        }
+        saveSelectedCountryToStorage(country)
+        print("Selected country: \(country.flagEmoji) \(country.label) (\(country.country.uppercased())) - \(country.formattedCurrency) - Region: \(country.regionId)")
     }
     
     // MARK: - Storage
     
-    private func saveSelectedRegionToStorage(_ region: Region) {
-        if let encoded = try? JSONEncoder().encode(region) {
-            UserDefaults.standard.set(encoded, forKey: "selected_region")
+    private func saveSelectedCountryToStorage(_ country: CountrySelection) {
+        if let encoded = try? JSONEncoder().encode(country) {
+            UserDefaults.standard.set(encoded, forKey: "selected_country")
         }
     }
     
-    private func loadSelectedRegionFromStorage() {
-        if let regionData = UserDefaults.standard.data(forKey: "selected_region"),
-           let region = try? JSONDecoder().decode(Region.self, from: regionData) {
+    private func loadSelectedCountryFromStorage() {
+        if let countryData = UserDefaults.standard.data(forKey: "selected_country"),
+           let country = try? JSONDecoder().decode(CountrySelection.self, from: countryData) {
             DispatchQueue.main.async { [weak self] in
-                self?.selectedRegion = region
+                self?.selectedCountry = country
             }
-            print("Loaded selected region from storage: \(region.name)")
+            print("Loaded selected country from storage: \(country.label)")
         }
     }
     
@@ -147,24 +162,39 @@ class RegionService: ObservableObject {
     }
     
     var hasSelectedRegion: Bool {
-        return selectedRegion != nil
+        return selectedCountry != nil
     }
     
     var selectedRegionId: String? {
-        return selectedRegion?.id
+        return selectedCountry?.regionId
     }
     
     var selectedRegionCurrency: String? {
-        return selectedRegion?.currencyCode
+        return selectedCountry?.currencyCode
+    }
+    
+    // MARK: - Backward compatibility properties for existing views
+    
+    var selectedRegion: Region? {
+        guard let selectedCountry = selectedCountry else { return nil }
+        return regions.first { $0.id == selectedCountry.regionId }
+    }
+    
+    func selectRegion(_ region: Region) {
+        // For backward compatibility, select the first country from this region
+        if let firstCountry = region.toCountrySelections().first {
+            selectCountry(firstCountry)
+        }
     }
     
     // MARK: - Country-specific helpers
     
     func getCountriesForSelectedRegion() -> [Country] {
-        return selectedRegion?.countries ?? []
+        guard let selectedRegion = selectedRegion else { return [] }
+        return selectedRegion.countries ?? []
     }
     
     func hasUKInSelectedRegion() -> Bool {
-        return selectedRegion?.hasUK ?? false
+        return selectedCountry?.country.lowercased() == "gb"
     }
 }

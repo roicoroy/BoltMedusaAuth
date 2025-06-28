@@ -80,8 +80,8 @@ struct ProductDetailView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.primary)
                                 
-                                if let selectedRegion = regionService.selectedRegion {
-                                    Text("(\(selectedRegion.formattedCurrency))")
+                                if let selectedCountry = regionService.selectedCountry {
+                                    Text("(\(selectedCountry.formattedCurrency))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -210,12 +210,12 @@ struct ProductDetailView: View {
                                 .padding(.horizontal)
                         }
                         
-                        // Region requirement message
+                        // Country requirement message
                         if !regionService.hasSelectedRegion {
                             HStack {
                                 Image(systemName: "info.circle")
                                     .foregroundColor(.orange)
-                                Text("Please select a region to add items to cart")
+                                Text("Please select a country to add items to cart")
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
@@ -356,6 +356,25 @@ struct VariantCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct DetailRow: View {
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.medium)
+        }
     }
 }
 
