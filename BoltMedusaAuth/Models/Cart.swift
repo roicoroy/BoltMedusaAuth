@@ -11,15 +11,15 @@ import Foundation
 struct Cart: Codable, Identifiable {
     let id: String
     let currencyCode: String
-    let originalItemTotal: Int
-    let originalItemSubtotal: Int
-    let originalItemTaxTotal: Int
+    let originalItemTotal: Int?
+    let originalItemSubtotal: Int?
+    let originalItemTaxTotal: Int?
     let itemTotal: Int
     let itemSubtotal: Int
     let itemTaxTotal: Int
-    let originalTotal: Int
-    let originalSubtotal: Int
-    let originalTaxTotal: Int
+    let originalTotal: Int?
+    let originalSubtotal: Int?
+    let originalTaxTotal: Int?
     let total: Int
     let subtotal: Int
     let taxTotal: Int
@@ -30,9 +30,9 @@ struct Cart: Codable, Identifiable {
     let shippingTotal: Int
     let shippingSubtotal: Int
     let shippingTaxTotal: Int
-    let originalShippingTotal: Int
-    let originalShippingSubtotal: Int
-    let originalShippingTaxTotal: Int
+    let originalShippingTotal: Int?
+    let originalShippingSubtotal: Int?
+    let originalShippingTaxTotal: Int?
     let promotions: [CartPromotion]?
     let items: [CartLineItem]?
     let createdAt: String?
@@ -65,6 +65,45 @@ struct Cart: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+    
+    // Custom decoder to handle missing optional fields gracefully
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Required fields
+        id = try container.decode(String.self, forKey: .id)
+        currencyCode = try container.decode(String.self, forKey: .currencyCode)
+        itemTotal = try container.decode(Int.self, forKey: .itemTotal)
+        itemSubtotal = try container.decode(Int.self, forKey: .itemSubtotal)
+        itemTaxTotal = try container.decode(Int.self, forKey: .itemTaxTotal)
+        total = try container.decode(Int.self, forKey: .total)
+        subtotal = try container.decode(Int.self, forKey: .subtotal)
+        taxTotal = try container.decode(Int.self, forKey: .taxTotal)
+        discountTotal = try container.decode(Int.self, forKey: .discountTotal)
+        discountTaxTotal = try container.decode(Int.self, forKey: .discountTaxTotal)
+        giftCardTotal = try container.decode(Int.self, forKey: .giftCardTotal)
+        giftCardTaxTotal = try container.decode(Int.self, forKey: .giftCardTaxTotal)
+        shippingTotal = try container.decode(Int.self, forKey: .shippingTotal)
+        shippingSubtotal = try container.decode(Int.self, forKey: .shippingSubtotal)
+        shippingTaxTotal = try container.decode(Int.self, forKey: .shippingTaxTotal)
+        
+        // Optional fields that might not be present in all responses
+        originalItemTotal = try container.decodeIfPresent(Int.self, forKey: .originalItemTotal)
+        originalItemSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalItemSubtotal)
+        originalItemTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalItemTaxTotal)
+        originalTotal = try container.decodeIfPresent(Int.self, forKey: .originalTotal)
+        originalSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalSubtotal)
+        originalTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalTaxTotal)
+        originalShippingTotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingTotal)
+        originalShippingSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingSubtotal)
+        originalShippingTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalShippingTaxTotal)
+        
+        // Arrays and optional fields
+        promotions = try container.decodeIfPresent([CartPromotion].self, forKey: .promotions)
+        items = try container.decodeIfPresent([CartLineItem].self, forKey: .items)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+    }
 }
 
 struct CartPromotion: Codable, Identifiable {
@@ -96,9 +135,9 @@ struct CartLineItem: Codable, Identifiable {
     let allowDiscounts: Bool
     let hasShipping: Bool
     let isTaxInclusive: Bool
-    let originalTotal: Int
-    let originalSubtotal: Int
-    let originalTaxTotal: Int
+    let originalTotal: Int?
+    let originalSubtotal: Int?
+    let originalTaxTotal: Int?
     let itemTotal: Int
     let itemSubtotal: Int
     let itemTaxTotal: Int
@@ -149,6 +188,55 @@ struct CartLineItem: Codable, Identifiable {
         case refundableTaxTotal = "refundable_tax_total"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+    
+    // Custom decoder to handle missing optional fields gracefully
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Required fields
+        id = try container.decode(String.self, forKey: .id)
+        cartId = try container.decode(String.self, forKey: .cartId)
+        title = try container.decode(String.self, forKey: .title)
+        variantId = try container.decode(String.self, forKey: .variantId)
+        productId = try container.decode(String.self, forKey: .productId)
+        quantity = try container.decode(Int.self, forKey: .quantity)
+        unitPrice = try container.decode(Int.self, forKey: .unitPrice)
+        isDiscountable = try container.decode(Bool.self, forKey: .isDiscountable)
+        isGiftCard = try container.decode(Bool.self, forKey: .isGiftCard)
+        shouldMerge = try container.decode(Bool.self, forKey: .shouldMerge)
+        allowDiscounts = try container.decode(Bool.self, forKey: .allowDiscounts)
+        hasShipping = try container.decode(Bool.self, forKey: .hasShipping)
+        isTaxInclusive = try container.decode(Bool.self, forKey: .isTaxInclusive)
+        itemTotal = try container.decode(Int.self, forKey: .itemTotal)
+        itemSubtotal = try container.decode(Int.self, forKey: .itemSubtotal)
+        itemTaxTotal = try container.decode(Int.self, forKey: .itemTaxTotal)
+        total = try container.decode(Int.self, forKey: .total)
+        subtotal = try container.decode(Int.self, forKey: .subtotal)
+        taxTotal = try container.decode(Int.self, forKey: .taxTotal)
+        discountTotal = try container.decode(Int.self, forKey: .discountTotal)
+        discountTaxTotal = try container.decode(Int.self, forKey: .discountTaxTotal)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        
+        // Optional fields
+        subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle)
+        thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
+        productTitle = try container.decodeIfPresent(String.self, forKey: .productTitle)
+        productDescription = try container.decodeIfPresent(String.self, forKey: .productDescription)
+        productSubtitle = try container.decodeIfPresent(String.self, forKey: .productSubtitle)
+        productType = try container.decodeIfPresent(String.self, forKey: .productType)
+        productCollection = try container.decodeIfPresent(String.self, forKey: .productCollection)
+        productHandle = try container.decodeIfPresent(String.self, forKey: .productHandle)
+        variantTitle = try container.decodeIfPresent(String.self, forKey: .variantTitle)
+        variantSku = try container.decodeIfPresent(String.self, forKey: .variantSku)
+        compareAtUnitPrice = try container.decodeIfPresent(Int.self, forKey: .compareAtUnitPrice)
+        originalTotal = try container.decodeIfPresent(Int.self, forKey: .originalTotal)
+        originalSubtotal = try container.decodeIfPresent(Int.self, forKey: .originalSubtotal)
+        originalTaxTotal = try container.decodeIfPresent(Int.self, forKey: .originalTaxTotal)
+        refundableTotal = try container.decodeIfPresent(Int.self, forKey: .refundableTotal)
+        refundableSubtotal = try container.decodeIfPresent(Int.self, forKey: .refundableSubtotal)
+        refundableTaxTotal = try container.decodeIfPresent(Int.self, forKey: .refundableTaxTotal)
     }
 }
 
