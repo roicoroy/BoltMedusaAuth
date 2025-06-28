@@ -419,15 +419,15 @@ struct CartSummaryView: View {
             VStack(spacing: 8) {
                 SummaryRow(title: "Subtotal", value: cart.formattedSubtotal)
                 
-                if cart.taxTotal > 0 {
+                if cart.taxTotal! > 0 {
                     SummaryRow(title: "Tax", value: cart.formattedTaxTotal)
                 }
                 
-                if cart.shippingTotal > 0 {
+                if cart.shippingTotal! > 0 {
                     SummaryRow(title: "Shipping", value: cart.formattedShippingTotal)
                 }
                 
-                if cart.discountTotal > 0 {
+                if cart.discountTotal! > 0 {
                     SummaryRow(title: "Discount", value: "-\(cart.formattedDiscountTotal)", valueColor: .green)
                 }
                 
