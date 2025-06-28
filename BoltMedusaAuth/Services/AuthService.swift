@@ -14,13 +14,12 @@ class AuthService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app" // Replace with your Medusa backend URL
+    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
     private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
     
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        // Check if user is already logged in
         checkAuthenticationStatus()
     }
     
@@ -29,7 +28,6 @@ class AuthService: ObservableObject {
     }
     
     private func checkAuthenticationStatus() {
-        // Check for stored authentication token or customer data
         if let customerData = UserDefaults.standard.data(forKey: "customer"),
            let customer = try? JSONDecoder().decode(Customer.self, from: customerData) {
             DispatchQueue.main.async { [weak self] in
@@ -39,7 +37,7 @@ class AuthService: ObservableObject {
         }
     }
     
-    func register(email: String, password: String, firstName: String?, lastName: String?, phone: String?) {
+    func register(email: String, password: String, firstName: String?, lastName: String?, phone: String?, companyName: String? = nil) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
@@ -50,7 +48,8 @@ class AuthService: ObservableObject {
             password: password,
             firstName: firstName,
             lastName: lastName,
-            phone: phone
+            phone: phone,
+            companyName: companyName
         )
         
         guard let url = URL(string: "\(baseURL)/store/customers") else {
@@ -70,34 +69,44 @@ class AuthService: ObservableObject {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
             DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Failed to encode request"
+                self?.errorMessage = "Failed to encode request: \(error.localizedDescription)"
                 self?.isLoading = false
             }
             return
         }
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .map(\.data)
-            .decode(type: MedusaResponse<Customer>.self, decoder: JSONDecoder())
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Registration Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Registration Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     guard let self = self else { return }
                     self.isLoading = false
                     if case .failure(let error) = completion {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = "Registration failed: \(error.localizedDescription)"
                     }
                 },
                 receiveValue: { [weak self] response in
                     guard let self = self else { return }
-                    if let customer = response.customer {
-                        self.currentCustomer = customer
-                        self.isAuthenticated = true
-                        self.saveCustomerData(customer)
-                        
-                        // After registration, automatically log in
-                        self.login(email: email, password: password)
-                    }
+                    self.currentCustomer = response.customer
+                    self.isAuthenticated = true
+                    self.saveCustomerData(response.customer)
+                    
+                    // After successful registration, automatically log in
+                    self.login(email: email, password: password)
                 }
             )
             .store(in: &cancellables)
@@ -128,36 +137,77 @@ class AuthService: ObservableObject {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
             DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Failed to encode request"
+                self?.errorMessage = "Failed to encode request: \(error.localizedDescription)"
                 self?.isLoading = false
             }
             return
         }
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .map(\.data)
-            .decode(type: MedusaResponse<Customer>.self, decoder: JSONDecoder())
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Login Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Login Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     guard let self = self else { return }
                     self.isLoading = false
                     if case .failure(let error) = completion {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = "Login failed: \(error.localizedDescription)"
                     }
                 },
                 receiveValue: { [weak self] response in
                     guard let self = self else { return }
-                    if let customer = response.customer {
-                        self.currentCustomer = customer
-                        self.isAuthenticated = true
-                        self.saveCustomerData(customer)
-                        
-                        // Save token if provided
-                        if let token = response.token {
-                            UserDefaults.standard.set(token, forKey: "auth_token")
-                        }
+                    self.currentCustomer = response.customer
+                    self.isAuthenticated = true
+                    self.saveCustomerData(response.customer)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func fetchCustomerProfile() {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            self.errorMessage = "No authentication token found"
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/customers/me") else {
+            self.errorMessage = "Invalid URL"
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .map(\.data)
+            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "Failed to fetch profile: \(error.localizedDescription)"
                     }
+                },
+                receiveValue: { [weak self] response in
+                    guard let self = self else { return }
+                    self.currentCustomer = response.customer
+                    self.saveCustomerData(response.customer)
                 }
             )
             .store(in: &cancellables)
@@ -169,11 +219,9 @@ class AuthService: ObservableObject {
             self?.currentCustomer = nil
         }
         
-        // Clear stored data
         UserDefaults.standard.removeObject(forKey: "customer")
         UserDefaults.standard.removeObject(forKey: "auth_token")
         
-        // Cancel any ongoing requests
         cancellables.removeAll()
     }
     

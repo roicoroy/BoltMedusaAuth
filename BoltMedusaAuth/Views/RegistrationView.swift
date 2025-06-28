@@ -17,6 +17,7 @@ struct RegistrationView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var phone = ""
+    @State private var companyName = ""
     
     private var isFormValid: Bool {
         !email.isEmpty && 
@@ -80,6 +81,16 @@ struct RegistrationView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                         
+                        // Company Name
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Company Name")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            TextField("Enter your company name", text: $companyName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        
                         // Phone
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Phone")
@@ -136,13 +147,15 @@ struct RegistrationView: View {
                         let firstNameValue = firstName.isEmpty ? nil : firstName
                         let lastNameValue = lastName.isEmpty ? nil : lastName
                         let phoneValue = phone.isEmpty ? nil : phone
+                        let companyNameValue = companyName.isEmpty ? nil : companyName
                         
                         authService.register(
                             email: email,
                             password: password,
                             firstName: firstNameValue,
                             lastName: lastNameValue,
-                            phone: phoneValue
+                            phone: phoneValue,
+                            companyName: companyNameValue
                         )
                     }) {
                         HStack {

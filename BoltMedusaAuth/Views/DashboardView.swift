@@ -49,12 +49,39 @@ struct DashboardView: View {
                                 DetailRow(title: "Last Name", value: lastName)
                             }
                             
+                            if let companyName = customer.companyName {
+                                DetailRow(title: "Company", value: companyName)
+                            }
+                            
                             if let phone = customer.phone {
                                 DetailRow(title: "Phone", value: phone)
                             }
                             
-                            DetailRow(title: "Account Status", value: customer.hasAccount ? "Active" : "Inactive")
                             DetailRow(title: "Member Since", value: formatDate(customer.createdAt))
+                            
+                            if let addresses = customer.addresses, !addresses.isEmpty {
+                                DetailRow(title: "Addresses", value: "\(addresses.count) address(es)")
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+                
+                // Addresses section
+                if let customer = authService.currentCustomer,
+                   let addresses = customer.addresses,
+                   !addresses.isEmpty {
+                    
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Addresses")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        ForEach(addresses) { address in
+                            AddressCard(address: address)
                         }
                     }
                     .padding()
@@ -82,6 +109,10 @@ struct DashboardView: View {
             }
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Refresh customer data when view appears
+                authService.fetchCustomerProfile()
+            }
         }
     }
     
@@ -112,6 +143,95 @@ struct DetailRow: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
         }
+    }
+}
+
+struct AddressCard: View {
+    let address: Address
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                if let addressName = address.addressName {
+                    Text(addressName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                } else {
+                    Text("Address")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    if address.isDefaultBilling {
+                        Text("Billing")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.2))
+                            .foregroundColor(.blue)
+                            .cornerRadius(4)
+                    }
+                    
+                    if address.isDefaultShipping {
+                        Text("Shipping")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.2))
+                            .foregroundColor(.green)
+                            .cornerRadius(4)
+                    }
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                if let company = address.company {
+                    Text(company)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if let firstName = address.firstName, let lastName = address.lastName {
+                    Text("\(firstName) \(lastName)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Text(address.address1)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                if let address2 = address.address2 {
+                    Text(address2)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Text("\(address.city), \(address.province ?? "") \(address.postalCode)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(address.countryCode.uppercased())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                if let phone = address.phone {
+                    Text(phone)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
     }
 }
 
