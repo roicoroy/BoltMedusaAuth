@@ -112,7 +112,7 @@ struct CartPromotion: Codable, Identifiable {
 
 struct CartLineItem: Codable, Identifiable {
     let id: String
-    let cartId: String
+    let cartId: String?  // Made optional - might not be present in API response
     let title: String
     let subtitle: String?
     let thumbnail: String?
@@ -196,7 +196,6 @@ struct CartLineItem: Codable, Identifiable {
         
         // Essential required fields
         id = try container.decode(String.self, forKey: .id)
-        cartId = try container.decode(String.self, forKey: .cartId)
         title = try container.decode(String.self, forKey: .title)
         variantId = try container.decode(String.self, forKey: .variantId)
         productId = try container.decode(String.self, forKey: .productId)
@@ -204,6 +203,9 @@ struct CartLineItem: Codable, Identifiable {
         unitPrice = try container.decode(Int.self, forKey: .unitPrice)
         total = try container.decode(Int.self, forKey: .total)
         subtotal = try container.decode(Int.self, forKey: .subtotal)
+        
+        // cartId is now optional - might not be present in API response
+        cartId = try container.decodeIfPresent(String.self, forKey: .cartId)
         
         // All other fields are optional since API responses vary
         subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle)
