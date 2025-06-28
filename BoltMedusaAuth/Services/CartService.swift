@@ -342,7 +342,6 @@ class CartService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completionResult in
@@ -353,14 +352,79 @@ class CartService: ObservableObject {
                         completion(false)
                     }
                 },
-                receiveValue: { [weak self] response in
-                    self?.currentCart = response.cart
-                    self?.saveCartToStorage()
-                    print("Line item removed successfully")
-                    completion(true)
+                receiveValue: { [weak self] data in
+                    // Handle different response structures for DELETE operation
+                    self?.handleRemoveLineItemResponse(data: data, completion: completion)
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    private func handleRemoveLineItemResponse(data: Data, completion: @escaping (Bool) -> Void) {
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Remove Line Item Success Response: \(responseString)")
+        }
+        
+        // Try to decode as CartResponse first (standard response)
+        do {
+            let response = try JSONDecoder().decode(CartResponse.self, from: data)
+            self.currentCart = response.cart
+            self.saveCartToStorage()
+            print("Line item removed successfully - cart updated")
+            completion(true)
+            return
+        } catch {
+            print("Failed to decode as CartResponse: \(error)")
+        }
+        
+        // Try to parse as JSON to see what structure we have
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("Remove response JSON structure: \(json)")
+                
+                // Check if it's a success response without cart data
+                if let success = json["success"] as? Bool, success {
+                    print("Line item removed successfully - success flag found")
+                    // Refresh cart data from server since we don't have updated cart in response
+                    if let cart = currentCart {
+                        fetchCart(cartId: cart.id)
+                    }
+                    completion(true)
+                    return
+                }
+                
+                // Check if cart is nested differently
+                if let cartData = json["data"] as? [String: Any] {
+                    let cartJsonData = try JSONSerialization.data(withJSONObject: cartData, options: [])
+                    let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
+                    self.currentCart = cart
+                    self.saveCartToStorage()
+                    print("Line item removed successfully - cart found in data field")
+                    completion(true)
+                    return
+                }
+                
+                // If response doesn't contain cart data but operation was successful
+                // (indicated by successful HTTP status), refresh the cart
+                print("Line item removed successfully - refreshing cart data")
+                if let cart = currentCart {
+                    fetchCart(cartId: cart.id)
+                }
+                completion(true)
+                return
+            }
+        } catch {
+            print("Failed to parse remove response JSON: \(error)")
+        }
+        
+        // If we can't parse the response but got here, it means the HTTP request was successful
+        // So we should refresh the cart to get the updated state
+        print("Line item removed successfully - response parsing failed but HTTP was successful, refreshing cart")
+        if let cart = currentCart {
+            fetchCart(cartId: cart.id)
+        }
+        completion(true)
     }
     
     // MARK: - Utility Methods
