@@ -220,6 +220,7 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
+            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -279,6 +280,7 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
+            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     guard let self = self else { return }
@@ -304,16 +306,14 @@ class AuthService: ObservableObject {
         do {
             let response = try JSONDecoder().decode(LoginResponse.self, from: data)
             if let customer = response.customer {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    self.currentCustomer = customer
-                    self.isAuthenticated = true
-                    self.saveCustomerData(customer)
-                    
-                    // Save token if provided
-                    if let token = response.token {
-                        UserDefaults.standard.set(token, forKey: "auth_token")
-                    }
+                // Already on main thread due to receive(on: DispatchQueue.main)
+                self.currentCustomer = customer
+                self.isAuthenticated = true
+                self.saveCustomerData(customer)
+                
+                // Save token if provided
+                if let token = response.token {
+                    UserDefaults.standard.set(token, forKey: "auth_token")
                 }
                 return
             }
@@ -326,16 +326,14 @@ class AuthService: ObservableObject {
             let response = try JSONDecoder().decode(DirectCustomerResponse.self, from: data)
             let customer = response.asCustomer
             
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.currentCustomer = customer
-                self.isAuthenticated = true
-                self.saveCustomerData(customer)
-                
-                // Save token if provided
-                if let token = response.token {
-                    UserDefaults.standard.set(token, forKey: "auth_token")
-                }
+            // Already on main thread due to receive(on: DispatchQueue.main)
+            self.currentCustomer = customer
+            self.isAuthenticated = true
+            self.saveCustomerData(customer)
+            
+            // Save token if provided
+            if let token = response.token {
+                UserDefaults.standard.set(token, forKey: "auth_token")
             }
             return
         } catch {
@@ -345,31 +343,32 @@ class AuthService: ObservableObject {
         // Strategy 3: Try to decode as Customer directly
         do {
             let customer = try JSONDecoder().decode(Customer.self, from: data)
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.currentCustomer = customer
-                self.isAuthenticated = true
-                self.saveCustomerData(customer)
-            }
+            // Already on main thread due to receive(on: DispatchQueue.main)
+            self.currentCustomer = customer
+            self.isAuthenticated = true
+            self.saveCustomerData(customer)
             return
         } catch {
             print("Failed to decode as Customer: \(error)")
         }
         
         // If all strategies fail, show error
-        DispatchQueue.main.async { [weak self] in
-            self?.errorMessage = "Failed to parse login response. Please check the console for details."
-        }
+        // Already on main thread due to receive(on: DispatchQueue.main)
+        self.errorMessage = "Failed to parse login response. Please check the console for details."
     }
     
     func fetchCustomerProfile() {
         guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
-            self.errorMessage = "No authentication token found"
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "No authentication token found"
+            }
             return
         }
         
         guard let url = URL(string: "\(baseURL)/store/customers/me") else {
-            self.errorMessage = "Invalid URL"
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL"
+            }
             return
         }
         
