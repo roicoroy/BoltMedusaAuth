@@ -21,7 +21,11 @@ struct Product: Codable, Identifiable {
     let options: [ProductOption]?
     let variants: [ProductVariant]?
     let categories: [ProductCategory]?
-    let profileId: String
+    let collection: ProductCollection?
+    let collectionId: String?
+    let type: ProductType?
+    let typeId: String?
+    let tags: [ProductTag]?
     let weight: Int?
     let length: Int?
     let height: Int?
@@ -30,19 +34,23 @@ struct Product: Codable, Identifiable {
     let originCountry: String?
     let midCode: String?
     let material: String?
+    let discountable: Bool?
+    let externalId: String?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: String]?
+    let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
-        case id, title, subtitle, description, handle, images, thumbnail, options, variants, categories, weight, length, height, width, material, metadata
+        case id, title, subtitle, description, handle, images, thumbnail, options, variants, categories, collection, type, tags, weight, length, height, width, material, discountable, metadata
         case isGiftcard = "is_giftcard"
         case status
-        case profileId = "profile_id"
+        case collectionId = "collection_id"
+        case typeId = "type_id"
         case hsCode = "hs_code"
         case originCountry = "origin_country"
         case midCode = "mid_code"
+        case externalId = "external_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
@@ -59,13 +67,14 @@ enum ProductStatus: String, Codable {
 struct ProductImage: Codable, Identifiable {
     let id: String
     let url: String
-    let metadata: [String: String]?
+    let rank: Int?
+    let metadata: [String: AnyCodable]?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, url, metadata
+        case id, url, rank, metadata
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
@@ -76,11 +85,11 @@ struct ProductOption: Codable, Identifiable {
     let id: String
     let title: String
     let values: [ProductOptionValue]?
-    let productId: String
+    let productId: String?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: String]?
+    let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
         case id, title, values, metadata
@@ -95,16 +104,14 @@ struct ProductOptionValue: Codable, Identifiable {
     let id: String
     let value: String
     let optionId: String
-    let variantId: String
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: String]?
+    let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
         case id, value, metadata
         case optionId = "option_id"
-        case variantId = "variant_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
@@ -132,14 +139,14 @@ struct ProductVariant: Codable, Identifiable {
     let height: Int?
     let width: Int?
     let options: [ProductOptionValue]?
-    let prices: [MoneyAmount]?
+    let calculatedPrice: CalculatedPrice?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: String]?
+    let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
-        case id, title, sku, barcode, ean, upc, weight, length, height, width, material, options, prices, metadata
+        case id, title, sku, barcode, ean, upc, weight, length, height, width, material, options, metadata
         case productId = "product_id"
         case variantRank = "variant_rank"
         case inventoryQuantity = "inventory_quantity"
@@ -148,36 +155,40 @@ struct ProductVariant: Codable, Identifiable {
         case hsCode = "hs_code"
         case originCountry = "origin_country"
         case midCode = "mid_code"
+        case calculatedPrice = "calculated_price"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
     }
 }
 
-struct MoneyAmount: Codable, Identifiable {
+struct CalculatedPrice: Codable, Identifiable {
     let id: String
+    let isCalculatedPricePriceList: Bool
+    let isCalculatedPriceTaxInclusive: Bool
+    let calculatedAmount: Int
+    let calculatedAmountWithTax: Int
+    let calculatedAmountWithoutTax: Int
+    let isOriginalPricePriceList: Bool
+    let isOriginalPriceTaxInclusive: Bool
+    let originalAmount: Int
+    let originalAmountWithTax: Int
+    let originalAmountWithoutTax: Int
     let currencyCode: String
-    let amount: Int
-    let minQuantity: Int?
-    let maxQuantity: Int?
-    let priceListId: String?
-    let variantId: String?
-    let regionId: String?
-    let createdAt: String
-    let updatedAt: String
-    let deletedAt: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, amount
+        case id
+        case isCalculatedPricePriceList = "is_calculated_price_price_list"
+        case isCalculatedPriceTaxInclusive = "is_calculated_price_tax_inclusive"
+        case calculatedAmount = "calculated_amount"
+        case calculatedAmountWithTax = "calculated_amount_with_tax"
+        case calculatedAmountWithoutTax = "calculated_amount_without_tax"
+        case isOriginalPricePriceList = "is_original_price_price_list"
+        case isOriginalPriceTaxInclusive = "is_original_price_tax_inclusive"
+        case originalAmount = "original_amount"
+        case originalAmountWithTax = "original_amount_with_tax"
+        case originalAmountWithoutTax = "original_amount_without_tax"
         case currencyCode = "currency_code"
-        case minQuantity = "min_quantity"
-        case maxQuantity = "max_quantity"
-        case priceListId = "price_list_id"
-        case variantId = "variant_id"
-        case regionId = "region_id"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case deletedAt = "deleted_at"
     }
 }
 
@@ -186,15 +197,15 @@ struct ProductCategory: Codable, Identifiable {
     let name: String
     let description: String?
     let handle: String?
-    let isActive: Bool
-    let isInternal: Bool
+    let isActive: Bool?
+    let isInternal: Bool?
     let parentCategoryId: String?
     let categoryChildren: [ProductCategory]?
     let rank: Int?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
-    let metadata: [String: String]?
+    let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
         case id, name, description, handle, rank, metadata
@@ -205,6 +216,110 @@ struct ProductCategory: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
+    }
+}
+
+struct ProductCollection: Codable, Identifiable {
+    let id: String
+    let title: String
+    let handle: String?
+    let createdAt: String
+    let updatedAt: String
+    let deletedAt: String?
+    let metadata: [String: AnyCodable]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, handle, metadata
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case deletedAt = "deleted_at"
+    }
+}
+
+struct ProductType: Codable, Identifiable {
+    let id: String
+    let value: String
+    let createdAt: String
+    let updatedAt: String
+    let deletedAt: String?
+    let metadata: [String: AnyCodable]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, value, metadata
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case deletedAt = "deleted_at"
+    }
+}
+
+struct ProductTag: Codable, Identifiable {
+    let id: String
+    let value: String
+    let createdAt: String
+    let updatedAt: String
+    let deletedAt: String?
+    let metadata: [String: AnyCodable]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, value, metadata
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case deletedAt = "deleted_at"
+    }
+}
+
+// MARK: - Helper for dynamic metadata
+struct AnyCodable: Codable {
+    let value: Any
+    
+    init<T>(_ value: T?) {
+        self.value = value ?? ()
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if container.decodeNil() {
+            self.value = ()
+        } else if let bool = try? container.decode(Bool.self) {
+            self.value = bool
+        } else if let int = try? container.decode(Int.self) {
+            self.value = int
+        } else if let double = try? container.decode(Double.self) {
+            self.value = double
+        } else if let string = try? container.decode(String.self) {
+            self.value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            self.value = array.map { $0.value }
+        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+            self.value = dictionary.mapValues { $0.value }
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "AnyCodable value cannot be decoded")
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch value {
+        case is Void:
+            try container.encodeNil()
+        case let bool as Bool:
+            try container.encode(bool)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let string as String:
+            try container.encode(string)
+        case let array as [Any]:
+            try container.encode(array.map { AnyCodable($0) })
+        case let dictionary as [String: Any]:
+            try container.encode(dictionary.mapValues { AnyCodable($0) })
+        default:
+            let context = EncodingError.Context(codingPath: container.codingPath, debugDescription: "AnyCodable value cannot be encoded")
+            throw EncodingError.invalidValue(value, context)
+        }
     }
 }
 
@@ -236,12 +351,12 @@ struct CategoriesResponse: Codable {
 extension Product {
     var displayPrice: String {
         guard let variant = variants?.first,
-              let price = variant.prices?.first else {
+              let calculatedPrice = variant.calculatedPrice else {
             return "Price not available"
         }
         
-        let amount = Double(price.amount) / 100.0
-        return String(format: "%.2f %@", amount, price.currencyCode.uppercased())
+        let amount = Double(calculatedPrice.calculatedAmount) / 100.0
+        return String(format: "%.2f %@", amount, calculatedPrice.currencyCode.uppercased())
     }
     
     var displayImage: String? {
@@ -252,15 +367,43 @@ extension Product {
         guard let variant = variants?.first else { return false }
         return variant.inventoryQuantity > 0 || variant.allowBackorder
     }
+    
+    var categoryNames: [String] {
+        return categories?.map { $0.name } ?? []
+    }
+    
+    var tagValues: [String] {
+        return tags?.map { $0.value } ?? []
+    }
 }
 
 extension ProductVariant {
     var displayPrice: String {
-        guard let price = prices?.first else {
+        guard let calculatedPrice = calculatedPrice else {
             return "Price not available"
         }
         
-        let amount = Double(price.amount) / 100.0
-        return String(format: "%.2f %@", amount, price.currencyCode.uppercased())
+        let amount = Double(calculatedPrice.calculatedAmount) / 100.0
+        return String(format: "%.2f %@", amount, calculatedPrice.currencyCode.uppercased())
+    }
+    
+    var isInStock: Bool {
+        return inventoryQuantity > 0
+    }
+    
+    var stockStatus: String {
+        if inventoryQuantity > 0 {
+            return "\(inventoryQuantity) in stock"
+        } else if allowBackorder {
+            return "Backorder available"
+        } else {
+            return "Out of stock"
+        }
+    }
+}
+
+extension ProductImage {
+    var displayUrl: String {
+        return url
     }
 }

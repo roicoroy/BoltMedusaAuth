@@ -160,6 +160,18 @@ struct ProductDetailView: View {
                                 if let originCountry = product.originCountry {
                                     DetailRow(title: "Origin", value: originCountry)
                                 }
+                                
+                                if let collection = product.collection {
+                                    DetailRow(title: "Collection", value: collection.title)
+                                }
+                                
+                                if let type = product.type {
+                                    DetailRow(title: "Type", value: type.value)
+                                }
+                                
+                                if let sku = selectedVariant?.sku ?? product.variants?.first?.sku {
+                                    DetailRow(title: "SKU", value: sku)
+                                }
                             }
                         }
                         
@@ -184,6 +196,33 @@ struct ProductDetailView: View {
                                             .background(Color.blue.opacity(0.2))
                                             .foregroundColor(.blue)
                                             .cornerRadius(6)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Tags
+                        if let tags = product.tags, !tags.isEmpty {
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Tags")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                
+                                LazyVGrid(columns: [
+                                    GridItem(.flexible()),
+                                    GridItem(.flexible()),
+                                    GridItem(.flexible())
+                                ], spacing: 8) {
+                                    ForEach(tags) { tag in
+                                        Text(tag.value)
+                                            .font(.caption)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 3)
+                                            .background(Color.green.opacity(0.2))
+                                            .foregroundColor(.green)
+                                            .cornerRadius(4)
                                     }
                                 }
                             }
@@ -229,19 +268,9 @@ struct VariantCard: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                if variant.inventoryQuantity > 0 {
-                    Text("\(variant.inventoryQuantity) in stock")
-                        .font(.caption2)
-                        .foregroundColor(.green)
-                } else if variant.allowBackorder {
-                    Text("Backorder available")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                } else {
-                    Text("Out of stock")
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                }
+                Text(variant.stockStatus)
+                    .font(.caption2)
+                    .foregroundColor(variant.isInStock ? .green : (variant.allowBackorder ? .orange : .red))
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -289,7 +318,11 @@ struct DetailRow: View {
         options: nil,
         variants: nil,
         categories: nil,
-        profileId: "prof_01",
+        collection: nil,
+        collectionId: nil,
+        type: nil,
+        typeId: nil,
+        tags: nil,
         weight: 500,
         length: 10,
         height: 5,
@@ -298,6 +331,8 @@ struct DetailRow: View {
         originCountry: "US",
         midCode: nil,
         material: "Cotton",
+        discountable: true,
+        externalId: nil,
         createdAt: "2023-01-01T00:00:00Z",
         updatedAt: "2023-01-01T00:00:00Z",
         deletedAt: nil,
