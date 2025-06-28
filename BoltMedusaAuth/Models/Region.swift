@@ -55,13 +55,20 @@ struct Country: Codable, Identifiable {
 }
 
 // MARK: - Country Selection Model (flattened from regions)
-struct CountrySelection: Codable, Identifiable {
+struct CountrySelection: Codable, Identifiable, Equatable {
     let country: String        // iso2 code (e.g., "gb", "fr")
     let label: String          // display name (e.g., "United Kingdom")
     let currencyCode: String   // currency (e.g., "eur")
     let regionId: String       // region ID for cart creation
     
     var id: String { country } // Use country code as identifier
+    
+    // MARK: - Equatable Conformance
+    static func == (lhs: CountrySelection, rhs: CountrySelection) -> Bool {
+        return lhs.country == rhs.country &&
+               lhs.regionId == rhs.regionId &&
+               lhs.currencyCode == rhs.currencyCode
+    }
     
     // Computed properties for display
     var flagEmoji: String {
