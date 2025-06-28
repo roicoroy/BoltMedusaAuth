@@ -16,45 +16,74 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Country Header (if no country selected)
-                if !regionService.hasSelectedRegion {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(.orange)
+                // Country Selector Header (same as ProductsView)
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Shopping Country")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Country Required")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                
-                                Text("Please select a shopping country to view your cart")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                            Button(action: {
+                                showingCountrySelector = true
+                            }) {
+                                HStack {
+                                    if let selectedCountry = regionService.selectedCountry {
+                                        Text(selectedCountry.flagEmoji)
+                                        Text(selectedCountry.label)
+                                            .fontWeight(.medium)
+                                        Text("(\(selectedCountry.formattedCurrency))")
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Select Country")
+                                            .foregroundColor(.blue)
+                                    }
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                            
-                            Spacer()
+                            .foregroundColor(.primary)
                         }
                         
-                        Button(action: {
-                            showingCountrySelector = true
-                        }) {
-                            Text("Select Country")
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                        Spacer()
+                        
+                        if regionService.isLoading || cartService.isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
                         }
                     }
                     .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
-                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
                 }
+                .padding()
+                .background(Color(.systemBackground))
                 
-                if cartService.isLoading && cartService.currentCart == nil {
+                // Cart Content
+                if !regionService.hasSelectedRegion {
+                    // No country selected state
+                    VStack(spacing: 20) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 80))
+                            .foregroundColor(.gray)
+                        
+                        Text("Select a Country")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                        
+                        Text("Choose your shopping country to view your cart")
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Button("Select Country") {
+                            showingCountrySelector = true
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if cartService.isLoading && cartService.currentCart == nil {
                     // Loading state for initial cart creation
                     VStack(spacing: 16) {
                         ProgressView()
@@ -90,12 +119,6 @@ struct CartView: View {
                                             .foregroundColor(.secondary)
                                     }
                                     .font(.caption)
-                                    
-                                    Button("Change Country") {
-                                        showingCountrySelector = true
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
                                 }
                             }
                         }
@@ -103,33 +126,6 @@ struct CartView: View {
                     } else {
                         // Cart with items
                         VStack(spacing: 0) {
-                            // Current country display
-                            if let selectedCountry = regionService.selectedCountry {
-                                HStack {
-                                    Text("Shopping in:")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Text(selectedCountry.flagEmoji)
-                                    Text(selectedCountry.label)
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                    Text("(\(selectedCountry.formattedCurrency))")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Spacer()
-                                    
-                                    Button("Change") {
-                                        showingCountrySelector = true
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                                }
-                                .padding()
-                                .background(Color(.systemGray6))
-                            }
-                            
                             // Cart items list
                             ScrollView {
                                 LazyVStack(spacing: 12) {
@@ -198,70 +194,55 @@ struct CartView: View {
                             .foregroundColor(.secondary)
                         
                         if let selectedCountry = regionService.selectedCountry {
-                            VStack(spacing: 8) {
-                                HStack {
-                                    Text("Shopping in:")
-                                        .foregroundColor(.secondary)
-                                    Text(selectedCountry.flagEmoji)
-                                    Text(selectedCountry.label)
-                                        .fontWeight(.medium)
-                                    Text("(\(selectedCountry.formattedCurrency))")
-                                        .foregroundColor(.secondary)
-                                }
-                                .font(.caption)
-                                
-                                Button("Create Cart") {
-                                    cartService.createCartIfNeeded(regionId: selectedCountry.regionId)
-                                }
-                                .foregroundColor(.blue)
+                            Button("Create Cart") {
+                                cartService.createCartIfNeeded(regionId: selectedCountry.regionId)
                             }
+                            .foregroundColor(.blue)
                         }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    // No country selected and no cart
-                    VStack(spacing: 20) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 80))
-                            .foregroundColor(.gray)
-                        
-                        Text("Select a Country")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        
-                        Text("Choose your shopping country to get started")
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        Button("Select Country") {
-                            showingCountrySelector = true
-                        }
-                        .foregroundColor(.blue)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
-                // Error message
-                if let errorMessage = cartService.errorMessage {
-                    VStack {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        
-                        Button("Retry") {
-                            cartService.refreshCart()
+                // Error messages
+                VStack {
+                    if let errorMessage = cartService.errorMessage {
+                        VStack {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            
+                            Button("Retry") {
+                                cartService.refreshCart()
+                            }
+                            .foregroundColor(.blue)
                         }
-                        .foregroundColor(.blue)
+                        .background(Color(.systemGray6))
                     }
-                    .background(Color(.systemGray6))
+                    
+                    if let errorMessage = regionService.errorMessage {
+                        VStack {
+                            Text("Region Error: \(errorMessage)")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            
+                            Button("Retry Regions") {
+                                regionService.refreshRegions()
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        .background(Color(.systemGray6))
+                    }
                 }
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 cartService.refreshCart()
+                regionService.refreshRegions()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -280,6 +261,184 @@ struct CartView: View {
         .sheet(isPresented: $showingCountrySelector) {
             CountrySelectorView(regionService: regionService)
         }
+        .onChange(of: regionService.selectedCountry) { newCountry in
+            // When country changes, update cart region if cart exists
+            if let newCountry = newCountry {
+                print("Country changed in CartView to: \(newCountry.label) (\(newCountry.currencyCode))")
+                
+                if cartService.currentCart != nil {
+                    // Cart exists, update its region
+                    cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
+                        if success {
+                            print("Cart updated for new country successfully")
+                        } else {
+                            print("Failed to update cart for new country")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct CountrySelectorView: View {
+    @ObservedObject var regionService: RegionService
+    @Environment(\.presentationMode) var presentationMode
+    @State private var searchText = ""
+    
+    private var filteredCountries: [CountrySelection] {
+        if searchText.isEmpty {
+            return regionService.countryList
+        } else {
+            return regionService.countryList.filter { country in
+                country.label.localizedCaseInsensitiveContains(searchText) ||
+                country.country.localizedCaseInsensitiveContains(searchText) ||
+                country.formattedCurrency.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    
+                    TextField("Search countries...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding()
+                
+                if regionService.isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading countries...")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if filteredCountries.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No countries available")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                        
+                        if !searchText.isEmpty {
+                            Text("Try adjusting your search")
+                                .foregroundColor(.secondary)
+                            
+                            Button("Clear Search") {
+                                searchText = ""
+                            }
+                            .foregroundColor(.blue)
+                        } else {
+                            Button("Retry") {
+                                regionService.refreshRegions()
+                            }
+                            .foregroundColor(.blue)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(filteredCountries) { country in
+                            CountryRow(
+                                country: country,
+                                isSelected: regionService.selectedCountry?.id == country.id
+                            ) {
+                                regionService.selectCountry(country)
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
+                    }
+                }
+                
+                if let errorMessage = regionService.errorMessage {
+                    VStack {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        
+                        Button("Retry") {
+                            regionService.refreshRegions()
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .background(Color(.systemGray6))
+                }
+            }
+            .navigationTitle("Select Country")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+}
+
+struct CountryRow: View {
+    let country: CountrySelection
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                Text(country.flagEmoji)
+                    .font(.title2)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(country.label)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    HStack {
+                        Text(country.formattedCurrency)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("•")
+                            .foregroundColor(.secondary)
+                        
+                        Text(country.country.uppercased())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.title2)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
