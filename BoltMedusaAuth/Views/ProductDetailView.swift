@@ -79,12 +79,12 @@ struct ProductDetailView: View {
                                 Spacer()
                                 
                                 if !product.isAvailable {
-                                    Text("Out of Stock")
+                                    Text("Contact for Availability")
                                         .font(.caption)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color.red.opacity(0.2))
-                                        .foregroundColor(.red)
+                                        .background(Color.orange.opacity(0.2))
+                                        .foregroundColor(.orange)
                                         .cornerRadius(6)
                                 }
                             }
@@ -172,57 +172,15 @@ struct ProductDetailView: View {
                                 if let sku = selectedVariant?.sku ?? product.variants?.first?.sku {
                                     DetailRow(title: "SKU", value: sku)
                                 }
-                            }
-                        }
-                        
-                        // Categories
-                        if let categories = product.categories, !categories.isEmpty {
-                            Divider()
-                            
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Categories")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
                                 
-                                LazyVGrid(columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ], spacing: 8) {
-                                    ForEach(categories) { category in
-                                        Text(category.name)
-                                            .font(.caption)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.blue.opacity(0.2))
-                                            .foregroundColor(.blue)
-                                            .cornerRadius(6)
+                                // Inventory Management Info
+                                if let variant = selectedVariant ?? product.variants?.first {
+                                    if let manageInventory = variant.manageInventory {
+                                        DetailRow(title: "Inventory Managed", value: manageInventory ? "Yes" : "No")
                                     }
-                                }
-                            }
-                        }
-                        
-                        // Tags
-                        if let tags = product.tags, !tags.isEmpty {
-                            Divider()
-                            
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Tags")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                LazyVGrid(columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ], spacing: 8) {
-                                    ForEach(tags) { tag in
-                                        Text(tag.value)
-                                            .font(.caption)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(Color.green.opacity(0.2))
-                                            .foregroundColor(.green)
-                                            .cornerRadius(4)
+                                    
+                                    if let allowBackorder = variant.allowBackorder {
+                                        DetailRow(title: "Backorder Allowed", value: allowBackorder ? "Yes" : "No")
                                     }
                                 }
                             }
@@ -305,39 +263,6 @@ struct DetailRow: View {
 }
 
 #Preview {
-//    let sampleProduct = Product(
-//        id: "prod_01",
-//        title: "Sample Product",
-//        subtitle: "A great product",
-//        description: "This is a detailed description of the sample product.",
-//        handle: "sample-product",
-//        isGiftcard: false,
-//        status: .published,
-//        images: nil,
-//        thumbnail: nil,
-//        options: nil,
-//        variants: nil,
-//        categories: nil,
-//        collection: nil,
-//        collectionId: nil,
-//        type: nil,
-//        typeId: nil,
-//        tags: nil,
-//        weight: 500,
-//        length: 10,
-//        height: 5,
-//        width: 8,
-//        hsCode: nil,
-//        originCountry: "US",
-//        midCode: nil,
-//        material: "Cotton",
-//        discountable: true,
-//        externalId: nil,
-//        createdAt: "2023-01-01T00:00:00Z",
-//        updatedAt: "2023-01-01T00:00:00Z",
-//        deletedAt: nil,
-//        metadata: nil
-//    )
-//    
-//    ProductDetailView(product: sampleProduct)
+    // Preview with minimal data since we can't create a full Product easily
+    Text("Product Detail Preview")
 }

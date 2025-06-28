@@ -10,7 +10,6 @@ import Combine
 
 class ProductService: ObservableObject {
     @Published var products: [Product] = []
-    @Published var categories: [ProductCategory] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     
@@ -21,7 +20,6 @@ class ProductService: ObservableObject {
     
     init() {
         fetchProducts()
-        fetchCategories()
     }
     
     deinit {
@@ -119,50 +117,6 @@ class ProductService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func fetchCategories() {
-        guard let url = URL(string: "\(baseURL)/store/product-categories") else {
-            DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Invalid URL for categories"
-            }
-            return
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        
-        URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .tryMap { data, response -> Data in
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("Categories Response Status: \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("Categories Response: \(responseString)")
-                    }
-                    
-                    if httpResponse.statusCode >= 400 {
-                        throw URLError(.badServerResponse)
-                    }
-                }
-                return data
-            }
-            .decode(type: CategoriesResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        print("Categories fetch error: \(error)")
-                        // Don't show error for categories as it's not critical
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.categories = response.productCategories
-                    print("Fetched \(response.productCategories.count) categories")
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
     func searchProducts(query: String, limit: Int = 50) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
@@ -213,75 +167,5 @@ class ProductService: ObservableObject {
                 }
             )
             .store(in: &cancellables)
-    }
-    
-    func filterProductsByCategory(_ categoryId: String) {
-        DispatchQueue.main.async { [weak self] in
-            self?.isLoading = true
-            self?.errorMessage = nil
-        }
-        
-        guard let url = URL(string: "\(baseURL)/store/products?category_id[]=\(categoryId)") else {
-            DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Invalid category filter"
-                self?.isLoading = false
-            }
-            return
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        
-        URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .tryMap { data, response -> Data in
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("Category Filter Response Status: \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("Category Filter Response: \(responseString)")
-                    }
-                    
-                    if httpResponse.statusCode >= 400 {
-                        throw URLError(.badServerResponse)
-                    }
-                }
-                return data
-            }
-            .decode(type: ProductsResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.errorMessage = "Category filter failed: \(error.localizedDescription)"
-                        print("Category filter error: \(error)")
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.products = response.products
-                    print("Category filter found \(response.products.count) products")
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    // Helper methods for category hierarchy (since we removed circular references)
-    func getChildCategories(for parentId: String) -> [ProductCategory] {
-        return categories.filter { $0.parentCategoryId == parentId }
-    }
-    
-    func getTopLevelCategories() -> [ProductCategory] {
-        return categories.filter { $0.isTopLevel }
-    }
-    
-    func getCategoryProductCount(for categoryId: String) -> Int {
-        return products.filter { product in
-            product.categories?.contains { $0.id == categoryId } ?? false
-        }.count
-    }
-    
-    func hasChildCategories(categoryId: String) -> Bool {
-        return categories.contains { $0.parentCategoryId == categoryId }
     }
 }
