@@ -10,6 +10,7 @@ import SwiftUI
 struct MainTabView: View {
     @ObservedObject var authService: AuthService
     @StateObject private var cartService = CartService()
+    @StateObject private var regionService = RegionService()
     
     var body: some View {
         TabView {
@@ -20,6 +21,7 @@ struct MainTabView: View {
                 }
             
             ProductsView()
+                .environmentObject(regionService)
                 .tabItem {
                     Image(systemName: "cube.box")
                     Text("Products")
@@ -32,6 +34,7 @@ struct MainTabView: View {
                 }
                 .badge(cartService.currentCart?.itemCount ?? 0)
                 .environmentObject(cartService)
+                .environmentObject(regionService)
         }
         .accentColor(.blue)
     }

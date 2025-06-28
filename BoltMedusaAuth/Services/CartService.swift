@@ -28,7 +28,7 @@ class CartService: ObservableObject {
     
     // MARK: - Cart Management
     
-    func createCart(currencyCode: String = "usd", completion: @escaping (Bool) -> Void = { _ in }) {
+    func createCart(regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
@@ -43,7 +43,7 @@ class CartService: ObservableObject {
             return
         }
         
-        let request = CreateCartRequest(currencyCode: currencyCode, region: nil)
+        let request = CreateCartRequest(regionId: regionId)
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -89,7 +89,7 @@ class CartService: ObservableObject {
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("Cart created successfully: \(response.cart.id)")
+                    print("Cart created successfully: \(response.cart.id) for region: \(regionId)")
                     completion(true)
                 }
             )
@@ -150,12 +150,12 @@ class CartService: ObservableObject {
     
     // MARK: - Line Item Management
     
-    func addLineItem(variantId: String, quantity: Int = 1, completion: @escaping (Bool) -> Void = { _ in }) {
+    func addLineItem(variantId: String, quantity: Int = 1, regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         // Create cart if it doesn't exist
         guard let cart = currentCart else {
-            createCart { [weak self] success in
+            createCart(regionId: regionId) { [weak self] success in
                 if success {
-                    self?.addLineItem(variantId: variantId, quantity: quantity, completion: completion)
+                    self?.addLineItem(variantId: variantId, quantity: quantity, regionId: regionId, completion: completion)
                 } else {
                     completion(false)
                 }

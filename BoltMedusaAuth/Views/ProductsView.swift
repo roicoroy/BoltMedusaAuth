@@ -9,9 +9,11 @@ import SwiftUI
 
 struct ProductsView: View {
     @StateObject private var productService = ProductService()
+    @StateObject private var regionService = RegionService()
     @State private var searchText = ""
     @State private var selectedProduct: Product?
     @State private var showingProductDetail = false
+    @State private var showingRegionSelector = false
     
     private var filteredProducts: [Product] {
         if searchText.isEmpty {
@@ -27,8 +29,49 @@ struct ProductsView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Search Bar
+                // Region Selector Header
                 VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Shopping Region")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Button(action: {
+                                showingRegionSelector = true
+                            }) {
+                                HStack {
+                                    if let selectedRegion = regionService.selectedRegion {
+                                        Text(selectedRegion.flagEmoji)
+                                        Text(selectedRegion.name)
+                                            .fontWeight(.medium)
+                                        Text("(\(selectedRegion.formattedCurrency))")
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Select Region")
+                                            .foregroundColor(.blue)
+                                    }
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .foregroundColor(.primary)
+                        }
+                        
+                        Spacer()
+                        
+                        if regionService.isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                    
+                    // Search Bar
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
@@ -102,33 +145,55 @@ struct ProductsView: View {
                     }
                 }
                 
-                // Error message
-                if let errorMessage = productService.errorMessage {
-                    VStack {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        
-                        Button("Retry") {
-                            productService.fetchProducts()
+                // Error messages
+                VStack {
+                    if let errorMessage = productService.errorMessage {
+                        VStack {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            
+                            Button("Retry") {
+                                productService.fetchProducts()
+                            }
+                            .foregroundColor(.blue)
                         }
-                        .foregroundColor(.blue)
+                        .background(Color(.systemGray6))
                     }
-                    .background(Color(.systemGray6))
+                    
+                    if let errorMessage = regionService.errorMessage {
+                        VStack {
+                            Text("Region Error: \(errorMessage)")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            
+                            Button("Retry Regions") {
+                                regionService.refreshRegions()
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        .background(Color(.systemGray6))
+                    }
                 }
             }
             .navigationTitle("Products")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 productService.fetchProducts()
+                regionService.refreshRegions()
             }
         }
         .sheet(isPresented: $showingProductDetail) {
             if let product = selectedProduct {
-                ProductDetailView(product: product)
+                ProductDetailView(product: product, regionService: regionService)
             }
+        }
+        .sheet(isPresented: $showingRegionSelector) {
+            RegionSelectorView(regionService: regionService)
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
@@ -142,6 +207,120 @@ struct ProductsView: View {
                 productService.fetchProducts()
             }
         }
+    }
+}
+
+struct RegionSelectorView: View {
+    @ObservedObject var regionService: RegionService
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                if regionService.isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading regions...")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if regionService.regions.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No regions available")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                        
+                        Button("Retry") {
+                            regionService.refreshRegions()
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(regionService.regions) { region in
+                            RegionRow(
+                                region: region,
+                                isSelected: regionService.selectedRegion?.id == region.id
+                            ) {
+                                regionService.selectRegion(region)
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
+                    }
+                }
+                
+                if let errorMessage = regionService.errorMessage {
+                    VStack {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        
+                        Button("Retry") {
+                            regionService.refreshRegions()
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .background(Color(.systemGray6))
+                }
+            }
+            .navigationTitle("Select Region")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+}
+
+struct RegionRow: View {
+    let region: Region
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                Text(region.flagEmoji)
+                    .font(.title2)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(region.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Text(region.formattedCurrency)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    if !region.countryNames.isEmpty && region.countryNames != "No countries" {
+                        Text(region.countryNames)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.title2)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

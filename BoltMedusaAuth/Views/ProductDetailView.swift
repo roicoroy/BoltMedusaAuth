@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ProductDetailView: View {
     let product: Product
+    @ObservedObject var regionService: RegionService
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var cartService = CartService()
     @State private var selectedVariant: ProductVariant?
@@ -78,6 +79,12 @@ struct ProductDetailView: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.primary)
+                                
+                                if let selectedRegion = regionService.selectedRegion {
+                                    Text("(\(selectedRegion.formattedCurrency))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                                 
                                 Spacer()
                                 
@@ -189,11 +196,11 @@ struct ProductDetailView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.blue)
+                            .background(canAddToCart ? Color.blue : Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                         }
-                        .disabled(cartService.isLoading || selectedVariant == nil)
+                        .disabled(!canAddToCart)
                         
                         // Error message
                         if let errorMessage = cartService.errorMessage {
@@ -201,6 +208,20 @@ struct ProductDetailView: View {
                                 .foregroundColor(.red)
                                 .font(.caption)
                                 .padding(.horizontal)
+                        }
+                        
+                        // Region requirement message
+                        if !regionService.hasSelectedRegion {
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.orange)
+                                Text("Please select a region to add items to cart")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                            .padding()
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(8)
                         }
                         
                         // Product Details
@@ -230,14 +251,6 @@ struct ProductDetailView: View {
                                 
                                 if let originCountry = product.originCountry {
                                     DetailRow(title: "Origin", value: originCountry)
-                                }
-                                
-                                if let collection = product.collection {
-                                    DetailRow(title: "Collection", value: collection.title)
-                                }
-                                
-                                if let type = product.type {
-                                    DetailRow(title: "Type", value: type.value)
                                 }
                                 
                                 if let sku = selectedVariant?.sku ?? product.variants?.first?.sku {
@@ -282,10 +295,23 @@ struct ProductDetailView: View {
         }
     }
     
+    private var canAddToCart: Bool {
+        return selectedVariant != nil && 
+               regionService.hasSelectedRegion && 
+               !cartService.isLoading
+    }
+    
     private func addToCart() {
-        guard let variant = selectedVariant else { return }
+        guard let variant = selectedVariant,
+              let regionId = regionService.selectedRegionId else { 
+            return 
+        }
         
-        cartService.addLineItem(variantId: variant.id, quantity: quantity) { success in
+        cartService.addLineItem(
+            variantId: variant.id, 
+            quantity: quantity, 
+            regionId: regionId
+        ) { success in
             if success {
                 showingAddToCartSuccess = true
             }

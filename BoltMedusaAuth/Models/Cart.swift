@@ -158,12 +158,10 @@ struct CartResponse: Codable {
 }
 
 struct CreateCartRequest: Codable {
-    let currencyCode: String?
-    let region: String?
+    let regionId: String
     
     enum CodingKeys: String, CodingKey {
-        case currencyCode = "currency_code"
-        case region
+        case regionId = "region_id"
     }
 }
 
