@@ -443,55 +443,44 @@ class CartService: ObservableObject {
     }
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/shipping-address") else {
-            print("❌ Invalid URL for adding shipping address to cart")
-            completion(false)
-            return
-        }
-        
-        // Create a simplified address payload that matches Medusa's expected format
-        let addressData: [String: Any] = [
-            "first_name": address.firstName ?? "",
-            "last_name": address.lastName ?? "",
-            "address_1": address.address1,
-            "city": address.city,
-            "country_code": address.countryCode.lowercased(), // Ensure lowercase
-            "postal_code": address.postalCode
+        // Try multiple possible endpoints for Medusa v2
+        let possibleEndpoints = [
+            "\(baseURL)/store/carts/\(cartId)/addresses/shipping",
+            "\(baseURL)/store/carts/\(cartId)/shipping-address",
+            "\(baseURL)/store/carts/\(cartId)/address/shipping"
         ]
         
-        // Add optional fields only if they have values
-        var finalAddressData = addressData
-        
-        if let address2 = address.address2, !address2.isEmpty {
-            finalAddressData["address_2"] = address2
-        }
-        
-        if let phone = address.phone, !phone.isEmpty {
-            finalAddressData["phone"] = phone
-        }
-        
-        if let company = address.company, !company.isEmpty {
-            finalAddressData["company"] = company
-        }
-        
-        if let province = address.province, !province.isEmpty {
-            finalAddressData["province"] = province
-        }
-        
-        print("📦 Shipping address payload:")
-        for (key, value) in finalAddressData {
-            print("  \(key): \(value)")
-        }
-        
-        performAddressRequest(url: url, addressData: finalAddressData, addressType: "shipping", completion: completion)
+        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "shipping", completion: completion)
     }
     
     private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/billing-address") else {
-            print("❌ Invalid URL for adding billing address to cart")
+        // Try multiple possible endpoints for Medusa v2
+        let possibleEndpoints = [
+            "\(baseURL)/store/carts/\(cartId)/addresses/billing",
+            "\(baseURL)/store/carts/\(cartId)/billing-address",
+            "\(baseURL)/store/carts/\(cartId)/address/billing"
+        ]
+        
+        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "billing", completion: completion)
+    }
+    
+    private func tryAddressEndpoints(endpoints: [String], address: Address, addressType: String, completion: @escaping (Bool) -> Void) {
+        guard !endpoints.isEmpty else {
+            print("❌ No more endpoints to try for \(addressType) address")
             completion(false)
             return
         }
+        
+        var remainingEndpoints = endpoints
+        let currentEndpoint = remainingEndpoints.removeFirst()
+        
+        guard let url = URL(string: currentEndpoint) else {
+            print("❌ Invalid URL for \(addressType) address: \(currentEndpoint)")
+            tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
+            return
+        }
+        
+        print("🔄 Trying \(addressType) address endpoint: \(currentEndpoint)")
         
         // Create a simplified address payload that matches Medusa's expected format
         let addressData: [String: Any] = [
@@ -522,12 +511,20 @@ class CartService: ObservableObject {
             finalAddressData["province"] = province
         }
         
-        print("💳 Billing address payload:")
+        print("📦 \(addressType.capitalized) address payload:")
         for (key, value) in finalAddressData {
             print("  \(key): \(value)")
         }
         
-        performAddressRequest(url: url, addressData: finalAddressData, addressType: "billing", completion: completion)
+        performAddressRequest(url: url, addressData: finalAddressData, addressType: addressType) { success in
+            if success {
+                print("✅ Successfully added \(addressType) address using endpoint: \(currentEndpoint)")
+                completion(true)
+            } else {
+                print("❌ Failed with endpoint: \(currentEndpoint), trying next...")
+                self.tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
+            }
+        }
     }
     
     private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
