@@ -13,10 +13,9 @@ struct CartView: View {
     @EnvironmentObject var authService: AuthService
     @State private var showingCheckout = false
     @State private var showingCountrySelector = false
-    @State private var showingAddShippingAddress = false
-    @State private var showingAddBillingAddress = false
-    @State private var showingEditShippingAddress = false
-    @State private var showingEditBillingAddress = false
+    @State private var showingShippingAddressSelector = false
+    @State private var showingBillingAddressSelector = false
+    @State private var showingAddAddress = false
     
     var body: some View {
         NavigationView {
@@ -48,10 +47,9 @@ struct CartView: View {
                                     cartService: cartService,
                                     authService: authService,
                                     showingCheckout: $showingCheckout,
-                                    showingAddShippingAddress: $showingAddShippingAddress,
-                                    showingAddBillingAddress: $showingAddBillingAddress,
-                                    showingEditShippingAddress: $showingEditShippingAddress,
-                                    showingEditBillingAddress: $showingEditBillingAddress
+                                    showingShippingAddressSelector: $showingShippingAddressSelector,
+                                    showingBillingAddressSelector: $showingBillingAddressSelector,
+                                    showingAddAddress: $showingAddAddress
                                 )
                             }
                         } else if regionService.hasSelectedRegion {
@@ -97,31 +95,30 @@ struct CartView: View {
         .sheet(isPresented: $showingCountrySelector) {
             SharedCountrySelectorView(regionService: regionService)
         }
-        .sheet(isPresented: $showingAddShippingAddress) {
-            if authService.isAuthenticated {
-                AddAddressView(authService: authService)
-                    .onDisappear {
-                        // Refresh cart after address is added
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            cartService.refreshCart()
-                        }
-                    }
-            } else {
-                LoginPromptView(message: "Please sign in to add shipping addresses")
-            }
+        .sheet(isPresented: $showingShippingAddressSelector) {
+            AddressSelectorView(
+                title: "Select Shipping Address",
+                addressType: .shipping,
+                authService: authService,
+                cartService: cartService
+            )
         }
-        .sheet(isPresented: $showingAddBillingAddress) {
-            if authService.isAuthenticated {
-                AddAddressView(authService: authService)
-                    .onDisappear {
-                        // Refresh cart after address is added
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            cartService.refreshCart()
-                        }
+        .sheet(isPresented: $showingBillingAddressSelector) {
+            AddressSelectorView(
+                title: "Select Billing Address",
+                addressType: .billing,
+                authService: authService,
+                cartService: cartService
+            )
+        }
+        .sheet(isPresented: $showingAddAddress) {
+            AddAddressView(authService: authService)
+                .onDisappear {
+                    // Refresh customer profile after address is added
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        authService.fetchCustomerProfile()
                     }
-            } else {
-                LoginPromptView(message: "Please sign in to add billing addresses")
-            }
+                }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
             // When country changes, update cart region if cart exists
@@ -231,10 +228,9 @@ struct CartContentView: View {
     @ObservedObject var cartService: CartService
     @ObservedObject var authService: AuthService
     @Binding var showingCheckout: Bool
-    @Binding var showingAddShippingAddress: Bool
-    @Binding var showingAddBillingAddress: Bool
-    @Binding var showingEditShippingAddress: Bool
-    @Binding var showingEditBillingAddress: Bool
+    @Binding var showingShippingAddressSelector: Bool
+    @Binding var showingBillingAddressSelector: Bool
+    @Binding var showingAddAddress: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -266,10 +262,9 @@ struct CartContentView: View {
             CartSummaryView(
                 cart: cart,
                 authService: authService,
-                showingAddShippingAddress: $showingAddShippingAddress,
-                showingAddBillingAddress: $showingAddBillingAddress,
-                showingEditShippingAddress: $showingEditShippingAddress,
-                showingEditBillingAddress: $showingEditBillingAddress
+                showingShippingAddressSelector: $showingShippingAddressSelector,
+                showingBillingAddressSelector: $showingBillingAddressSelector,
+                showingAddAddress: $showingAddAddress
             )
             .padding(.horizontal)
             
@@ -497,10 +492,9 @@ struct CartItemRow: View {
 struct CartSummaryView: View {
     let cart: Cart
     @ObservedObject var authService: AuthService
-    @Binding var showingAddShippingAddress: Bool
-    @Binding var showingAddBillingAddress: Bool
-    @Binding var showingEditShippingAddress: Bool
-    @Binding var showingEditBillingAddress: Bool
+    @Binding var showingShippingAddressSelector: Bool
+    @Binding var showingBillingAddressSelector: Bool
+    @Binding var showingAddAddress: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -511,16 +505,16 @@ struct CartSummaryView: View {
             ShippingAddressSection(
                 cart: cart,
                 authService: authService,
-                showingAddShippingAddress: $showingAddShippingAddress,
-                showingEditShippingAddress: $showingEditShippingAddress
+                showingShippingAddressSelector: $showingShippingAddressSelector,
+                showingAddAddress: $showingAddAddress
             )
             
             // Billing Address Section
             BillingAddressSection(
                 cart: cart,
                 authService: authService,
-                showingAddBillingAddress: $showingAddBillingAddress,
-                showingEditBillingAddress: $showingEditBillingAddress
+                showingBillingAddressSelector: $showingBillingAddressSelector,
+                showingAddAddress: $showingAddAddress
             )
             
             // Price Summary Section
@@ -604,8 +598,8 @@ struct CustomerInfoSection: View {
 struct ShippingAddressSection: View {
     let cart: Cart
     @ObservedObject var authService: AuthService
-    @Binding var showingAddShippingAddress: Bool
-    @Binding var showingEditShippingAddress: Bool
+    @Binding var showingShippingAddressSelector: Bool
+    @Binding var showingAddAddress: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -616,18 +610,20 @@ struct ShippingAddressSection: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                
-                if cart.hasShippingAddress {
-                    Button("Edit") {
-                        showingEditShippingAddress = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
             }
             
             if let shippingAddress = cart.shippingAddress {
                 AddressDisplayView(address: shippingAddress, type: .shipping)
+                
+                // Change address button
+                if authService.isAuthenticated {
+                    Button("Change Shipping Address") {
+                        showingShippingAddressSelector = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             } else {
                 VStack(spacing: 8) {
                     HStack {
@@ -638,14 +634,25 @@ struct ShippingAddressSection: View {
                         Spacer()
                     }
                     
-                    Button("Add Shipping Address") {
-                        showingAddShippingAddress = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    if !authService.isAuthenticated {
+                    if authService.isAuthenticated {
+                        if let customer = authService.currentCustomer,
+                           let addresses = customer.addresses,
+                           !addresses.isEmpty {
+                            Button("Select Shipping Address") {
+                                showingShippingAddressSelector = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Button("Add Shipping Address") {
+                                showingAddAddress = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    } else {
                         HStack {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.orange)
@@ -668,8 +675,8 @@ struct ShippingAddressSection: View {
 struct BillingAddressSection: View {
     let cart: Cart
     @ObservedObject var authService: AuthService
-    @Binding var showingAddBillingAddress: Bool
-    @Binding var showingEditBillingAddress: Bool
+    @Binding var showingBillingAddressSelector: Bool
+    @Binding var showingAddAddress: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -680,18 +687,20 @@ struct BillingAddressSection: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                
-                if cart.hasBillingAddress {
-                    Button("Edit") {
-                        showingEditBillingAddress = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
             }
             
             if let billingAddress = cart.billingAddress {
                 AddressDisplayView(address: billingAddress, type: .billing)
+                
+                // Change address button
+                if authService.isAuthenticated {
+                    Button("Change Billing Address") {
+                        showingBillingAddressSelector = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             } else {
                 VStack(spacing: 8) {
                     HStack {
@@ -702,23 +711,34 @@ struct BillingAddressSection: View {
                         Spacer()
                     }
                     
-                    Button("Add Billing Address") {
-                        showingAddBillingAddress = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    if cart.hasShippingAddress {
-                        Button("Same as shipping address") {
-                            // TODO: Implement copy shipping to billing
+                    if authService.isAuthenticated {
+                        if let customer = authService.currentCustomer,
+                           let addresses = customer.addresses,
+                           !addresses.isEmpty {
+                            Button("Select Billing Address") {
+                                showingBillingAddressSelector = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            if cart.hasShippingAddress {
+                                Button("Same as shipping address") {
+                                    // TODO: Implement copy shipping to billing
+                                }
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            Button("Add Billing Address") {
+                                showingAddAddress = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    if !authService.isAuthenticated {
+                    } else {
                         HStack {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.orange)
@@ -900,39 +920,6 @@ struct SummaryRow: View {
     }
 }
 
-struct LoginPromptView: View {
-    let message: String
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "person.circle")
-                    .font(.system(size: 60))
-                    .foregroundColor(.blue)
-                
-                Text("Sign In Required")
-                    .font(.title)
-                    .fontWeight(.bold)
-                
-                Text(message)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Sign In")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                trailing: Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            )
-        }
-    }
-}
-
 struct CheckoutView: View {
     let cart: Cart?
     @Environment(\.presentationMode) var presentationMode
@@ -969,6 +956,207 @@ struct CheckoutView: View {
                 }
             )
         }
+    }
+}
+
+// MARK: - Address Selector View
+
+struct AddressSelectorView: View {
+    let title: String
+    let addressType: AddressType
+    @ObservedObject var authService: AuthService
+    @ObservedObject var cartService: CartService
+    @Environment(\.presentationMode) var presentationMode
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    
+    enum AddressType {
+        case shipping, billing
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if let customer = authService.currentCustomer,
+                   let addresses = customer.addresses,
+                   !addresses.isEmpty {
+                    
+                    List {
+                        ForEach(addresses) { address in
+                            AddressSelectorRow(
+                                address: address,
+                                addressType: addressType
+                            ) {
+                                selectAddress(address)
+                            }
+                        }
+                    }
+                    
+                } else {
+                    VStack(spacing: 20) {
+                        Image(systemName: "location.slash")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Addresses Found")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                        
+                        Text("Add an address to your profile first")
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Spacer()
+                    }
+                    .padding()
+                }
+                
+                if let errorMessage = errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding()
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing: isLoading ? AnyView(ProgressView().scaleEffect(0.8)) : AnyView(EmptyView())
+            )
+        }
+    }
+    
+    private func selectAddress(_ address: Address) {
+        guard let cart = cartService.currentCart else {
+            errorMessage = "No cart found"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        let completion: (Bool) -> Void = { success in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if success {
+                    // Refresh cart to show updated address
+                    self.cartService.refreshCart()
+                    self.presentationMode.wrappedValue.dismiss()
+                } else {
+                    self.errorMessage = "Failed to set address"
+                }
+            }
+        }
+        
+        switch addressType {
+        case .shipping:
+            cartService.addShippingAddressFromCustomerAddress(addressId: address.id, completion: completion)
+        case .billing:
+            cartService.addBillingAddressFromCustomerAddress(addressId: address.id, completion: completion)
+        }
+    }
+}
+
+struct AddressSelectorRow: View {
+    let address: Address
+    let addressType: AddressSelectorView.AddressType
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    if let addressName = address.addressName {
+                        Text(addressName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    } else {
+                        Text("Address")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Show default badges
+                    HStack(spacing: 4) {
+                        if addressType == .shipping && address.isDefaultShipping {
+                            Text("Default")
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.2))
+                                .foregroundColor(.green)
+                                .cornerRadius(4)
+                        }
+                        
+                        if addressType == .billing && address.isDefaultBilling {
+                            Text("Default")
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(4)
+                        }
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if let company = address.company, !company.isEmpty {
+                        Text(company)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if let firstName = address.firstName, let lastName = address.lastName {
+                        Text("\(firstName) \(lastName)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text(address.address1)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    if let address2 = address.address2, !address2.isEmpty {
+                        Text(address2)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text("\(address.city), \(address.province ?? "") \(address.postalCode)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text(address.countryCode.uppercased())
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    if let phone = address.phone, !phone.isEmpty {
+                        HStack {
+                            Image(systemName: "phone")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(phone)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

@@ -326,9 +326,9 @@ class CartService: ObservableObject {
                         print("Customer ID: \(customerId)")
                     }
                     
-                    // After successful customer association, add addresses if available
-                    self?.addCustomerAddressesToCart(cartId: cartId) { addressSuccess in
-                        print("Customer addresses addition result: \(addressSuccess)")
+                    // After successful customer association, add default addresses if available
+                    self?.addDefaultCustomerAddressesToCart(cartId: cartId) { addressSuccess in
+                        print("Default customer addresses addition result: \(addressSuccess)")
                         completion(true) // Return success regardless of address addition result
                     }
                 }
@@ -336,29 +336,29 @@ class CartService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    private func addCustomerAddressesToCart(cartId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+    private func addDefaultCustomerAddressesToCart(cartId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let customer = authService?.currentCustomer,
               let addresses = customer.addresses,
               !addresses.isEmpty else {
-            print("No customer or addresses available for cart address setup")
+            print("No customer or addresses available for default address setup")
             completion(false)
             return
         }
         
-        print("🏠 Adding customer addresses to cart. Customer has \(addresses.count) address(es)")
+        print("🏠 Adding default customer addresses to cart. Customer has \(addresses.count) address(es)")
         
         // Find default shipping and billing addresses
-        let defaultShippingAddress = addresses.first { $0.isDefaultShipping } ?? addresses.first
-        let defaultBillingAddress = addresses.first { $0.isDefaultBilling } ?? addresses.first
+        let defaultShippingAddress = addresses.first { $0.isDefaultShipping }
+        let defaultBillingAddress = addresses.first { $0.isDefaultBilling }
         
-        print("📦 Default shipping address: \(defaultShippingAddress?.addressName ?? "First address")")
-        print("💳 Default billing address: \(defaultBillingAddress?.addressName ?? "First address")")
+        print("📦 Default shipping address: \(defaultShippingAddress?.addressName ?? "None")")
+        print("💳 Default billing address: \(defaultBillingAddress?.addressName ?? "None")")
         
         var completedOperations = 0
         let totalOperations = (defaultShippingAddress != nil ? 1 : 0) + (defaultBillingAddress != nil ? 1 : 0)
         
         guard totalOperations > 0 else {
-            print("❌ No addresses to add to cart")
+            print("❌ No default addresses to add to cart")
             completion(false)
             return
         }
@@ -367,7 +367,7 @@ class CartService: ObservableObject {
         
         let checkCompletion = {
             completedOperations += 1
-            print("✅ Completed \(completedOperations)/\(totalOperations) address operations")
+            print("✅ Completed \(completedOperations)/\(totalOperations) default address operations")
             if completedOperations >= totalOperations {
                 // After all address operations, refresh the cart to verify addresses were added
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -377,30 +377,30 @@ class CartService: ObservableObject {
             }
         }
         
-        // Add shipping address if available
+        // Add default shipping address if available
         if let shippingAddress = defaultShippingAddress {
-            print("📦 Adding shipping address: \(shippingAddress.address1), \(shippingAddress.city)")
+            print("📦 Adding default shipping address: \(shippingAddress.address1), \(shippingAddress.city)")
             addShippingAddressToCart(cartId: cartId, address: shippingAddress) { success in
                 if !success {
                     hasError = true
-                    print("❌ Failed to add shipping address")
+                    print("❌ Failed to add default shipping address")
                 } else {
-                    print("✅ Successfully added shipping address")
+                    print("✅ Successfully added default shipping address")
                 }
                 checkCompletion()
             }
         }
         
-        // Add billing address if available and different from shipping
+        // Add default billing address if available and different from shipping
         if let billingAddress = defaultBillingAddress {
             if billingAddress.id != defaultShippingAddress?.id {
-                print("💳 Adding billing address: \(billingAddress.address1), \(billingAddress.city)")
+                print("💳 Adding default billing address: \(billingAddress.address1), \(billingAddress.city)")
                 addBillingAddressToCart(cartId: cartId, address: billingAddress) { success in
                     if !success {
                         hasError = true
-                        print("❌ Failed to add billing address")
+                        print("❌ Failed to add default billing address")
                     } else {
-                        print("✅ Successfully added billing address")
+                        print("✅ Successfully added default billing address")
                     }
                     checkCompletion()
                 }
@@ -410,6 +410,36 @@ class CartService: ObservableObject {
                 checkCompletion()
             }
         }
+    }
+    
+    // MARK: - Manual Address Management (for address selector)
+    
+    func addShippingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart,
+              let customer = authService?.currentCustomer,
+              let addresses = customer.addresses,
+              let address = addresses.first(where: { $0.id == addressId }) else {
+            print("Cannot find address or cart for shipping address addition")
+            completion(false)
+            return
+        }
+        
+        print("📦 Adding selected shipping address: \(address.addressName ?? "Address") - \(address.address1)")
+        addShippingAddressToCart(cartId: cart.id, address: address, completion: completion)
+    }
+    
+    func addBillingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart,
+              let customer = authService?.currentCustomer,
+              let addresses = customer.addresses,
+              let address = addresses.first(where: { $0.id == addressId }) else {
+            print("Cannot find address or cart for billing address addition")
+            completion(false)
+            return
+        }
+        
+        print("💳 Adding selected billing address: \(address.addressName ?? "Address") - \(address.address1)")
+        addBillingAddressToCart(cartId: cart.id, address: address, completion: completion)
     }
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
@@ -592,34 +622,6 @@ class CartService: ObservableObject {
         // If we can't parse the response but got here, it means the HTTP request was successful
         print("✅ \(addressType.capitalized) address added successfully - HTTP was successful")
         completion(true)
-    }
-    
-    // MARK: - Manual Address Management
-    
-    func addShippingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
-        guard let cart = currentCart,
-              let customer = authService?.currentCustomer,
-              let addresses = customer.addresses,
-              let address = addresses.first(where: { $0.id == addressId }) else {
-            print("Cannot find address or cart for shipping address addition")
-            completion(false)
-            return
-        }
-        
-        addShippingAddressToCart(cartId: cart.id, address: address, completion: completion)
-    }
-    
-    func addBillingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
-        guard let cart = currentCart,
-              let customer = authService?.currentCustomer,
-              let addresses = customer.addresses,
-              let address = addresses.first(where: { $0.id == addressId }) else {
-            print("Cannot find address or cart for billing address addition")
-            completion(false)
-            return
-        }
-        
-        addBillingAddressToCart(cartId: cart.id, address: address, completion: completion)
     }
     
     func copyShippingToBillingAddress(completion: @escaping (Bool) -> Void = { _ in }) {
@@ -969,7 +971,7 @@ class CartService: ObservableObject {
             print("👤 User logged in, associating existing cart with customer")
             associateCartWithCustomer(cartId: cart.id) { success in
                 if success {
-                    print("✅ Successfully associated cart with logged-in customer and added addresses")
+                    print("✅ Successfully associated cart with logged-in customer and added default addresses")
                 } else {
                     print("❌ Failed to associate cart with customer after login")
                 }
