@@ -258,14 +258,14 @@ struct AddAddressView: View {
             phone: phone.isEmpty ? nil : phone,
             isDefaultShipping: isDefaultShipping,
             isDefaultBilling: isDefaultBilling
-        ) { [weak self] success, error in
+        ) { success, error in
             DispatchQueue.main.async {
-                self?.isLoading = false
+                self.isLoading = false
                 
                 if success {
-                    self?.presentationMode.wrappedValue.dismiss()
+                    self.presentationMode.wrappedValue.dismiss()
                 } else {
-                    self?.errorMessage = error ?? "Failed to add address"
+                    self.errorMessage = error ?? "Failed to add address"
                 }
             }
         }
