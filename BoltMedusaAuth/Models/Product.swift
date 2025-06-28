@@ -192,26 +192,26 @@ struct CalculatedPrice: Codable, Identifiable {
     }
 }
 
+// MARK: - Updated Product Category Model (matching your schema exactly)
 struct ProductCategory: Codable, Identifiable {
     let id: String
     let name: String
     let description: String?
     let handle: String?
-    let isActive: Bool?
-    let isInternal: Bool?
-    let parentCategoryId: String?
-    let categoryChildren: [ProductCategory]?
     let rank: Int?
+    let parentCategoryId: String?
+    let parentCategory: ProductCategory?
+    let categoryChildren: [ProductCategory]?
+    let products: [Product]?
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
     let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, handle, rank, metadata
-        case isActive = "is_active"
-        case isInternal = "is_internal"
+        case id, name, description, handle, rank, products, metadata
         case parentCategoryId = "parent_category_id"
+        case parentCategory = "parent_category"
         case categoryChildren = "category_children"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
@@ -347,6 +347,14 @@ struct CategoriesResponse: Codable {
     }
 }
 
+struct CategoryResponse: Codable {
+    let productCategory: ProductCategory
+    
+    enum CodingKeys: String, CodingKey {
+        case productCategory = "product_category"
+    }
+}
+
 // MARK: - Helper Extensions
 extension Product {
     var displayPrice: String {
@@ -392,7 +400,7 @@ extension ProductVariant {
     }
     
     var stockStatus: String {
-        if inventoryQuantity > 0 {
+        if inventoryQuantory > 0 {
             return "\(inventoryQuantity) in stock"
         } else if allowBackorder {
             return "Backorder available"
@@ -405,5 +413,23 @@ extension ProductVariant {
 extension ProductImage {
     var displayUrl: String {
         return url
+    }
+}
+
+extension ProductCategory {
+    var hasChildren: Bool {
+        return categoryChildren?.isEmpty == false
+    }
+    
+    var productCount: Int {
+        return products?.count ?? 0
+    }
+    
+    var displayName: String {
+        return name
+    }
+    
+    var isTopLevel: Bool {
+        return parentCategoryId == nil
     }
 }

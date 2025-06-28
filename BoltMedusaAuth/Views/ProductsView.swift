@@ -60,13 +60,14 @@ struct ProductsView: View {
                             HStack {
                                 Image(systemName: "line.3.horizontal.decrease.circle")
                                 Text(selectedCategory?.name ?? "All Categories")
+                                    .lineLimit(1)
                                 Spacer()
                                 Image(systemName: "chevron.down")
                             }
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(selectedCategory != nil ? Color.blue.opacity(0.1) : Color(.systemGray6))
                             .cornerRadius(8)
-                            .foregroundColor(.primary)
+                            .foregroundColor(selectedCategory != nil ? .blue : .primary)
                         }
                         
                         if selectedCategory != nil {
@@ -82,6 +83,25 @@ struct ProductsView: View {
                 }
                 .padding()
                 .background(Color(.systemBackground))
+                
+                // Active Filter Indicator
+                if let category = selectedCategory {
+                    HStack {
+                        Text("Filtered by: \(category.name)")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        
+                        Spacer()
+                        
+                        if category.productCount > 0 {
+                            Text("\(filteredProducts.count) products")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
                 
                 // Products Grid
                 if productService.isLoading {
@@ -102,14 +122,26 @@ struct ProductsView: View {
                             .font(.title2)
                             .fontWeight(.medium)
                         
-                        Text(searchText.isEmpty ? "No products available" : "Try adjusting your search")
-                            .foregroundColor(.secondary)
-                        
-                        if !searchText.isEmpty {
+                        if selectedCategory != nil {
+                            Text("No products in this category")
+                                .foregroundColor(.secondary)
+                            
+                            Button("View All Products") {
+                                selectedCategory = nil
+                                productService.fetchProducts()
+                            }
+                            .foregroundColor(.blue)
+                        } else if !searchText.isEmpty {
+                            Text("Try adjusting your search")
+                                .foregroundColor(.secondary)
+                            
                             Button("Clear Search") {
                                 searchText = ""
                             }
                             .foregroundColor(.blue)
+                        } else {
+                            Text("No products available")
+                                .foregroundColor(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -140,7 +172,11 @@ struct ProductsView: View {
                             .padding()
                         
                         Button("Retry") {
-                            productService.fetchProducts()
+                            if let category = selectedCategory {
+                                productService.filterProductsByCategory(category.id)
+                            } else {
+                                productService.fetchProducts()
+                            }
                         }
                         .foregroundColor(.blue)
                     }
@@ -150,7 +186,11 @@ struct ProductsView: View {
             .navigationTitle("Products")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
-                productService.fetchProducts()
+                if let category = selectedCategory {
+                    productService.filterProductsByCategory(category.id)
+                } else {
+                    productService.fetchProducts()
+                }
             }
         }
         .sheet(isPresented: $showingCategories) {
@@ -230,6 +270,29 @@ struct ProductCard: View {
                             .lineLimit(1)
                     }
                     
+                    // Categories badges
+                    if !product.categoryNames.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(product.categoryNames.prefix(2), id: \.self) { categoryName in
+                                    Text(categoryName)
+                                        .font(.caption2)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue.opacity(0.2))
+                                        .foregroundColor(.blue)
+                                        .cornerRadius(3)
+                                }
+                                
+                                if product.categoryNames.count > 2 {
+                                    Text("+\(product.categoryNames.count - 2)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    
                     HStack {
                         Text(product.displayPrice)
                             .font(.subheadline)
@@ -266,6 +329,15 @@ struct CategorySelectionView: View {
     let onCategorySelected: (ProductCategory?) -> Void
     @Environment(\.presentationMode) var presentationMode
     
+    // Organize categories by hierarchy
+    private var topLevelCategories: [ProductCategory] {
+        return categories.filter { $0.isTopLevel }
+    }
+    
+    private func childCategories(for parentId: String) -> [ProductCategory] {
+        return categories.filter { $0.parentCategoryId == parentId }
+    }
+    
     var body: some View {
         NavigationView {
             List {
@@ -276,8 +348,15 @@ struct CategorySelectionView: View {
                     presentationMode.wrappedValue.dismiss()
                 }) {
                     HStack {
-                        Text("All Categories")
-                            .foregroundColor(.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("All Categories")
+                                .foregroundColor(.primary)
+                                .fontWeight(.medium)
+                            
+                            Text("View all products")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                         
                         Spacer()
                         
@@ -288,32 +367,35 @@ struct CategorySelectionView: View {
                     }
                 }
                 
-                // Category options
-                ForEach(categories) { category in
-                    Button(action: {
-                        selectedCategory = category
-                        onCategorySelected(category)
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(category.name)
-                                    .foregroundColor(.primary)
-                                
-                                if let description = category.description {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            if selectedCategory?.id == category.id {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
-                            }
+                // Top-level categories
+                ForEach(topLevelCategories) { category in
+                    CategoryRow(
+                        category: category,
+                        isSelected: selectedCategory?.id == category.id,
+                        childCategories: childCategories(for: category.id),
+                        selectedCategory: $selectedCategory,
+                        onCategorySelected: onCategorySelected,
+                        presentationMode: presentationMode
+                    )
+                }
+                
+                // Orphaned categories (categories without valid parent)
+                let orphanedCategories = categories.filter { category in
+                    !category.isTopLevel && 
+                    !topLevelCategories.contains { $0.id == category.parentCategoryId }
+                }
+                
+                if !orphanedCategories.isEmpty {
+                    Section("Other Categories") {
+                        ForEach(orphanedCategories) { category in
+                            CategoryRow(
+                                category: category,
+                                isSelected: selectedCategory?.id == category.id,
+                                childCategories: [],
+                                selectedCategory: $selectedCategory,
+                                onCategorySelected: onCategorySelected,
+                                presentationMode: presentationMode
+                            )
                         }
                     }
                 }
@@ -325,6 +407,99 @@ struct CategorySelectionView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             )
+        }
+    }
+}
+
+struct CategoryRow: View {
+    let category: ProductCategory
+    let isSelected: Bool
+    let childCategories: [ProductCategory]
+    @Binding var selectedCategory: ProductCategory?
+    let onCategorySelected: (ProductCategory?) -> Void
+    let presentationMode: Binding<PresentationMode>
+    
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Main category row
+            Button(action: {
+                selectedCategory = category
+                onCategorySelected(category)
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(category.name)
+                                .foregroundColor(.primary)
+                                .fontWeight(category.isTopLevel ? .medium : .regular)
+                            
+                            if category.hasChildren {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isExpanded.toggle()
+                                    }
+                                }) {
+                                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        
+                        if let description = category.description {
+                            Text(description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        
+                        if category.productCount > 0 {
+                            Text("\(category.productCount) products")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            
+            // Child categories (if expanded)
+            if isExpanded && !childCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(childCategories) { childCategory in
+                        Button(action: {
+                            selectedCategory = childCategory
+                            onCategorySelected(childCategory)
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            HStack {
+                                Text("  • \(childCategory.name)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                if selectedCategory?.id == childCategory.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        .padding(.leading, 16)
+                    }
+                }
+                .padding(.top, 8)
+            }
         }
     }
 }
