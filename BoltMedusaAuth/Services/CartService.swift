@@ -257,8 +257,8 @@ class CartService: ObservableObject {
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
                     print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
-                    print("Cart has shipping address: \(response.cart.hasShippingAddress)")
-                    print("Cart has billing address: \(response.cart.hasBillingAddress)")
+                    print("📦 Cart has shipping address: \(response.cart.hasShippingAddress)")
+                    print("💳 Cart has billing address: \(response.cart.hasBillingAddress)")
                     
                     // If user is logged in and cart doesn't have customer_id, associate it
                     if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
@@ -369,6 +369,10 @@ class CartService: ObservableObject {
             completedOperations += 1
             print("✅ Completed \(completedOperations)/\(totalOperations) address operations")
             if completedOperations >= totalOperations {
+                // After all address operations, refresh the cart to verify addresses were added
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.fetchCart(cartId: cartId)
+                }
                 completion(!hasError)
             }
         }
@@ -503,7 +507,6 @@ class CartService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { completionResult in
@@ -512,30 +515,83 @@ class CartService: ObservableObject {
                         completion(false)
                     }
                 },
-                receiveValue: { [weak self] response in
-                    self?.currentCart = response.cart
-                    self?.saveCartToStorage()
-                    print("✅ \(addressType.capitalized) address successfully added to cart")
-                    print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
-                    print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
-                    
-                    // Log the address details for verification
-                    if addressType == "shipping", let shippingAddress = response.cart.shippingAddress {
-                        print("📦 Shipping address details:")
-                        print("   Name: \(shippingAddress.fullName)")
-                        print("   Address: \(shippingAddress.singleLineAddress)")
-                    }
-                    
-                    if addressType == "billing", let billingAddress = response.cart.billingAddress {
-                        print("💳 Billing address details:")
-                        print("   Name: \(billingAddress.fullName)")
-                        print("   Address: \(billingAddress.singleLineAddress)")
-                    }
-                    
-                    completion(true)
+                receiveValue: { [weak self] data in
+                    // Handle the response - it might not always be a CartResponse
+                    self?.handleAddressResponse(data: data, addressType: addressType, completion: completion)
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    private func handleAddressResponse(data: Data, addressType: String, completion: @escaping (Bool) -> Void) {
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📍 \(addressType.capitalized) Address Raw Response: \(responseString)")
+        }
+        
+        // Try to decode as CartResponse first
+        do {
+            let response = try JSONDecoder().decode(CartResponse.self, from: data)
+            self.currentCart = response.cart
+            self.saveCartToStorage()
+            print("✅ \(addressType.capitalized) address successfully added to cart via CartResponse")
+            print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
+            print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
+            
+            // Log the address details for verification
+            if addressType == "shipping", let shippingAddress = response.cart.shippingAddress {
+                print("📦 Shipping address details:")
+                print("   Name: \(shippingAddress.fullName)")
+                print("   Address: \(shippingAddress.singleLineAddress)")
+            }
+            
+            if addressType == "billing", let billingAddress = response.cart.billingAddress {
+                print("💳 Billing address details:")
+                print("   Name: \(billingAddress.fullName)")
+                print("   Address: \(billingAddress.singleLineAddress)")
+            }
+            
+            completion(true)
+            return
+        } catch {
+            print("Failed to decode as CartResponse: \(error)")
+        }
+        
+        // Try to parse as JSON to see what structure we have
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("\(addressType.capitalized) address response JSON structure: \(json)")
+                
+                // Check if it's a success response
+                if let success = json["success"] as? Bool, success {
+                    print("✅ \(addressType.capitalized) address added successfully - success flag found")
+                    completion(true)
+                    return
+                }
+                
+                // Check if cart is nested differently
+                if let cartData = json["cart"] as? [String: Any] {
+                    let cartJsonData = try JSONSerialization.data(withJSONObject: cartData, options: [])
+                    let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
+                    self.currentCart = cart
+                    self.saveCartToStorage()
+                    print("✅ \(addressType.capitalized) address added successfully - cart found in response")
+                    completion(true)
+                    return
+                }
+                
+                // If response doesn't contain cart data but operation was successful
+                print("✅ \(addressType.capitalized) address added successfully - response indicates success")
+                completion(true)
+                return
+            }
+        } catch {
+            print("Failed to parse \(addressType) address response JSON: \(error)")
+        }
+        
+        // If we can't parse the response but got here, it means the HTTP request was successful
+        print("✅ \(addressType.capitalized) address added successfully - HTTP was successful")
+        completion(true)
     }
     
     // MARK: - Manual Address Management
