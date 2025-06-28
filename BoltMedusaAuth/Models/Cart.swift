@@ -273,6 +273,26 @@ struct UpdateLineItemRequest: Codable {
 
 // MARK: - Helper Extensions
 extension Cart {
+    func formattedTotal(currencyCode: String? = nil) -> String {
+        return formatPrice(total, currencyCode: currencyCode ?? self.currencyCode)
+    }
+    
+    func formattedSubtotal(currencyCode: String? = nil) -> String {
+        return formatPrice(subtotal, currencyCode: currencyCode ?? self.currencyCode)
+    }
+    
+    func formattedTaxTotal(currencyCode: String? = nil) -> String {
+        return formatPrice(taxTotal ?? 0, currencyCode: currencyCode ?? self.currencyCode)
+    }
+    
+    func formattedShippingTotal(currencyCode: String? = nil) -> String {
+        return formatPrice(shippingTotal ?? 0, currencyCode: currencyCode ?? self.currencyCode)
+    }
+    
+    func formattedDiscountTotal(currencyCode: String? = nil) -> String {
+        return formatPrice(discountTotal ?? 0, currencyCode: currencyCode ?? self.currencyCode)
+    }
+    
     var formattedTotal: String {
         return formatPrice(total)
     }
@@ -301,19 +321,35 @@ extension Cart {
         return items?.isEmpty ?? true
     }
     
-    private func formatPrice(_ amount: Int) -> String {
+    private func formatPrice(_ amount: Int, currencyCode: String? = nil) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode.uppercased()
+        formatter.currencyCode = (currencyCode ?? self.currencyCode).uppercased()
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
         
         let decimalAmount = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "$0.00"
+        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\((currencyCode ?? self.currencyCode).uppercased()) 0.00"
     }
 }
 
 extension CartLineItem {
+    func formattedUnitPrice(currencyCode: String) -> String {
+        return formatPrice(unitPrice, currencyCode: currencyCode)
+    }
+    
+    func formattedTotal(currencyCode: String) -> String {
+        // Calculate total if not provided by API
+        let calculatedTotal = total ?? (unitPrice * quantity)
+        return formatPrice(calculatedTotal, currencyCode: currencyCode)
+    }
+    
+    func formattedSubtotal(currencyCode: String) -> String {
+        // Calculate subtotal if not provided by API
+        let calculatedSubtotal = subtotal ?? (unitPrice * quantity)
+        return formatPrice(calculatedSubtotal, currencyCode: currencyCode)
+    }
+    
     var formattedUnitPrice: String {
         return formatPrice(unitPrice)
     }
@@ -340,15 +376,15 @@ extension CartLineItem {
         return subtotal ?? (unitPrice * quantity)
     }
     
-    private func formatPrice(_ amount: Int) -> String {
+    private func formatPrice(_ amount: Int, currencyCode: String = "USD") -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "USD" // Default to USD, could be made dynamic
+        formatter.currencyCode = currencyCode.uppercased()
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
         
         let decimalAmount = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "$0.00"
+        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\(currencyCode.uppercased()) 0.00"
     }
     
     var displayImage: String? {

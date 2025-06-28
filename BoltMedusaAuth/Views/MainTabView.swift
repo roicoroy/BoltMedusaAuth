@@ -47,9 +47,16 @@ struct MainTabView: View {
             }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
-            // When region changes, create a new cart for that region
+            // When region changes, update or create cart for that region
             if let newCountry = newCountry {
-                cartService.createCartIfNeeded(regionId: newCountry.regionId)
+                print("Country changed to: \(newCountry.label) (\(newCountry.currencyCode))")
+                cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
+                    if success {
+                        print("Cart updated/created for new country successfully")
+                    } else {
+                        print("Failed to update/create cart for new country")
+                    }
+                }
             }
         }
     }

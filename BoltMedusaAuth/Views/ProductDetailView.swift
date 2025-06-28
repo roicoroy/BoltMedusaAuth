@@ -75,15 +75,20 @@ struct ProductDetailView: View {
                             }
                             
                             HStack {
-                                Text(selectedVariant?.displayPrice ?? product.displayPrice)
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                
                                 if let selectedCountry = regionService.selectedCountry {
+                                    Text(selectedVariant?.displayPrice(currencyCode: selectedCountry.currencyCode) ?? product.displayPrice(currencyCode: selectedCountry.currencyCode))
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
                                     Text("(\(selectedCountry.formattedCurrency))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                } else {
+                                    Text(selectedVariant?.displayPrice ?? product.displayPrice)
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
                                 }
                                 
                                 Spacer()
@@ -131,6 +136,7 @@ struct ProductDetailView: View {
                                     ForEach(variants) { variant in
                                         VariantCard(
                                             variant: variant,
+                                            currencyCode: regionService.selectedCountry?.currencyCode ?? "USD",
                                             isSelected: selectedVariant?.id == variant.id
                                         ) {
                                             selectedVariant = variant
@@ -327,6 +333,7 @@ struct ProductDetailView: View {
 
 struct VariantCard: View {
     let variant: ProductVariant
+    let currencyCode: String
     let isSelected: Bool
     let onTap: () -> Void
     
@@ -338,7 +345,7 @@ struct VariantCard: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
                 
-                Text(variant.displayPrice)
+                Text(variant.displayPrice(currencyCode: currencyCode))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 

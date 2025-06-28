@@ -326,9 +326,21 @@ struct ProductResponse: Codable {
 
 // MARK: - Helper Extensions
 extension Product {
-    var displayPrice: String {
+    func displayPrice(currencyCode: String) -> String {
         // Since we don't have calculated prices in this schema,
-        // we'll show a placeholder or handle pricing differently
+        // we'll show a placeholder with the correct currency
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode.uppercased()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        
+        // Return a placeholder price formatted in the correct currency
+        return formatter.string(from: NSNumber(value: 0.00)) ?? "\(currencyCode.uppercased()) 0.00"
+    }
+    
+    var displayPrice: String {
+        // Default fallback for when currency is not available
         return "Price available on request"
     }
     
@@ -348,9 +360,21 @@ extension Product {
 }
 
 extension ProductVariant {
-    var displayPrice: String {
+    func displayPrice(currencyCode: String) -> String {
         // Since we don't have calculated prices in this schema,
-        // we'll show a placeholder
+        // we'll show a placeholder with the correct currency
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode.uppercased()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        
+        // Return a placeholder price formatted in the correct currency
+        return formatter.string(from: NSNumber(value: 0.00)) ?? "\(currencyCode.uppercased()) 0.00"
+    }
+    
+    var displayPrice: String {
+        // Default fallback for when currency is not available
         return "Price available on request"
     }
     

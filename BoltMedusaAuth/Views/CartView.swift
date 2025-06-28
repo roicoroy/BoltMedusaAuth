@@ -136,6 +136,7 @@ struct CartView: View {
                                     ForEach(cart.items ?? []) { item in
                                         CartItemRow(
                                             item: item,
+                                            currencyCode: cart.currencyCode,
                                             onQuantityChange: { newQuantity in
                                                 if newQuantity > 0 {
                                                     cartService.updateLineItem(
@@ -284,13 +285,15 @@ struct CartView: View {
 
 struct CartItemRow: View {
     let item: CartLineItem
+    let currencyCode: String
     let onQuantityChange: (Int) -> Void
     let onRemove: () -> Void
     
     @State private var quantity: Int
     
-    init(item: CartLineItem, onQuantityChange: @escaping (Int) -> Void, onRemove: @escaping () -> Void) {
+    init(item: CartLineItem, currencyCode: String, onQuantityChange: @escaping (Int) -> Void, onRemove: @escaping () -> Void) {
         self.item = item
+        self.currencyCode = currencyCode
         self.onQuantityChange = onQuantityChange
         self.onRemove = onRemove
         self._quantity = State(initialValue: item.quantity)
@@ -336,7 +339,7 @@ struct CartItemRow: View {
                 }
                 
                 HStack {
-                    Text(item.formattedUnitPrice)
+                    Text(item.formattedUnitPrice(currencyCode: currencyCode))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     
@@ -348,7 +351,7 @@ struct CartItemRow: View {
                     
                     Spacer()
                     
-                    Text(item.formattedTotal)
+                    Text(item.formattedTotal(currencyCode: currencyCode))
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)

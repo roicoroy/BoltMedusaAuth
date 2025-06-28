@@ -89,7 +89,88 @@ class CartService: ObservableObject {
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("Cart created successfully: \(response.cart.id) for region: \(regionId)")
+                    print("Cart created successfully: \(response.cart.id) for region: \(regionId) with currency: \(response.cart.currencyCode)")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func updateCartRegion(newRegionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let currentCart = currentCart else {
+            // No existing cart, create a new one
+            createCart(regionId: newRegionId, completion: completion)
+            return
+        }
+        
+        // Check if cart is already in the correct region
+        // Note: We'll need to track region ID in cart or compare currency
+        print("Updating cart region from current cart: \(currentCart.id)")
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(currentCart.id)") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for cart update"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        let updateRequest = ["region_id": newRegionId]
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: updateRequest, options: [])
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode cart update request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Update Cart Region Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Update Cart Region Response: \(responseString)")
+                    }
+                    
+                    // If update fails (e.g., not supported), create a new cart
+                    if httpResponse.statusCode >= 400 {
+                        print("Cart region update not supported, will create new cart")
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    if case .failure(let error) = completionResult {
+                        print("Cart region update failed: \(error), creating new cart instead")
+                        // If update fails, create a new cart for the new region
+                        self?.clearCart()
+                        self?.createCart(regionId: newRegionId, completion: completion)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.isLoading = false
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("Cart region updated successfully: \(response.cart.id) to currency: \(response.cart.currencyCode)")
                     completion(true)
                 }
             )
@@ -142,7 +223,7 @@ class CartService: ObservableObject {
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("Cart fetched successfully: \(response.cart.id)")
+                    print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
                 }
             )
             .store(in: &cancellables)
@@ -351,8 +432,8 @@ class CartService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completionResult in
-                    self?.isLoading = false
                     if case .failure(let error) = completionResult {
+                        self?.isLoading = false
                         self?.errorMessage = "Failed to remove item: \(error.localizedDescription)"
                         print("Remove line item error: \(error)")
                         completion(false)
@@ -436,12 +517,17 @@ class CartService: ObservableObject {
     // MARK: - Utility Methods
     
     func createCartIfNeeded(regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
-        if currentCart == nil {
+        if let currentCart = currentCart {
+            // Check if cart currency matches the new region's expected currency
+            // If not, update the cart region or create a new one
+            print("Cart exists: \(currentCart.id) with currency: \(currentCart.currencyCode)")
+            print("Checking if cart needs region update for region: \(regionId)")
+            
+            // For now, we'll update the cart region
+            updateCartRegion(newRegionId: regionId, completion: completion)
+        } else {
             print("Creating cart for region: \(regionId)")
             createCart(regionId: regionId, completion: completion)
-        } else {
-            print("Cart already exists: \(currentCart?.id ?? "unknown")")
-            completion(true)
         }
     }
     
@@ -462,13 +548,26 @@ class CartService: ObservableObject {
         fetchCart(cartId: cart.id)
     }
     
+    // MARK: - Currency Formatting
+    
+    func formatPrice(_ amount: Int, currencyCode: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode.uppercased()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        
+        let decimalAmount = Double(amount) / 100.0
+        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\(currencyCode.uppercased()) 0.00"
+    }
+    
     // MARK: - Storage
     
     private func saveCartToStorage() {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
-            print("Cart saved to storage: \(cart.id) with \(cart.itemCount) items")
+            print("Cart saved to storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
         }
     }
     
@@ -478,7 +577,7 @@ class CartService: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            print("Cart loaded from storage: \(cart.id) with \(cart.itemCount) items")
+            print("Cart loaded from storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
             // Refresh cart data from server to ensure it's up to date
             fetchCart(cartId: cart.id)
         } else {
