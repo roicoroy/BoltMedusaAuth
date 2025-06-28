@@ -220,12 +220,11 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
                     if case .failure(let error) = completion {
                         self?.errorMessage = "Login after registration failed: \(error.localizedDescription)"
+                        self?.isLoading = false
                     }
                 },
                 receiveValue: { [weak self] data in
@@ -283,10 +282,9 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    guard let self = self else { return }
-                    self.isLoading = false
                     if case .failure(let error) = completion {
-                        self.errorMessage = "Login failed: \(error.localizedDescription)"
+                        self?.errorMessage = "Login failed: \(error.localizedDescription)"
+                        self?.isLoading = false
                     }
                 },
                 receiveValue: { [weak self] data in
@@ -302,24 +300,25 @@ class AuthService: ObservableObject {
             print("Raw Login Response: \(responseString)")
         }
         
-        // Parse as JSON to understand the structure
+        // Parse as JSON to extract the token
         do {
             if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                 print("Login Response JSON Structure: \(json)")
                 
-                // Try to extract customer data from various possible structures
-                if let customer = extractCustomerFromJSON(json) {
-                    // Already on main thread due to receive(on: DispatchQueue.main)
-                    self.currentCustomer = customer
-                    self.isAuthenticated = true
-                    self.saveCustomerData(customer)
-                    
-                    // Save token if provided
-                    if let token = json["token"] as? String {
-                        UserDefaults.standard.set(token, forKey: "auth_token")
-                    }
+                // Extract token from response
+                guard let token = json["token"] as? String else {
+                    self.errorMessage = "No token found in login response"
+                    self.isLoading = false
                     return
                 }
+                
+                // Save the token
+                UserDefaults.standard.set(token, forKey: "auth_token")
+                print("Token saved successfully")
+                
+                // Now fetch the customer profile using the token
+                self.fetchCustomerProfileAfterLogin()
+                return
             }
         } catch {
             print("Failed to parse JSON: \(error)")
@@ -327,72 +326,60 @@ class AuthService: ObservableObject {
         
         // If JSON parsing fails, show error
         self.errorMessage = "Failed to parse login response. Please check the console for details."
+        self.isLoading = false
     }
     
-    private func extractCustomerFromJSON(_ json: [String: Any]) -> Customer? {
-        // Strategy 1: Customer is nested under "customer" key
-        if let customerData = json["customer"] as? [String: Any] {
-            return parseCustomerFromDictionary(customerData)
+    private func fetchCustomerProfileAfterLogin() {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            self.errorMessage = "No authentication token found"
+            self.isLoading = false
+            return
         }
         
-        // Strategy 2: Customer data is at root level (check for required fields)
-        if json["id"] != nil && json["email"] != nil {
-            return parseCustomerFromDictionary(json)
+        guard let url = URL(string: "\(baseURL)/store/customers/me") else {
+            self.errorMessage = "Invalid URL for customer profile"
+            self.isLoading = false
+            return
         }
         
-        // Strategy 3: Customer might be under "data" key
-        if let data = json["data"] as? [String: Any] {
-            if let customerData = data["customer"] as? [String: Any] {
-                return parseCustomerFromDictionary(customerData)
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Customer Profile Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Customer Profile Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
             }
-            // Or customer data might be directly in data
-            if data["id"] != nil && data["email"] != nil {
-                return parseCustomerFromDictionary(data)
-            }
-        }
-        
-        // Strategy 4: Check if there's a user field instead of customer
-        if let userData = json["user"] as? [String: Any] {
-            return parseCustomerFromDictionary(userData)
-        }
-        
-        print("Could not find customer data in any expected location")
-        return nil
-    }
-    
-    private func parseCustomerFromDictionary(_ dict: [String: Any]) -> Customer? {
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: dict, options: [])
-            let customer = try JSONDecoder().decode(Customer.self, from: jsonData)
-            return customer
-        } catch {
-            print("Failed to decode customer from dictionary: \(error)")
-            
-            // Try to create a minimal customer object with available data
-            guard let id = dict["id"] as? String,
-                  let email = dict["email"] as? String else {
-                print("Missing required fields: id or email")
-                return nil
-            }
-            
-            // Create customer with minimal required fields and handle missing optional fields
-            let customer = Customer(
-                id: id,
-                email: email,
-                defaultBillingAddressId: dict["default_billing_address_id"] as? String,
-                defaultShippingAddressId: dict["default_shipping_address_id"] as? String,
-                companyName: dict["company_name"] as? String,
-                firstName: dict["first_name"] as? String,
-                lastName: dict["last_name"] as? String,
-                addresses: nil, // We'll handle addresses separately if needed
-                phone: dict["phone"] as? String,
-                createdAt: dict["created_at"] as? String ?? "",
-                updatedAt: dict["updated_at"] as? String ?? "",
-                deletedAt: dict["deleted_at"] as? String
+            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "Failed to fetch customer profile: \(error.localizedDescription)"
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    guard let self = self else { return }
+                    self.currentCustomer = response.customer
+                    self.isAuthenticated = true
+                    self.saveCustomerData(response.customer)
+                    print("Login successful! Customer profile loaded.")
+                }
             )
-            
-            return customer
-        }
+            .store(in: &cancellables)
     }
     
     func fetchCustomerProfile() {
