@@ -365,6 +365,14 @@ class CartService: ObservableObject {
     
     // MARK: - Utility Methods
     
+    func createCartIfNeeded(regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        if currentCart == nil {
+            createCart(regionId: regionId, completion: completion)
+        } else {
+            completion(true)
+        }
+    }
+    
     func clearCart() {
         DispatchQueue.main.async { [weak self] in
             self?.currentCart = nil
