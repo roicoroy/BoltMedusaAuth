@@ -15,136 +15,136 @@ struct DashboardView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                // Welcome header
-                VStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.blue)
-                    
-                    if let customer = authService.currentCustomer {
-                        Text("Welcome, \(customer.firstName ?? "User")!")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Welcome header
+                    VStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.blue)
                         
-                        Text(customer.email)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        if let customer = authService.currentCustomer {
+                            Text("Welcome, \(customer.firstName ?? "User")!")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                            
+                            Text(customer.email)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
-                .padding(.top, 40)
-                
-                // Customer details card
-                if let customer = authService.currentCustomer {
+                    .padding(.top, 20)
+                    
+                    // Customer details card
+                    if let customer = authService.currentCustomer {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Account Details")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                DetailRow(title: "Email", value: customer.email)
+                                
+                                if let firstName = customer.firstName {
+                                    DetailRow(title: "First Name", value: firstName)
+                                }
+                                
+                                if let lastName = customer.lastName {
+                                    DetailRow(title: "Last Name", value: lastName)
+                                }
+                                
+                                if let companyName = customer.companyName {
+                                    DetailRow(title: "Company", value: companyName)
+                                }
+                                
+                                if let phone = customer.phone {
+                                    DetailRow(title: "Phone", value: phone)
+                                }
+                                
+                                DetailRow(title: "Member Since", value: formatDate(customer.createdAt))
+                                
+                                if let addresses = customer.addresses, !addresses.isEmpty {
+                                    DetailRow(title: "Addresses", value: "\(addresses.count) address(es)")
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                    
+                    // Addresses section
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Account Details")
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                        HStack {
+                            Text("Addresses")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                showingAddAddress = true
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add Address")
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                            }
+                        }
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            DetailRow(title: "Email", value: customer.email)
+                        if let customer = authService.currentCustomer,
+                           let addresses = customer.addresses,
+                           !addresses.isEmpty {
                             
-                            if let firstName = customer.firstName {
-                                DetailRow(title: "First Name", value: firstName)
+                            ForEach(addresses) { address in
+                                AddressCard(address: address) {
+                                    selectedAddress = address
+                                    showingEditAddress = true
+                                }
                             }
-                            
-                            if let lastName = customer.lastName {
-                                DetailRow(title: "Last Name", value: lastName)
+                        } else {
+                            VStack(spacing: 12) {
+                                Image(systemName: "location.slash")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                
+                                Text("No addresses added yet")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Add your first address to get started")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            
-                            if let companyName = customer.companyName {
-                                DetailRow(title: "Company", value: companyName)
-                            }
-                            
-                            if let phone = customer.phone {
-                                DetailRow(title: "Phone", value: phone)
-                            }
-                            
-                            DetailRow(title: "Member Since", value: formatDate(customer.createdAt))
-                            
-                            if let addresses = customer.addresses, !addresses.isEmpty {
-                                DetailRow(title: "Addresses", value: "\(addresses.count) address(es)")
-                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
                         }
                     }
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
                     .padding(.horizontal)
-                }
-                
-                // Addresses section
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("Addresses")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            showingAddAddress = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add Address")
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                        }
-                    }
                     
-                    if let customer = authService.currentCustomer,
-                       let addresses = customer.addresses,
-                       !addresses.isEmpty {
-                        
-                        ForEach(addresses) { address in
-                            AddressCard(address: address) {
-                                selectedAddress = address
-                                showingEditAddress = true
-                            }
-                        }
-                    } else {
-                        VStack(spacing: 12) {
-                            Image(systemName: "location.slash")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray)
-                            
-                            Text("No addresses added yet")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Add your first address to get started")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
+                    // Logout button
+                    Button(action: {
+                        authService.logout()
+                    }) {
+                        Text("Sign Out")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
                     }
+                    .padding(.horizontal)
+                    .padding(.bottom, 40)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // Logout button
-                Button(action: {
-                    authService.logout()
-                }) {
-                    Text("Sign Out")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 40)
             }
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.inline)
@@ -286,7 +286,7 @@ struct AddressCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color(.systemGray4), lineWidth: 1)
-            )
+                )
         }
         .buttonStyle(PlainButtonStyle())
     }
