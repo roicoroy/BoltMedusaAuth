@@ -24,18 +24,26 @@ class AuthService: ObservableObject {
         checkAuthenticationStatus()
     }
     
+    deinit {
+        cancellables.removeAll()
+    }
+    
     private func checkAuthenticationStatus() {
         // Check for stored authentication token or customer data
         if let customerData = UserDefaults.standard.data(forKey: "customer"),
            let customer = try? JSONDecoder().decode(Customer.self, from: customerData) {
-            self.currentCustomer = customer
-            self.isAuthenticated = true
+            DispatchQueue.main.async { [weak self] in
+                self?.currentCustomer = customer
+                self?.isAuthenticated = true
+            }
         }
     }
     
     func register(email: String, password: String, firstName: String?, lastName: String?, phone: String?) {
-        isLoading = true
-        errorMessage = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
         
         let request = CustomerRegistrationRequest(
             email: email,
@@ -46,8 +54,10 @@ class AuthService: ObservableObject {
         )
         
         guard let url = URL(string: "\(baseURL)/store/customers") else {
-            self.errorMessage = "Invalid URL"
-            self.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL"
+                self?.isLoading = false
+            }
             return
         }
         
@@ -59,8 +69,10 @@ class AuthService: ObservableObject {
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
-            self.errorMessage = "Failed to encode request"
-            self.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode request"
+                self?.isLoading = false
+            }
             return
         }
         
@@ -70,19 +82,21 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
+                    guard let self = self else { return }
+                    self.isLoading = false
                     if case .failure(let error) = completion {
-                        self?.errorMessage = error.localizedDescription
+                        self.errorMessage = error.localizedDescription
                     }
                 },
                 receiveValue: { [weak self] response in
+                    guard let self = self else { return }
                     if let customer = response.customer {
-                        self?.currentCustomer = customer
-                        self?.isAuthenticated = true
-                        self?.saveCustomerData(customer)
+                        self.currentCustomer = customer
+                        self.isAuthenticated = true
+                        self.saveCustomerData(customer)
                         
                         // After registration, automatically log in
-                        self?.login(email: email, password: password)
+                        self.login(email: email, password: password)
                     }
                 }
             )
@@ -90,14 +104,18 @@ class AuthService: ObservableObject {
     }
     
     func login(email: String, password: String) {
-        isLoading = true
-        errorMessage = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
         
         let request = CustomerLoginRequest(email: email, password: password)
         
         guard let url = URL(string: "\(baseURL)/store/auth/customer/emailpass") else {
-            self.errorMessage = "Invalid URL"
-            self.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL"
+                self?.isLoading = false
+            }
             return
         }
         
@@ -109,8 +127,10 @@ class AuthService: ObservableObject {
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
-            self.errorMessage = "Failed to encode request"
-            self.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode request"
+                self?.isLoading = false
+            }
             return
         }
         
@@ -120,16 +140,18 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
+                    guard let self = self else { return }
+                    self.isLoading = false
                     if case .failure(let error) = completion {
-                        self?.errorMessage = error.localizedDescription
+                        self.errorMessage = error.localizedDescription
                     }
                 },
                 receiveValue: { [weak self] response in
+                    guard let self = self else { return }
                     if let customer = response.customer {
-                        self?.currentCustomer = customer
-                        self?.isAuthenticated = true
-                        self?.saveCustomerData(customer)
+                        self.currentCustomer = customer
+                        self.isAuthenticated = true
+                        self.saveCustomerData(customer)
                         
                         // Save token if provided
                         if let token = response.token {
@@ -142,12 +164,17 @@ class AuthService: ObservableObject {
     }
     
     func logout() {
-        isAuthenticated = false
-        currentCustomer = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.isAuthenticated = false
+            self?.currentCustomer = nil
+        }
         
         // Clear stored data
         UserDefaults.standard.removeObject(forKey: "customer")
         UserDefaults.standard.removeObject(forKey: "auth_token")
+        
+        // Cancel any ongoing requests
+        cancellables.removeAll()
     }
     
     private func saveCustomerData(_ customer: Customer) {

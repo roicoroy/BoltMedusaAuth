@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RegistrationView: View {
-    @StateObject private var authService = AuthService()
+    @EnvironmentObject var authService: AuthService
     @Environment(\.presentationMode) var presentationMode
     
     @State private var email = ""
@@ -185,4 +185,5 @@ struct RegistrationView: View {
 
 #Preview {
     RegistrationView()
+        .environmentObject(AuthService())
 }
