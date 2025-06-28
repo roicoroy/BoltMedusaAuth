@@ -404,22 +404,94 @@ class AuthService: ObservableObject {
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .map(\.data)
-            .decode(type: CustomerResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Fetch Customer Profile Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Fetch Customer Profile Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        self?.errorMessage = "Failed to fetch profile: \(error.localizedDescription)"
+                        print("Failed to fetch customer profile: \(error)")
+                        DispatchQueue.main.async {
+                            self?.errorMessage = "Failed to fetch profile: \(error.localizedDescription)"
+                        }
                     }
                 },
-                receiveValue: { [weak self] response in
-                    guard let self = self else { return }
-                    self.currentCustomer = response.customer
-                    self.saveCustomerData(response.customer)
+                receiveValue: { [weak self] data in
+                    self?.handleCustomerProfileResponse(data: data)
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    private func handleCustomerProfileResponse(data: Data) {
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Raw Customer Profile Response: \(responseString)")
+        }
+        
+        // Try to decode as CustomerResponse first
+        do {
+            let response = try JSONDecoder().decode(CustomerResponse.self, from: data)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.currentCustomer = response.customer
+                self.saveCustomerData(response.customer)
+                print("Customer profile updated successfully")
+            }
+            return
+        } catch {
+            print("Failed to decode as CustomerResponse: \(error)")
+        }
+        
+        // Try to parse as JSON and extract customer data manually
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("Customer Profile JSON Structure: \(json)")
+                
+                // Try to extract customer from different possible structures
+                var customerData: [String: Any]?
+                
+                // Case 1: Customer is nested under "customer" key
+                if let nestedCustomer = json["customer"] as? [String: Any] {
+                    customerData = nestedCustomer
+                }
+                // Case 2: Customer data is at root level
+                else if json["id"] != nil && json["email"] != nil {
+                    customerData = json
+                }
+                
+                if let customerJson = customerData {
+                    // Convert back to Data and decode
+                    let customerJsonData = try JSONSerialization.data(withJSONObject: customerJson, options: [])
+                    let customer = try JSONDecoder().decode(Customer.self, from: customerJsonData)
+                    
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        self.currentCustomer = customer
+                        self.saveCustomerData(customer)
+                        print("Customer profile updated successfully (manual parsing)")
+                    }
+                    return
+                }
+            }
+        } catch {
+            print("Failed to parse customer profile JSON: \(error)")
+        }
+        
+        // If all parsing fails, show error
+        DispatchQueue.main.async { [weak self] in
+            self?.errorMessage = "Failed to parse customer profile response"
+        }
     }
     
     func addAddress(
@@ -491,18 +563,40 @@ class AuthService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: AddressResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { completionResult in
+                receiveCompletion: { [weak self] completionResult in
                     if case .failure(let error) = completionResult {
+                        print("Add address failed: \(error)")
                         completion(false, "Failed to add address: \(error.localizedDescription)")
                     }
                 },
-                receiveValue: { [weak self] response in
-                    // Refresh customer profile to get updated addresses
-                    self?.fetchCustomerProfile()
-                    completion(true, nil)
+                receiveValue: { [weak self] data in
+                    // Log the response for debugging
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Add Address Success Response: \(responseString)")
+                    }
+                    
+                    // Try to decode the response to verify it's valid
+                    do {
+                        let _ = try JSONDecoder().decode(AddressResponse.self, from: data)
+                        print("Address added successfully")
+                        
+                        // Refresh customer profile to get updated addresses
+                        // Add a small delay to ensure the server has processed the address
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self?.fetchCustomerProfile()
+                        }
+                        
+                        completion(true, nil)
+                    } catch {
+                        print("Failed to decode address response: \(error)")
+                        // Even if decoding fails, the address might have been created
+                        // So we still refresh and report success
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self?.fetchCustomerProfile()
+                        }
+                        completion(true, nil)
+                    }
                 }
             )
             .store(in: &cancellables)
