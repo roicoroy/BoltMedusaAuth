@@ -14,7 +14,7 @@ class AuthService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let baseURL = "https://your-medusa-backend.com" // Replace with your Medusa backend URL
+    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app" // Replace with your Medusa backend URL
     private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
     
     private var cancellables = Set<AnyCancellable>()
