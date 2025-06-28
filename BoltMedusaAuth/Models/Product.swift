@@ -192,7 +192,7 @@ struct CalculatedPrice: Codable, Identifiable {
     }
 }
 
-// MARK: - Updated Product Category Model (matching your schema exactly)
+// MARK: - Fixed Product Category Model (removed circular references)
 struct ProductCategory: Codable, Identifiable {
     let id: String
     let name: String
@@ -200,22 +200,38 @@ struct ProductCategory: Codable, Identifiable {
     let handle: String?
     let rank: Int?
     let parentCategoryId: String?
-    let parentCategory: ProductCategory?
-    let categoryChildren: [ProductCategory]?
-    let products: [Product]?
+    // Removed parentCategory and categoryChildren to break circular reference
+    // These will be handled at the service level if needed
     let createdAt: String
     let updatedAt: String
     let deletedAt: String?
     let metadata: [String: AnyCodable]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, handle, rank, products, metadata
+        case id, name, description, handle, rank, metadata
         case parentCategoryId = "parent_category_id"
-        case parentCategory = "parent_category"
-        case categoryChildren = "category_children"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
+    }
+    
+    // Custom decoder to handle the API response structure
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        handle = try container.decodeIfPresent(String.self, forKey: .handle)
+        rank = try container.decodeIfPresent(Int.self, forKey: .rank)
+        parentCategoryId = try container.decodeIfPresent(String.self, forKey: .parentCategoryId)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+        
+        // Ignore parent_category and category_children fields to avoid circular reference
+        // These can be reconstructed at the service level if needed
     }
 }
 
@@ -419,11 +435,15 @@ extension ProductImage {
 
 extension ProductCategory {
     var hasChildren: Bool {
-        return categoryChildren?.isEmpty == false
+        // This will need to be determined at the service level
+        // by checking if any other categories have this category as parent
+        return false
     }
     
     var productCount: Int {
-        return products?.count ?? 0
+        // This will need to be calculated at the service level
+        // by counting products that belong to this category
+        return 0
     }
     
     var displayName: String {

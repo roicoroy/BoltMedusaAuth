@@ -93,7 +93,8 @@ struct ProductsView: View {
                         
                         Spacer()
                         
-                        if category.productCount > 0 {
+                        let productCount = productService.getCategoryProductCount(for: category.id)
+                        if productCount > 0 {
                             Text("\(filteredProducts.count) products")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -197,6 +198,7 @@ struct ProductsView: View {
             CategorySelectionView(
                 categories: productService.categories,
                 selectedCategory: $selectedCategory,
+                productService: productService,
                 onCategorySelected: { category in
                     if let category = category {
                         productService.filterProductsByCategory(category.id)
@@ -326,16 +328,17 @@ struct ProductCard: View {
 struct CategorySelectionView: View {
     let categories: [ProductCategory]
     @Binding var selectedCategory: ProductCategory?
+    let productService: ProductService
     let onCategorySelected: (ProductCategory?) -> Void
     @Environment(\.presentationMode) var presentationMode
     
-    // Organize categories by hierarchy
+    // Organize categories by hierarchy using the service methods
     private var topLevelCategories: [ProductCategory] {
-        return categories.filter { $0.isTopLevel }
+        return productService.getTopLevelCategories()
     }
     
     private func childCategories(for parentId: String) -> [ProductCategory] {
-        return categories.filter { $0.parentCategoryId == parentId }
+        return productService.getChildCategories(for: parentId)
     }
     
     var body: some View {
@@ -374,6 +377,7 @@ struct CategorySelectionView: View {
                         isSelected: selectedCategory?.id == category.id,
                         childCategories: childCategories(for: category.id),
                         selectedCategory: $selectedCategory,
+                        productService: productService,
                         onCategorySelected: onCategorySelected,
                         presentationMode: presentationMode
                     )
@@ -393,6 +397,7 @@ struct CategorySelectionView: View {
                                 isSelected: selectedCategory?.id == category.id,
                                 childCategories: [],
                                 selectedCategory: $selectedCategory,
+                                productService: productService,
                                 onCategorySelected: onCategorySelected,
                                 presentationMode: presentationMode
                             )
@@ -416,10 +421,19 @@ struct CategoryRow: View {
     let isSelected: Bool
     let childCategories: [ProductCategory]
     @Binding var selectedCategory: ProductCategory?
+    let productService: ProductService
     let onCategorySelected: (ProductCategory?) -> Void
     let presentationMode: Binding<PresentationMode>
     
     @State private var isExpanded = false
+    
+    private var hasChildren: Bool {
+        return productService.hasChildCategories(categoryId: category.id)
+    }
+    
+    private var productCount: Int {
+        return productService.getCategoryProductCount(for: category.id)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -436,7 +450,7 @@ struct CategoryRow: View {
                                 .foregroundColor(.primary)
                                 .fontWeight(category.isTopLevel ? .medium : .regular)
                             
-                            if category.hasChildren {
+                            if hasChildren {
                                 Button(action: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         isExpanded.toggle()
@@ -457,8 +471,8 @@ struct CategoryRow: View {
                                 .lineLimit(2)
                         }
                         
-                        if category.productCount > 0 {
-                            Text("\(category.productCount) products")
+                        if productCount > 0 {
+                            Text("\(productCount) products")
                                 .font(.caption2)
                                 .foregroundColor(.blue)
                         }

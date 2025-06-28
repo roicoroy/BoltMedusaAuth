@@ -265,4 +265,23 @@ class ProductService: ObservableObject {
             )
             .store(in: &cancellables)
     }
+    
+    // Helper methods for category hierarchy (since we removed circular references)
+    func getChildCategories(for parentId: String) -> [ProductCategory] {
+        return categories.filter { $0.parentCategoryId == parentId }
+    }
+    
+    func getTopLevelCategories() -> [ProductCategory] {
+        return categories.filter { $0.isTopLevel }
+    }
+    
+    func getCategoryProductCount(for categoryId: String) -> Int {
+        return products.filter { product in
+            product.categories?.contains { $0.id == categoryId } ?? false
+        }.count
+    }
+    
+    func hasChildCategories(categoryId: String) -> Bool {
+        return categories.contains { $0.parentCategoryId == categoryId }
+    }
 }
