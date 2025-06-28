@@ -143,7 +143,7 @@ struct ProductDetailView: View {
                                     DetailRow(title: "Handle", value: handle)
                                 }
                                 
-                                DetailRow(title: "Status", value: product.status.rawValue.capitalized)
+                                DetailRow(title: "Status", value: product.displayStatus)
                                 
                                 if let weight = product.weight {
                                     DetailRow(title: "Weight", value: "\(weight)g")

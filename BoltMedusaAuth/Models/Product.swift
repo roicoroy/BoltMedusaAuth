@@ -16,7 +16,7 @@ struct Product: Codable, Identifiable {
     let description: String?
     let handle: String?
     let isGiftcard: Bool
-    let status: ProductStatus
+    let status: ProductStatus?  // Made optional since API might not include it
     let images: [ProductImage]?
     let thumbnail: String?
     let options: [ProductOption]?
@@ -67,7 +67,7 @@ struct Product: Codable, Identifiable {
         description = try container.decodeIfPresent(String.self, forKey: .description)
         handle = try container.decodeIfPresent(String.self, forKey: .handle)
         isGiftcard = try container.decode(Bool.self, forKey: .isGiftcard)
-        status = try container.decode(ProductStatus.self, forKey: .status)
+        status = try container.decodeIfPresent(ProductStatus.self, forKey: .status) // Made optional
         images = try container.decodeIfPresent([ProductImage].self, forKey: .images)
         thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
         options = try container.decodeIfPresent([ProductOption].self, forKey: .options)
@@ -574,6 +574,10 @@ extension Product {
     
     var tagValues: [String] {
         return tags?.map { $0.value } ?? []
+    }
+    
+    var displayStatus: String {
+        return status?.rawValue.capitalized ?? "Unknown"
     }
 }
 
