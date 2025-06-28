@@ -142,7 +142,7 @@ class CartService: ObservableObject {
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("Cart fetched successfully")
+                    print("Cart fetched successfully: \(response.cart.id)")
                 }
             )
             .store(in: &cancellables)
@@ -153,15 +153,20 @@ class CartService: ObservableObject {
     func addLineItem(variantId: String, quantity: Int = 1, regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         // Create cart if it doesn't exist
         guard let cart = currentCart else {
+            print("No cart exists, creating new cart for region: \(regionId)")
             createCart(regionId: regionId) { [weak self] success in
                 if success {
+                    print("Cart created, now adding line item")
                     self?.addLineItem(variantId: variantId, quantity: quantity, regionId: regionId, completion: completion)
                 } else {
+                    print("Failed to create cart")
                     completion(false)
                 }
             }
             return
         }
+        
+        print("Adding line item to existing cart: \(cart.id)")
         
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
@@ -223,7 +228,8 @@ class CartService: ObservableObject {
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
                     self?.saveCartToStorage()
-                    print("Line item added successfully")
+                    print("Line item added successfully to cart: \(response.cart.id)")
+                    print("Cart now has \(response.cart.itemCount) items")
                     completion(true)
                 }
             )
@@ -431,8 +437,10 @@ class CartService: ObservableObject {
     
     func createCartIfNeeded(regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         if currentCart == nil {
+            print("Creating cart for region: \(regionId)")
             createCart(regionId: regionId, completion: completion)
         } else {
+            print("Cart already exists: \(currentCart?.id ?? "unknown")")
             completion(true)
         }
     }
@@ -442,10 +450,15 @@ class CartService: ObservableObject {
             self?.currentCart = nil
         }
         UserDefaults.standard.removeObject(forKey: "medusa_cart")
+        print("Cart cleared")
     }
     
     func refreshCart() {
-        guard let cart = currentCart else { return }
+        guard let cart = currentCart else { 
+            print("No cart to refresh")
+            return 
+        }
+        print("Refreshing cart: \(cart.id)")
         fetchCart(cartId: cart.id)
     }
     
@@ -455,6 +468,7 @@ class CartService: ObservableObject {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
+            print("Cart saved to storage: \(cart.id) with \(cart.itemCount) items")
         }
     }
     
@@ -464,8 +478,11 @@ class CartService: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            // Refresh cart data from server
+            print("Cart loaded from storage: \(cart.id) with \(cart.itemCount) items")
+            // Refresh cart data from server to ensure it's up to date
             fetchCart(cartId: cart.id)
+        } else {
+            print("No cart found in storage")
         }
     }
 }

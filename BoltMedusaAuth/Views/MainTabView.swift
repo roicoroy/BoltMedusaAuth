@@ -22,6 +22,7 @@ struct MainTabView: View {
             
             ProductsView()
                 .environmentObject(regionService)
+                .environmentObject(cartService)
                 .tabItem {
                     Image(systemName: "cube.box")
                     Text("Products")
@@ -37,6 +38,20 @@ struct MainTabView: View {
                 .environmentObject(regionService)
         }
         .accentColor(.blue)
+        .onAppear {
+            // Initialize cart when app starts if region is available
+            if regionService.hasSelectedRegion, cartService.currentCart == nil {
+                if let regionId = regionService.selectedRegionId {
+                    cartService.createCartIfNeeded(regionId: regionId)
+                }
+            }
+        }
+        .onChange(of: regionService.selectedCountry) { newCountry in
+            // When region changes, create a new cart for that region
+            if let newCountry = newCountry {
+                cartService.createCartIfNeeded(regionId: newCountry.regionId)
+            }
+        }
     }
 }
 
