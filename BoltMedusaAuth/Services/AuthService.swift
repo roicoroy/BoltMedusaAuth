@@ -602,6 +602,170 @@ class AuthService: ObservableObject {
             .store(in: &cancellables)
     }
     
+    func updateAddress(
+        addressId: String,
+        addressName: String?,
+        company: String?,
+        firstName: String,
+        lastName: String,
+        address1: String,
+        address2: String?,
+        city: String,
+        countryCode: String,
+        province: String?,
+        postalCode: String,
+        phone: String?,
+        isDefaultShipping: Bool,
+        isDefaultBilling: Bool,
+        completion: @escaping (Bool, String?) -> Void
+    ) {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            completion(false, "No authentication token found")
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/customers/me/addresses/\(addressId)") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        
+        let addressRequest = AddressRequest(
+            addressName: addressName,
+            isDefaultShipping: isDefaultShipping,
+            isDefaultBilling: isDefaultBilling,
+            company: company,
+            firstName: firstName,
+            lastName: lastName,
+            address1: address1,
+            address2: address2,
+            city: city,
+            countryCode: countryCode,
+            province: province,
+            postalCode: postalCode,
+            phone: phone
+        )
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(addressRequest)
+        } catch {
+            completion(false, "Failed to encode address request: \(error.localizedDescription)")
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Update Address Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Update Address Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    if case .failure(let error) = completionResult {
+                        print("Update address failed: \(error)")
+                        completion(false, "Failed to update address: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { [weak self] data in
+                    // Log the response for debugging
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Update Address Success Response: \(responseString)")
+                    }
+                    
+                    // Try to decode the response to verify it's valid
+                    do {
+                        let _ = try JSONDecoder().decode(AddressResponse.self, from: data)
+                        print("Address updated successfully")
+                        
+                        // Refresh customer profile to get updated addresses
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self?.fetchCustomerProfile()
+                        }
+                        
+                        completion(true, nil)
+                    } catch {
+                        print("Failed to decode address response: \(error)")
+                        // Even if decoding fails, the address might have been updated
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self?.fetchCustomerProfile()
+                        }
+                        completion(true, nil)
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    func deleteAddress(addressId: String, completion: @escaping (Bool, String?) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            completion(false, "No authentication token found")
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/customers/me/addresses/\(addressId)") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("Delete Address Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Delete Address Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    if case .failure(let error) = completionResult {
+                        print("Delete address failed: \(error)")
+                        completion(false, "Failed to delete address: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { [weak self] data in
+                    // Log the response for debugging
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Delete Address Success Response: \(responseString)")
+                    }
+                    
+                    print("Address deleted successfully")
+                    
+                    // Refresh customer profile to get updated addresses
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.fetchCustomerProfile()
+                    }
+                    
+                    completion(true, nil)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     func logout() {
         DispatchQueue.main.async { [weak self] in
             self?.isAuthenticated = false

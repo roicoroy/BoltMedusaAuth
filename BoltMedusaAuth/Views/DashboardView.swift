@@ -10,6 +10,8 @@ import SwiftUI
 struct DashboardView: View {
     @ObservedObject var authService: AuthService
     @State private var showingAddAddress = false
+    @State private var selectedAddress: Address?
+    @State private var showingEditAddress = false
     
     var body: some View {
         NavigationView {
@@ -97,7 +99,10 @@ struct DashboardView: View {
                        !addresses.isEmpty {
                         
                         ForEach(addresses) { address in
-                            AddressCard(address: address)
+                            AddressCard(address: address) {
+                                selectedAddress = address
+                                showingEditAddress = true
+                            }
                         }
                     } else {
                         VStack(spacing: 12) {
@@ -151,6 +156,11 @@ struct DashboardView: View {
         .sheet(isPresented: $showingAddAddress) {
             AddAddressView(authService: authService)
         }
+        .sheet(isPresented: $showingEditAddress) {
+            if let address = selectedAddress {
+                EditAddressView(authService: authService, address: address)
+            }
+        }
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -185,90 +195,100 @@ struct DetailRow: View {
 
 struct AddressCard: View {
     let address: Address
+    let onTap: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                if let addressName = address.addressName {
-                    Text(addressName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                } else {
-                    Text("Address")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    if address.isDefaultBilling {
-                        Text("Billing")
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.2))
-                            .foregroundColor(.blue)
-                            .cornerRadius(4)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    if let addressName = address.addressName {
+                        Text(addressName)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    } else {
+                        Text("Address")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
                     }
                     
-                    if address.isDefaultShipping {
-                        Text("Shipping")
+                    Spacer()
+                    
+                    HStack(spacing: 4) {
+                        if address.isDefaultBilling {
+                            Text("Billing")
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(4)
+                        }
+                        
+                        if address.isDefaultShipping {
+                            Text("Shipping")
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.2))
+                                .foregroundColor(.green)
+                                .cornerRadius(4)
+                        }
+                        
+                        Image(systemName: "chevron.right")
                             .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.2))
-                            .foregroundColor(.green)
-                            .cornerRadius(4)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if let company = address.company {
+                        Text(company)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if let firstName = address.firstName, let lastName = address.lastName {
+                        Text("\(firstName) \(lastName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text(address.address1)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if let address2 = address.address2 {
+                        Text(address2)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text("\(address.city), \(address.province ?? "") \(address.postalCode)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text(address.countryCode.uppercased())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if let phone = address.phone {
+                        Text(phone)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
             }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                if let company = address.company {
-                    Text(company)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                if let firstName = address.firstName, let lastName = address.lastName {
-                    Text("\(firstName) \(lastName)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Text(address.address1)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                if let address2 = address.address2 {
-                    Text(address2)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Text("\(address.city), \(address.province ?? "") \(address.postalCode)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text(address.countryCode.uppercased())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                if let phone = address.phone {
-                    Text(phone)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.systemGray4), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
