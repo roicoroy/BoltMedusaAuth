@@ -12,6 +12,9 @@ struct PaymentProvidersView: View {
     @StateObject private var paymentProvidersService = PaymentProvidersService()
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedProviderId: String?
+    @State private var isCreatingPaymentCollection = false
+    @State private var showingSuccessAlert = false
+    @State private var successMessage = ""
     
     var body: some View {
         NavigationView {
@@ -34,6 +37,7 @@ struct PaymentProvidersView: View {
                         selectedProviderId: $selectedProviderId,
                         onSelectProvider: { providerId in
                             selectedProviderId = providerId
+                            logProviderSelection(providerId: providerId)
                         }
                     )
                 }
@@ -44,6 +48,17 @@ struct PaymentProvidersView: View {
                         message: errorMessage,
                         onRetry: {
                             paymentProvidersService.fetchPaymentProviders(for: cart)
+                        }
+                    )
+                }
+                
+                // Create Payment Collection Button
+                if let selectedProviderId = selectedProviderId {
+                    CreatePaymentCollectionButton(
+                        selectedProviderId: selectedProviderId,
+                        isLoading: isCreatingPaymentCollection,
+                        onCreatePaymentCollection: {
+                            createPaymentCollection(providerId: selectedProviderId)
                         }
                     )
                 }
@@ -64,6 +79,63 @@ struct PaymentProvidersView: View {
         }
         .onAppear {
             paymentProvidersService.fetchPaymentProviders(for: cart)
+        }
+        .alert("Payment Collection Created", isPresented: $showingSuccessAlert) {
+            Button("OK") {
+                presentationMode.wrappedValue.dismiss()
+            }
+        } message: {
+            Text(successMessage)
+        }
+    }
+    
+    private func logProviderSelection(providerId: String) {
+        print("💳 PAYMENT PROVIDER SELECTED:")
+        print("💳 ========================")
+        print("💳 Provider ID: \(providerId)")
+        print("💳 Cart ID: \(cart.id)")
+        print("💳 Cart Total: \(cart.formattedTotal)")
+        print("💳 Cart Currency: \(cart.currencyCode)")
+        print("💳 Region ID: \(cart.regionId ?? "nil")")
+        
+        // Find the selected provider for additional details
+        if let selectedProvider = paymentProvidersService.paymentProviders.first(where: { $0.id == providerId }) {
+            print("💳 Provider Name: \(selectedProvider.displayName)")
+            print("💳 Provider Type: \(selectedProvider.providerType.displayName)")
+            print("💳 Provider Status: \(selectedProvider.statusText)")
+            print("💳 Provider Available: \(selectedProvider.isAvailable)")
+        }
+        
+        print("💳 ========================")
+    }
+    
+    private func createPaymentCollection(providerId: String) {
+        print("💳 CREATING PAYMENT COLLECTION:")
+        print("💳 =============================")
+        print("💳 Provider ID: \(providerId)")
+        print("💳 Cart ID: \(cart.id)")
+        
+        isCreatingPaymentCollection = true
+        
+        paymentProvidersService.createPaymentCollection(cartId: cart.id) { success, paymentCollection in
+            DispatchQueue.main.async {
+                self.isCreatingPaymentCollection = false
+                
+                if success, let paymentCollection = paymentCollection {
+                    print("💳 ✅ PAYMENT COLLECTION CREATED SUCCESSFULLY:")
+                    print("💳 Payment Collection ID: \(paymentCollection.id)")
+                    print("💳 Currency: \(paymentCollection.currencyCode)")
+                    print("💳 Amount: \(paymentCollection.amount)")
+                    print("💳 Status: \(paymentCollection.status)")
+                    print("💳 Payment Providers: \(paymentCollection.paymentProviders?.map { $0.id } ?? [])")
+                    
+                    self.successMessage = "Payment collection created successfully!\n\nID: \(paymentCollection.id)\nAmount: \(paymentCollection.formattedAmount)\nStatus: \(paymentCollection.status.capitalized)"
+                    self.showingSuccessAlert = true
+                } else {
+                    print("💳 ❌ FAILED TO CREATE PAYMENT COLLECTION")
+                    // Error is already handled by paymentProvidersService.errorMessage
+                }
+            }
         }
     }
 }
@@ -383,6 +455,41 @@ struct PaymentProviderCard: View {
     }
 }
 
+struct CreatePaymentCollectionButton: View {
+    let selectedProviderId: String
+    let isLoading: Bool
+    let onCreatePaymentCollection: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Divider()
+            
+            Button(action: onCreatePaymentCollection) {
+                HStack {
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    }
+                    
+                    Image(systemName: "plus.circle")
+                    Text("Create Payment Collection")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(isLoading)
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
 struct PaymentErrorMessageView: View {
     let message: String
     let onRetry: () -> Void
@@ -438,4 +545,3 @@ extension PaymentProviderType {
         }
     }
 }
-

@@ -663,7 +663,7 @@ class CartService: ObservableObject {
         completion(true)
     }
     
-    // MARK: - Shipping Methods
+    // MARK: - Shipping Method Management
     
     func addShippingMethodToCart(optionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let cart = currentCart else {
@@ -672,12 +672,21 @@ class CartService: ObservableObject {
             return
         }
         
+        print("🚚 ADDING SHIPPING METHOD TO CART:")
+        print("🚚 =================================")
+        print("🚚 Cart ID: \(cart.id)")
+        print("🚚 Shipping Option ID: \(optionId)")
+        print("🚚 Current Cart Total: \(cart.formattedTotal)")
+        print("🚚 Current Shipping Total: \(cart.formattedShippingTotal)")
+        
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
         }
         
-        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/shipping-methods") else {
+        let urlString = "\(baseURL)/store/carts/\(cart.id)/shipping-methods"
+        
+        guard let url = URL(string: urlString) else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL for adding shipping method"
                 self?.isLoading = false
@@ -686,7 +695,7 @@ class CartService: ObservableObject {
             return
         }
         
-        let shippingMethodData = ["option_id": optionId]
+        let requestData = ["option_id": optionId]
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -699,11 +708,9 @@ class CartService: ObservableObject {
         }
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: shippingMethodData, options: [])
-            print("🚚 Adding shipping method to cart: \(cart.id)")
-            print("🚚 Option ID: \(optionId)")
-            print("🚚 URL: \(url)")
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestData, options: [])
             
+            // Log the request details
             if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
                 print("🚚 Request JSON: \(jsonString)")
             }
@@ -715,6 +722,9 @@ class CartService: ObservableObject {
             completion(false)
             return
         }
+        
+        print("🚚 Sending POST request to: \(urlString)")
+        print("🚚 Headers: \(urlRequest.allHTTPHeaderFields ?? [:])")
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
@@ -736,7 +746,7 @@ class CartService: ObservableObject {
                     self?.isLoading = false
                     if case .failure(let error) = completionResult {
                         self?.errorMessage = "Failed to add shipping method: \(error.localizedDescription)"
-                        print("🚚 Add shipping method error: \(error)")
+                        print("🚚 ❌ Add shipping method error: \(error)")
                         completion(false)
                     }
                 },
@@ -758,9 +768,18 @@ class CartService: ObservableObject {
             let response = try JSONDecoder().decode(CartResponse.self, from: data)
             self.currentCart = response.cart
             self.saveCartToStorage()
-            print("✅ Shipping method successfully added to cart")
-            print("🚚 Cart shipping total updated: \(response.cart.shippingTotal) (\(response.cart.formattedShippingTotal))")
-            print("💰 Cart total updated: \(response.cart.total) (\(response.cart.formattedTotal))")
+            
+            print("🚚 ✅ SHIPPING METHOD SUCCESSFULLY ADDED!")
+            print("🚚 Updated Cart Total: \(response.cart.formattedTotal)")
+            print("🚚 Updated Shipping Total: \(response.cart.formattedShippingTotal)")
+            print("🚚 Shipping Total (cents): \(response.cart.shippingTotal)")
+            
+            // Log detailed cart information
+            print("🚚 UPDATED CART DETAILS:")
+            print("🚚 - Subtotal: \(response.cart.formattedSubtotal)")
+            print("🚚 - Shipping: \(response.cart.formattedShippingTotal)")
+            print("🚚 - Tax: \(response.cart.formattedTaxTotal)")
+            print("🚚 - Total: \(response.cart.formattedTotal)")
             
             completion(true)
             return
@@ -775,8 +794,8 @@ class CartService: ObservableObject {
                 
                 // Check if it's a success response
                 if let success = json["success"] as? Bool, success {
-                    print("✅ Shipping method added successfully - success flag found")
-                    // Refresh cart to get updated totals
+                    print("🚚 ✅ Shipping method added successfully - success flag found")
+                    // Refresh cart data from server since we don't have updated cart in response
                     if let cart = currentCart {
                         fetchCart(cartId: cart.id)
                     }
@@ -790,14 +809,13 @@ class CartService: ObservableObject {
                     let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
                     self.currentCart = cart
                     self.saveCartToStorage()
-                    print("✅ Shipping method added successfully - cart found in response")
-                    print("🚚 Cart shipping total: \(cart.shippingTotal) (\(cart.formattedShippingTotal))")
+                    print("🚚 ✅ Shipping method added successfully - cart found in response")
                     completion(true)
                     return
                 }
                 
                 // If response doesn't contain cart data but operation was successful
-                print("✅ Shipping method added successfully - refreshing cart data")
+                print("🚚 ✅ Shipping method added successfully - refreshing cart data")
                 if let cart = currentCart {
                     fetchCart(cartId: cart.id)
                 }
@@ -809,7 +827,7 @@ class CartService: ObservableObject {
         }
         
         // If we can't parse the response but got here, it means the HTTP request was successful
-        print("✅ Shipping method added successfully - HTTP was successful, refreshing cart")
+        print("🚚 ✅ Shipping method added successfully - HTTP was successful, refreshing cart")
         if let cart = currentCart {
             fetchCart(cartId: cart.id)
         }
