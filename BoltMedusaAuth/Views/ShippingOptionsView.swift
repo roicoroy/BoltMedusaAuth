@@ -10,7 +10,12 @@ import SwiftUI
 struct ShippingOptionsView: View {
     let cart: Cart
     @StateObject private var shippingService = ShippingService()
+    @EnvironmentObject var cartService: CartService
     @Environment(\.presentationMode) var presentationMode
+    @State private var selectedOptionId: String?
+    @State private var isAddingShippingMethod = false
+    @State private var showingSuccessAlert = false
+    @State private var successMessage = ""
     
     var body: some View {
         NavigationView {
@@ -30,7 +35,11 @@ struct ShippingOptionsView: View {
                 } else if !shippingService.shippingOptions.isEmpty {
                     ShippingOptionsListView(
                         shippingOptions: shippingService.shippingOptions,
-                        currencyCode: cart.currencyCode
+                        currencyCode: cart.currencyCode,
+                        selectedOptionId: $selectedOptionId,
+                        onSelectOption: { optionId in
+                            selectedOptionId = optionId
+                        }
                     )
                 }
                 
@@ -40,6 +49,17 @@ struct ShippingOptionsView: View {
                         message: errorMessage,
                         onRetry: {
                             shippingService.fetchShippingOptions(for: cart.id)
+                        }
+                    )
+                }
+                
+                // Add Shipping Method Button
+                if let selectedOptionId = selectedOptionId {
+                    AddShippingMethodButton(
+                        selectedOptionId: selectedOptionId,
+                        isLoading: isAddingShippingMethod,
+                        onAddShippingMethod: {
+                            addShippingMethodToCart(optionId: selectedOptionId)
                         }
                     )
                 }
@@ -60,6 +80,34 @@ struct ShippingOptionsView: View {
         }
         .onAppear {
             shippingService.fetchShippingOptions(for: cart.id)
+        }
+        .alert("Shipping Method Added", isPresented: $showingSuccessAlert) {
+            Button("OK") {
+                presentationMode.wrappedValue.dismiss()
+            }
+        } message: {
+            Text(successMessage)
+        }
+    }
+    
+    private func addShippingMethodToCart(optionId: String) {
+        isAddingShippingMethod = true
+        
+        cartService.addShippingMethodToCart(optionId: optionId) { success in
+            DispatchQueue.main.async {
+                self.isAddingShippingMethod = false
+                
+                if success {
+                    // Find the selected option to show its name
+                    let selectedOption = self.shippingService.shippingOptions.first { $0.id == optionId }
+                    let optionName = selectedOption?.displayName ?? "shipping method"
+                    
+                    self.successMessage = "\(optionName) has been added to your cart. Your cart total has been updated."
+                    self.showingSuccessAlert = true
+                } else {
+                    // Error is already handled by cartService.errorMessage
+                }
+            }
         }
     }
 }
@@ -201,6 +249,8 @@ struct EmptyShippingOptionsView: View {
 struct ShippingOptionsListView: View {
     let shippingOptions: [ShippingOption]
     let currencyCode: String
+    @Binding var selectedOptionId: String?
+    let onSelectOption: (String) -> Void
     
     var body: some View {
         ScrollView {
@@ -208,7 +258,11 @@ struct ShippingOptionsListView: View {
                 ForEach(shippingOptions) { option in
                     ShippingOptionCard(
                         option: option,
-                        currencyCode: currencyCode
+                        currencyCode: currencyCode,
+                        isSelected: selectedOptionId == option.id,
+                        onTap: {
+                            onSelectOption(option.id)
+                        }
                     )
                 }
             }
@@ -220,94 +274,117 @@ struct ShippingOptionsListView: View {
 struct ShippingOptionCard: View {
     let option: ShippingOption
     let currencyCode: String
+    let isSelected: Bool
+    let onTap: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with name and price
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(option.displayName)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    
-                    HStack(spacing: 8) {
-                        Text(option.priceTypeDisplay)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(priceTypeColor.opacity(0.2))
-                            .foregroundColor(priceTypeColor)
-                            .cornerRadius(4)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header with name and price
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(option.displayName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
                         
-                        if let typeLabel = option.typeLabel {
-                            Text(typeLabel)
+                        HStack(spacing: 8) {
+                            Text(option.priceTypeDisplay)
                                 .font(.caption)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.2))
-                                .foregroundColor(.blue)
+                                .background(priceTypeColor.opacity(0.2))
+                                .foregroundColor(priceTypeColor)
                                 .cornerRadius(4)
+                            
+                            if let typeLabel = option.typeLabel {
+                                Text(typeLabel)
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.2))
+                                    .foregroundColor(.blue)
+                                    .cornerRadius(4)
+                            }
                         }
                     }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(option.formattedAmount(currencyCode: currencyCode))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(option.isFree ? .green : .primary)
                     
-                    if option.isFree {
-                        Text("FREE")
-                            .font(.caption)
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(option.formattedAmount(currencyCode: currencyCode))
+                            .font(.title3)
                             .fontWeight(.bold)
-                            .foregroundColor(.green)
-                    }
-                }
-            }
-            
-            // Provider and delivery info
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "building.2")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("Provider: \(option.providerName)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if let estimatedDelivery = option.estimatedDelivery {
-                        HStack {
-                            Image(systemName: "clock")
+                            .foregroundColor(option.isFree ? .green : .primary)
+                        
+                        if option.isFree {
+                            Text("FREE")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text("Delivery: \(estimatedDelivery)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    if let typeCode = option.typeCode {
-                        HStack {
-                            Image(systemName: "barcode")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text("Code: \(typeCode)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
                         }
                     }
                 }
                 
-                Spacer()
+                // Provider and delivery info
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "building.2")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Provider: \(option.providerName)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if let estimatedDelivery = option.estimatedDelivery {
+                            HStack {
+                                Image(systemName: "clock")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Delivery: \(estimatedDelivery)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        if let typeCode = option.typeCode {
+                            HStack {
+                                Image(systemName: "barcode")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Code: \(typeCode)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Selection indicator
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    } else {
+                        Image(systemName: "circle")
+                            .font(.title2)
+                            .foregroundColor(.gray)
+                    }
+                }
+                
+                // Description if available
+                if let description = option.description {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
+                }
                 
                 // Status badges
-                VStack(alignment: .trailing, spacing: 4) {
+                HStack {
                     Text(option.availabilityStatus)
                         .font(.caption2)
                         .padding(.horizontal, 4)
@@ -335,182 +412,148 @@ struct ShippingOptionCard: View {
                             .foregroundColor(.red)
                             .cornerRadius(3)
                     }
+                    
+                    Spacer()
                 }
-            }
-            
-            // Description if available
-            if let description = option.description {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
-            }
-            
-            // Calculated price details if available
-            if let calculatedPrice = option.calculatedPrice {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Price Breakdown:")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        Text("Calculated Amount:")
+                
+                // Calculated price details if available
+                if let calculatedPrice = option.calculatedPrice {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Price Breakdown:")
                             .font(.caption)
+                            .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Spacer()
-                        Text(calculatedPrice.formattedCalculatedAmount())
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    
-                    HStack {
-                        Text("Original Amount:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(calculatedPrice.formattedOriginalAmount())
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    
-                    if let withTax = calculatedPrice.formattedOriginalAmountWithTax() {
+                        
                         HStack {
-                            Text("With Tax:")
+                            Text("Calculated Amount:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(withTax)
+                            Text(calculatedPrice.formattedCalculatedAmount())
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
-                    }
-                    
-                    if let withoutTax = calculatedPrice.formattedOriginalAmountWithoutTax() {
+                        
                         HStack {
-                            Text("Without Tax:")
+                            Text("Original Amount:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(withoutTax)
+                            Text(calculatedPrice.formattedOriginalAmount())
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            }
-            
-            // Prices array if available
-            if let prices = option.prices, !prices.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Available Prices:")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    
-                    ForEach(prices) { price in
-                        HStack {
-                            Text(price.currencyCode.uppercased())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Text(price.formattedAmount())
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            
-                            if let minQty = price.minQuantity, let maxQty = price.maxQuantity {
-                                Text("(\(minQty)-\(maxQty))")
-                                    .font(.caption2)
+                        
+                        if let withTax = calculatedPrice.formattedOriginalAmountWithTax() {
+                            HStack {
+                                Text("With Tax:")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
+                                Spacer()
+                                Text(withTax)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                        }
+                        
+                        if let withoutTax = calculatedPrice.formattedOriginalAmountWithoutTax() {
+                            HStack {
+                                Text("Without Tax:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(withoutTax)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
                             }
                         }
                     }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            }
-            
-            // Technical details (collapsible)
-            DisclosureGroup("Technical Details") {
-                VStack(alignment: .leading, spacing: 4) {
-                    DetailRow(title: "ID", value: option.id)
-                    DetailRow(title: "Price Type", value: option.priceType)
-                    
-                    if let amount = option.amount {
-                        DetailRow(title: "Amount (cents)", value: "\(amount)")
-                    }
-                    
-                    if let serviceZoneId = option.serviceZoneId {
-                        DetailRow(title: "Service Zone ID", value: serviceZoneId)
-                    }
-                    
-                    if let providerId = option.providerId {
-                        DetailRow(title: "Provider ID", value: providerId)
-                    }
-                    
-                    if let shippingProfileId = option.shippingProfileId {
-                        DetailRow(title: "Shipping Profile ID", value: shippingProfileId)
-                    }
-                    
-                    if let provider = option.provider {
-                        DetailRow(title: "Provider Enabled", value: "\(provider.isEnabled)")
-                    }
-                    
-                    if let type = option.type {
-                        DetailRow(title: "Type ID", value: type.id)
-                        if let code = type.code {
-                            DetailRow(title: "Type Code", value: code)
-                        }
-                    }
-                    
-                    if let createdAt = option.createdAt {
-                        DetailRow(title: "Created", value: formatDate(createdAt))
-                    }
-                    
-                    if let updatedAt = option.updatedAt {
-                        DetailRow(title: "Updated", value: formatDate(updatedAt))
-                    }
-                    
-                    // Data and metadata
-                    if let data = option.data, !data.isEmpty {
-                        Text("Data:")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
+                
+                // Technical details (collapsible)
+                DisclosureGroup("Technical Details") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        DetailRow(title: "ID", value: option.id)
+                        DetailRow(title: "Price Type", value: option.priceType)
                         
-                        ForEach(Array(data.keys.sorted()), id: \.self) { key in
-                            DetailRow(title: key, value: "\(data[key] ?? "nil")")
+                        if let amount = option.amount {
+                            DetailRow(title: "Amount (cents)", value: "\(amount)")
                         }
-                    }
-                    
-                    if let metadata = option.metadata, !metadata.isEmpty {
-                        Text("Metadata:")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
                         
-                        ForEach(Array(metadata.keys.sorted()), id: \.self) { key in
-                            DetailRow(title: key, value: "\(metadata[key] ?? "nil")")
+                        if let serviceZoneId = option.serviceZoneId {
+                            DetailRow(title: "Service Zone ID", value: serviceZoneId)
+                        }
+                        
+                        if let providerId = option.providerId {
+                            DetailRow(title: "Provider ID", value: providerId)
+                        }
+                        
+                        if let shippingProfileId = option.shippingProfileId {
+                            DetailRow(title: "Shipping Profile ID", value: shippingProfileId)
+                        }
+                        
+                        if let provider = option.provider {
+                            DetailRow(title: "Provider Enabled", value: "\(provider.isEnabled)")
+                        }
+                        
+                        if let type = option.type {
+                            DetailRow(title: "Type ID", value: type.id)
+                            if let code = type.code {
+                                DetailRow(title: "Type Code", value: code)
+                            }
+                        }
+                        
+                        if let createdAt = option.createdAt {
+                            DetailRow(title: "Created", value: formatDate(createdAt))
+                        }
+                        
+                        if let updatedAt = option.updatedAt {
+                            DetailRow(title: "Updated", value: formatDate(updatedAt))
+                        }
+                        
+                        // Data and metadata
+                        if let data = option.data, !data.isEmpty {
+                            Text("Data:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 4)
+                            
+                            ForEach(Array(data.keys.sorted()), id: \.self) { key in
+                                DetailRow(title: key, value: "\(data[key] ?? "nil")")
+                            }
+                        }
+                        
+                        if let metadata = option.metadata, !metadata.isEmpty {
+                            Text("Metadata:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 4)
+                            
+                            ForEach(Array(metadata.keys.sorted()), id: \.self) { key in
+                                DetailRow(title: key, value: "\(metadata[key] ?? "nil")")
+                            }
                         }
                     }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
-            .font(.caption)
-            .foregroundColor(.secondary)
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            )
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .buttonStyle(PlainButtonStyle())
     }
     
     private var priceTypeColor: Color {
@@ -535,6 +578,41 @@ struct ShippingOptionCard: View {
             return displayFormatter.string(from: date)
         }
         return dateString
+    }
+}
+
+struct AddShippingMethodButton: View {
+    let selectedOptionId: String
+    let isLoading: Bool
+    let onAddShippingMethod: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Divider()
+            
+            Button(action: onAddShippingMethod) {
+                HStack {
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    }
+                    
+                    Image(systemName: "plus.circle")
+                    Text("Add Shipping Method to Cart")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(isLoading)
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .background(Color(.systemBackground))
     }
 }
 
@@ -626,4 +704,5 @@ struct DetailRow: View {
     )
     
     ShippingOptionsView(cart: sampleCart)
+        .environmentObject(CartService())
 }

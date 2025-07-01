@@ -633,6 +633,168 @@ class CartService: ObservableObject {
         completion(true)
     }
     
+    // MARK: - Shipping Methods
+    
+    func addShippingMethodToCart(optionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let cart = currentCart else {
+            print("❌ No cart available for adding shipping method")
+            completion(false)
+            return
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+        
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/shipping-methods") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for adding shipping method"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        let shippingMethodPayload = ["option_id": optionId]
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: shippingMethodPayload, options: [])
+            print("🚚 Adding shipping method to cart: \(cart.id)")
+            print("🚚 Option ID: \(optionId)")
+            print("🚚 URL: \(url)")
+            
+            // Log the exact JSON being sent
+            if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
+                print("🚚 Request JSON: \(jsonString)")
+            }
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode shipping method request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("🚚 Add Shipping Method Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("🚚 Add Shipping Method Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        print("❌ Shipping method addition failed with status: \(httpResponse.statusCode)")
+                        
+                        // Try to parse error message from response
+                        if let errorData = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            print("❌ Error details: \(errorData)")
+                        }
+                        
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to add shipping method: \(error.localizedDescription)"
+                        print("🚚 Add shipping method error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] data in
+                    self?.handleShippingMethodResponse(data: data, completion: completion)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func handleShippingMethodResponse(data: Data, completion: @escaping (Bool) -> Void) {
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🚚 Shipping Method Raw Response: \(responseString)")
+        }
+        
+        // Try to decode as CartResponse first
+        do {
+            let response = try JSONDecoder().decode(CartResponse.self, from: data)
+            self.currentCart = response.cart
+            self.saveCartToStorage()
+            print("✅ Shipping method successfully added to cart")
+            print("🚚 Cart shipping total: \(response.cart.formattedShippingTotal)")
+            print("🚚 Cart total: \(response.cart.formattedTotal)")
+            
+            completion(true)
+            return
+        } catch {
+            print("Failed to decode shipping method response as CartResponse: \(error)")
+        }
+        
+        // Try to parse as JSON to see what structure we have
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("🚚 Shipping method response JSON structure: \(json)")
+                
+                // Check if it's a success response
+                if let success = json["success"] as? Bool, success {
+                    print("✅ Shipping method added successfully - success flag found")
+                    // Refresh cart to get updated totals
+                    if let cart = currentCart {
+                        fetchCart(cartId: cart.id)
+                    }
+                    completion(true)
+                    return
+                }
+                
+                // Check if cart is nested differently
+                if let cartData = json["cart"] as? [String: Any] {
+                    let cartJsonData = try JSONSerialization.data(withJSONObject: cartData, options: [])
+                    let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
+                    self.currentCart = cart
+                    self.saveCartToStorage()
+                    print("✅ Shipping method added successfully - cart found in response")
+                    completion(true)
+                    return
+                }
+                
+                // If response doesn't contain cart data but operation was successful
+                print("✅ Shipping method added successfully - response indicates success")
+                // Refresh cart to get updated totals
+                if let cart = currentCart {
+                    fetchCart(cartId: cart.id)
+                }
+                completion(true)
+                return
+            }
+        } catch {
+            print("Failed to parse shipping method response JSON: \(error)")
+        }
+        
+        // If we can't parse the response but got here, it means the HTTP request was successful
+        print("✅ Shipping method added successfully - HTTP was successful")
+        // Refresh cart to get updated totals
+        if let cart = currentCart {
+            fetchCart(cartId: cart.id)
+        }
+        completion(true)
+    }
+    
     // MARK: - Line Item Management
     
     func addLineItem(variantId: String, quantity: Int = 1, regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
