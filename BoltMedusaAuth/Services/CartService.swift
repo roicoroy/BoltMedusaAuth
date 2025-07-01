@@ -711,7 +711,7 @@ class CartService: ObservableObject {
             self?.errorMessage = nil
         }
 
-        guard let url = URL(string: "\(baseURL)/store/\(cartId)/payment-sessions") else {
+        guard let url = URL(string: "\(baseURL)/store/payment-collections/\(paymentCollectionId)/payment-sessions") else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL for updating payment provider"
                 self?.isLoading = false
