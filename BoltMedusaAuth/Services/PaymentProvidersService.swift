@@ -338,7 +338,7 @@ class PaymentProvidersService: ObservableObject {
                 
                 // Proceed to create payment session
                 if let providerId = self.paymentProviders.first?.id {
-                    selfinitializePaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
+                    self.initializePaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
                         if success {
                             print("💳 ✅ Payment session created successfully.")
                         } else {
@@ -449,7 +449,7 @@ class PaymentProvidersService: ObservableObject {
                         if let cartService = self.cartService, var currentCart = cartService.currentCart {
                             currentCart.paymentCollection = response.paymentCollection
                             cartService.currentCart = currentCart
-                            cartService.saveCartToStorage()
+                            cartService.fetchCart(cartId: currentCart.id)
                             print("💳 ✅ Cart updated with new payment collection and sessions.")
                         }
                         
