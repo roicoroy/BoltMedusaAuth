@@ -16,7 +16,7 @@ public struct PaymentCollection: Codable, Identifiable {
     public let status: String?
     public let paymentProviders: [PaymentCollectionProvider]?
     public let paymentSessions: [PaymentSession]?
-    public let metadata: [String: Any]?
+    public let metadata: [String: AnyCodable]?
     public let createdAt: String?
     public let updatedAt: String?
     public let completedAt: String?
@@ -48,7 +48,7 @@ public struct PaymentCollection: Codable, Identifiable {
         // Handle metadata as flexible dictionary
         if container.contains(.metadata) {
             if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
-                metadata = metadataDict.mapValues { $0.value }
+                metadata = metadataDict
             } else {
                 metadata = nil
             }
