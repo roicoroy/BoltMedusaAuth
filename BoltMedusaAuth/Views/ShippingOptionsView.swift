@@ -501,9 +501,9 @@ struct ShippingOptionCard: View {
                         
                         if let type = option.type {
                             DetailRow(title: "Type ID", value: type.id)
-                            if let code = type.code {
-                                DetailRow(title: "Type Code", value: code)
-                            }
+//                            if let code = type.code {
+//                                DetailRow(title: "Type Code", value: code)
+//                            }
                         }
                         
                         if let createdAt = option.createdAt {
