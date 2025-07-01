@@ -554,23 +554,23 @@ extension Cart {
     }
     
     var formattedTotal: String {
-        return formatPrice(total)
+        return formatPrice(total, currencyCode: currencyCode)
     }
     
     var formattedSubtotal: String {
-        return formatPrice(subtotal)
+        return formatPrice(subtotal, currencyCode: currencyCode)
     }
     
     var formattedTaxTotal: String {
-        return formatPrice(taxTotal)
+        return formatPrice(taxTotal, currencyCode: currencyCode)
     }
     
     var formattedShippingTotal: String {
-        return formatPrice(shippingTotal)
+        return formatPrice(shippingTotal, currencyCode: currencyCode)
     }
     
     var formattedDiscountTotal: String {
-        return formatPrice(discountTotal)
+        return formatPrice(discountTotal, currencyCode: currencyCode)
     }
     
     var itemCount: Int {
@@ -604,17 +604,6 @@ extension Cart {
     var isReadyForCheckout: Bool {
         return !isEmpty && hasShippingAddress && hasBillingAddress
     }
-    
-    private func formatPrice(_ amount: Int, currencyCode: String? = nil) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = (currencyCode ?? self.currencyCode).uppercased()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        
-        let decimalAmount = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\((currencyCode ?? self.currencyCode).uppercased()) 0.00"
-    }
 }
 
 extension CartLineItem {
@@ -635,19 +624,19 @@ extension CartLineItem {
     }
     
     var formattedUnitPrice: String {
-        return formatPrice(unitPrice)
+        return formatPrice(unitPrice, currencyCode: "USD")
     }
     
     var formattedTotal: String {
         // Calculate total since it's not provided in the API response
         let calculatedTotal = unitPrice * quantity
-        return formatPrice(calculatedTotal)
+        return formatPrice(calculatedTotal, currencyCode: "USD")
     }
     
     var formattedSubtotal: String {
         // Calculate subtotal since it's not provided in the API response
         let calculatedSubtotal = unitPrice * quantity
-        return formatPrice(calculatedSubtotal)
+        return formatPrice(calculatedSubtotal, currencyCode: "USD")
     }
     
     var calculatedTotal: Int {
@@ -658,17 +647,6 @@ extension CartLineItem {
     var calculatedSubtotal: Int {
         // Calculate subtotal since it's not provided in the API response
         return unitPrice * quantity
-    }
-    
-    private func formatPrice(_ amount: Int, currencyCode: String = "USD") -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode.uppercased()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        
-        let decimalAmount = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\(currencyCode.uppercased()) 0.00"
     }
     
     var displayImage: String? {
