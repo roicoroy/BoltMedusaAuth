@@ -524,11 +524,8 @@ class CartService: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] response in
-                    self?.currentCart = response.cart
-                    self?.saveCartToStorage()
-                    print("✅ Cart addresses updated successfully.")
-                    print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
-                    print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
+                    print("✅ Cart addresses updated successfully. Refreshing cart from server.")
+                    self?.fetchCart(cartId: cartId)
                     completion(true)
                 }
             )
