@@ -9,8 +9,8 @@ import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
-    @State private var email = ""
-    @State private var password = ""
+    @State private var email = "test@email.com"
+    @State private var password = "Rwbento123!"
     @State private var showingRegistration = false
     
     var body: some View {
