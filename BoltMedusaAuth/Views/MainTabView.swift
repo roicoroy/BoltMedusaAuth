@@ -38,6 +38,12 @@ struct MainTabView: View {
                 .environmentObject(cartService)
                 .environmentObject(regionService)
                 .environmentObject(authService)
+            
+            DebugView()
+                .tabItem {
+                    Image(systemName: "ladybug")
+                    Text("Debug")
+                }
         }
         .accentColor(.blue)
         .onAppear {
