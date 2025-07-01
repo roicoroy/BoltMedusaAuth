@@ -726,6 +726,8 @@ class CartService: ObservableObject {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        // In Swift, `credentials: "include"` is handled by URLSession's default cookie policy
+        // and credential storage. No direct header equivalent is needed here.
 
         if let token = UserDefaults.standard.string(forKey: "auth_token") {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
