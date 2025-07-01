@@ -105,9 +105,6 @@ extension PaymentCollection {
         return formatPrice(amount, currencyCode: currencyCode)
     }
     
-    var formattedAmount: String {
-        return formatPrice(amount, currencyCode: currencyCode)
-    }
     
     var displayStatus: String {
         return status.capitalized
