@@ -15,6 +15,7 @@ struct PaymentProvidersView: View {
     @State private var isCreatingPaymentCollection = false
     @State private var showingSuccessAlert = false
     @State private var successMessage = ""
+    @EnvironmentObject var cartService: CartService // Added EnvironmentObject
     
     var body: some View {
         NavigationView {
@@ -38,6 +39,14 @@ struct PaymentProvidersView: View {
                         onSelectProvider: { providerId in
                             selectedProviderId = providerId
                             logProviderSelection(providerId: providerId)
+                            // Update cart with selected payment provider
+                            $cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: cart.paymentCollection?.id, providerId: providerId) { success in
+                                if success {
+                                    print("💳 ✅ Cart payment provider updated successfully.")
+                                } else {
+                                    print("💳 ❌ Failed to update cart payment provider.")
+                                }
+                            }
                         }
                     )
                 }
@@ -79,6 +88,8 @@ struct PaymentProvidersView: View {
         }
         .onAppear {
             paymentProvidersService.fetchPaymentProviders(for: cart)
+            selectedProviderId = cart.paymentCollection?.paymentProviders?.first?.id
+            paymentProvidersService.cartService = cartService // Inject CartService
         }
         .alert("Payment Collection Created", isPresented: $showingSuccessAlert) {
             Button("OK") {
@@ -123,14 +134,12 @@ struct PaymentProvidersView: View {
                 
                 if success, let paymentCollection = paymentCollection {
                     print("💳 ✅ PAYMENT COLLECTION CREATED SUCCESSFULLY:")
-                    print("💳 Payment Collection ID: \(paymentCollection.id)")
-                    print("💳 Currency: \(paymentCollection.currencyCode)")
-                    print("💳 Amount: \(paymentCollection.amount)")
-                    print("💳 Status: \(paymentCollection.status)")
-                    print("💳 Payment Providers: \(paymentCollection.paymentProviders?.map { $0.id } ?? [])")
                     
-                    self.successMessage = "Payment collection created successfully!\n\nID: \(paymentCollection.id)\nAmount: \(paymentCollection.formattedAmount)\nStatus: \(paymentCollection.status.capitalized)"
+                    self.successMessage = "Payment collection created"
                     self.showingSuccessAlert = true
+                    // After successful creation, update the cart service with the new payment collection
+                    self.cartService.currentCart?.paymentCollection = paymentCollection
+                    self.cartService.saveCartToStorage()
                 } else {
                     print("💳 ❌ FAILED TO CREATE PAYMENT COLLECTION")
                     // Error is already handled by paymentProvidersService.errorMessage

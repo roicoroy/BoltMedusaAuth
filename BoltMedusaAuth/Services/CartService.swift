@@ -1077,7 +1077,7 @@ class CartService: ObservableObject {
     
     // MARK: - Storage
     
-    private func saveCartToStorage() {
+     func saveCartToStorage() {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
@@ -1093,7 +1093,7 @@ class CartService: ObservableObject {
         }
     }
     
-    private func loadCartFromStorage() {
+     func loadCartFromStorage() {
         if let cartData = UserDefaults.standard.data(forKey: "medusa_cart"),
            let cart = try? JSONDecoder().decode(Cart.self, from: cartData) {
             DispatchQueue.main.async { [weak self] in

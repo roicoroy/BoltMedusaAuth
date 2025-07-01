@@ -196,7 +196,7 @@ extension PaymentProvider {
     }
 }
 
-enum PaymentProviderType {
+public enum PaymentProviderType {
     case stripe
     case paypal
     case manual

@@ -8,44 +8,44 @@
 import Foundation
 
 // MARK: - Cart Models
-struct Cart: Codable, Identifiable {
-    let id: String
-    let currencyCode: String
-    let customerId: String?
-    let email: String?
-    let regionId: String?
-    let createdAt: String?
-    let updatedAt: String?
-    let completedAt: String?
-    let total: Int
-    let subtotal: Int
-    let taxTotal: Int
-    let discountTotal: Int
-    let discountSubtotal: Int
-    let discountTaxTotal: Int
-    let originalTotal: Int
-    let originalTaxTotal: Int
-    let itemTotal: Int
-    let itemSubtotal: Int
-    let itemTaxTotal: Int
-    let originalItemTotal: Int
-    let originalItemSubtotal: Int
-    let originalItemTaxTotal: Int
-    let shippingTotal: Int
-    let shippingSubtotal: Int
-    let shippingTaxTotal: Int
-    let originalShippingTaxTotal: Int
-    let originalShippingSubtotal: Int
-    let originalShippingTotal: Int
-    let metadata: [String: Any]?
-    let salesChannelId: String?
-    let items: [CartLineItem]?
-    let promotions: [CartPromotion]?
-    let region: CartRegion?
-    let shippingAddress: CartAddress?
-    let billingAddress: CartAddress?
-    var paymentCollection: PaymentCollection?
-    
+public struct Cart: Codable, Identifiable {
+    public let id: String
+    public let currencyCode: String
+    public let customerId: String?
+    public let email: String?
+    public let regionId: String?
+    public let createdAt: String?
+    public let updatedAt: String?
+    public let completedAt: String?
+    public let total: Int
+    public let subtotal: Int
+    public let taxTotal: Int
+    public let discountTotal: Int
+    public let discountSubtotal: Int
+    public let discountTaxTotal: Int
+    public let originalTotal: Int
+    public let originalTaxTotal: Int
+    public let itemTotal: Int
+    public let itemSubtotal: Int
+    public let itemTaxTotal: Int
+    public let originalItemTotal: Int
+    public let originalItemSubtotal: Int
+    public let originalItemTaxTotal: Int
+    public let shippingTotal: Int
+    public let shippingSubtotal: Int
+    public let shippingTaxTotal: Int
+    public let originalShippingTaxTotal: Int
+    public let originalShippingSubtotal: Int
+    public let originalShippingTotal: Int
+    public let metadata: [String: Any]?
+    public let salesChannelId: String?
+    public let items: [CartLineItem]?
+    public let promotions: [CartPromotion]?
+    public let region: CartRegion?
+    public let shippingAddress: CartAddress?
+    public let billingAddress: CartAddress?
+    public var paymentCollection: PaymentCollection? // Added paymentCollection
+
     enum CodingKeys: String, CodingKey {
         case id, email, metadata, items, promotions, region
         case currencyCode = "currency_code"
@@ -76,17 +76,17 @@ struct Cart: Codable, Identifiable {
         case salesChannelId = "sales_channel_id"
         case shippingAddress = "shipping_address"
         case billingAddress = "billing_address"
-        case paymentCollection = "payment_collection"
+        case paymentCollection = "payment_collection" // Added paymentCollection
     }
-    
+
     // Custom decoder to handle flexible numeric types and exact API response structure
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         // Required fields
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
-        
+
         // Handle flexible numeric types for all price fields
         total = try Self.decodeFlexibleInt(from: container, forKey: .total) ?? 0
         subtotal = try Self.decodeFlexibleInt(from: container, forKey: .subtotal) ?? 0
@@ -103,7 +103,7 @@ struct Cart: Codable, Identifiable {
         originalItemSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemSubtotal) ?? 0
         originalItemTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemTaxTotal) ?? 0
         shippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTotal) ?? 0
-        shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingSubtotal) ?? 0
+        shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .subtotal) ?? 0
         shippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTaxTotal) ?? 0
         originalShippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTaxTotal) ?? 0
         originalShippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
@@ -124,7 +124,7 @@ struct Cart: Codable, Identifiable {
         region = try container.decodeIfPresent(CartRegion.self, forKey: .region)
         shippingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .shippingAddress)
         billingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .billingAddress)
-        paymentCollection = try container.decodeIfPresent(PaymentCollection.self, forKey: .paymentCollection)
+        paymentCollection = try container.decodeIfPresent(PaymentCollection.self, forKey: .paymentCollection) // Decoded paymentCollection
         
         // Handle metadata as flexible dictionary - can be null or object
         if container.contains(.metadata) {
@@ -167,7 +167,7 @@ struct Cart: Codable, Identifiable {
     }
     
     // Custom encoder
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(id, forKey: .id)
@@ -205,21 +205,21 @@ struct Cart: Codable, Identifiable {
         try container.encodeIfPresent(region, forKey: .region)
         try container.encodeIfPresent(shippingAddress, forKey: .shippingAddress)
         try container.encodeIfPresent(billingAddress, forKey: .billingAddress)
-        try container.encodeIfPresent(paymentCollection, forKey: .paymentCollection)
+        try container.encodeIfPresent(paymentCollection, forKey: .paymentCollection) // Encoded paymentCollection
         
         // Skip metadata encoding for simplicity
     }
 }
 
 // MARK: - Helper struct for flexible JSON decoding
-struct AnyCodable: Codable {
-    let value: Any
+public struct AnyCodable: Codable {
+    public let value: Any
     
-    init(_ value: Any) {
+    public init(_ value: Any) {
         self.value = value
     }
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         
         if let bool = try? container.decode(Bool.self) {
@@ -237,7 +237,7 @@ struct AnyCodable: Codable {
         }
     }
     
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         
         if let bool = value as? Bool {
@@ -257,19 +257,19 @@ struct AnyCodable: Codable {
 }
 
 // MARK: - Cart Address Model
-struct CartAddress: Codable, Identifiable {
-    let id: String?
-    let firstName: String?
-    let lastName: String?
-    let company: String?
-    let address1: String
-    let address2: String?
-    let city: String
-    let countryCode: String
-    let province: String?
-    let postalCode: String
-    let phone: String?
-    let metadata: [String: Any]?
+public struct CartAddress: Codable, Identifiable {
+    public let id: String?
+    public let firstName: String?
+    public let lastName: String?
+    public let company: String?
+    public let address1: String
+    public let address2: String?
+    public let city: String
+    public let countryCode: String
+    public let province: String?
+    public let postalCode: String
+    public let phone: String?
+    public let metadata: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
         case id, company, city, phone, metadata
@@ -283,7 +283,7 @@ struct CartAddress: Codable, Identifiable {
     }
     
     // Custom decoder to handle flexible metadata
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         id = try container.decodeIfPresent(String.self, forKey: .id)
@@ -311,7 +311,7 @@ struct CartAddress: Codable, Identifiable {
     }
     
     // Custom encoder
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encodeIfPresent(id, forKey: .id)
@@ -330,12 +330,12 @@ struct CartAddress: Codable, Identifiable {
     }
 }
 
-struct CartRegion: Codable, Identifiable {
-    let id: String
-    let name: String
-    let currencyCode: String
-    let automaticTaxes: Bool
-    let countries: [CartCountry]?
+public struct CartRegion: Codable, Identifiable {
+    public let id: String
+    public let name: String
+    public let currencyCode: String
+    public let automaticTaxes: Bool
+    public let countries: [CartCountry]?
     
     enum CodingKeys: String, CodingKey {
         case id, name, countries
@@ -344,19 +344,19 @@ struct CartRegion: Codable, Identifiable {
     }
 }
 
-struct CartCountry: Codable, Identifiable {
-    let iso2: String
-    let iso3: String
-    let numCode: String
-    let name: String
-    let displayName: String
-    let regionId: String
-    let metadata: String?
-    let createdAt: String?
-    let updatedAt: String?
-    let deletedAt: String?
+public struct CartCountry: Codable, Identifiable {
+    public let iso2: String
+    public let iso3: String
+    public let numCode: String
+    public let name: String
+    public let displayName: String
+    public let regionId: String
+    public let metadata: String?
+    public let createdAt: String?
+    public let updatedAt: String?
+    public let deletedAt: String?
     
-    var id: String { iso2 }
+    public var id: String { iso2 }
     
     enum CodingKeys: String, CodingKey {
         case name, metadata
@@ -371,37 +371,37 @@ struct CartCountry: Codable, Identifiable {
     }
 }
 
-struct CartPromotion: Codable, Identifiable {
-    let id: String
+public struct CartPromotion: Codable, Identifiable {
+    public let id: String
 }
 
-struct CartLineItem: Codable, Identifiable {
-    let id: String
-    let thumbnail: String?
-    let variantId: String
-    let productId: String
-    let productTypeId: String?
-    let productTitle: String?
-    let productDescription: String?
-    let productSubtitle: String?
-    let productType: String?
-    let productCollection: String?
-    let productHandle: String?
-    let variantSku: String?
-    let variantBarcode: String?
-    let variantTitle: String?
-    let requiresShipping: Bool
-    let metadata: [String: Any]?
-    let createdAt: String?
-    let updatedAt: String?
-    let title: String
-    let quantity: Int
-    let unitPrice: Int
-    let compareAtUnitPrice: Int?
-    let isTaxInclusive: Bool
-    let taxLines: [TaxLine]?
-    let adjustments: [Adjustment]?
-    let product: CartProduct?
+public struct CartLineItem: Codable, Identifiable {
+    public let id: String
+    public let thumbnail: String?
+    public let variantId: String
+    public let productId: String
+    public let productTypeId: String?
+    public let productTitle: String?
+    public let productDescription: String?
+    public let productSubtitle: String?
+    public let productType: String?
+    public let productCollection: String?
+    public let productHandle: String?
+    public let variantSku: String?
+    public let variantBarcode: String?
+    public let variantTitle: String?
+    public let requiresShipping: Bool
+    public let metadata: [String: Any]?
+    public let createdAt: String?
+    public let updatedAt: String?
+    public let title: String
+    public let quantity: Int
+    public let unitPrice: Int
+    public let compareAtUnitPrice: Int?
+    public let isTaxInclusive: Bool
+    public let taxLines: [TaxLine]?
+    public let adjustments: [Adjustment]?
+    public let product: CartProduct?
     
     enum CodingKeys: String, CodingKey {
         case id, thumbnail, title, quantity, metadata, product
@@ -428,7 +428,7 @@ struct CartLineItem: Codable, Identifiable {
     }
     
     // Custom decoder to handle flexible numeric types and exact API response structure
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Required fields
@@ -503,7 +503,7 @@ struct CartLineItem: Codable, Identifiable {
     }
     
     // Custom encoder
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(id, forKey: .id)
@@ -537,20 +537,20 @@ struct CartLineItem: Codable, Identifiable {
     }
 }
 
-struct TaxLine: Codable {
+public struct TaxLine: Codable {
     // Add tax line properties as needed
 }
 
-struct Adjustment: Codable {
+public struct Adjustment: Codable {
     // Add adjustment properties as needed
 }
 
-struct CartProduct: Codable, Identifiable {
-    let id: String
-    let collectionId: String?
-    let typeId: String?
-    let categories: [ProductCategory]?
-    let tags: [ProductTag]?
+public struct CartProduct: Codable, Identifiable {
+    public let id: String
+    public let collectionId: String?
+    public let typeId: String?
+    public let categories: [ProductCategory]?
+    public let tags: [ProductTag]?
     
     enum CodingKeys: String, CodingKey {
         case id, categories, tags
@@ -559,30 +559,30 @@ struct CartProduct: Codable, Identifiable {
     }
 }
 
-struct ProductCategory: Codable, Identifiable {
-    let id: String
+public struct ProductCategory: Codable, Identifiable {
+    public let id: String
 }
 
-struct ProductTag: Codable, Identifiable {
-    let id: String
+public struct ProductTag: Codable, Identifiable {
+    public let id: String
 }
 
 // MARK: - API Request/Response Models
-struct CartResponse: Codable {
-    let cart: Cart
+public struct CartResponse: Codable {
+    public let cart: Cart
 }
 
-struct CreateCartRequest: Codable {
-    let regionId: String
+public struct CreateCartRequest: Codable {
+    public let regionId: String
     
     enum CodingKeys: String, CodingKey {
         case regionId = "region_id"
     }
 }
 
-struct AddLineItemRequest: Codable {
-    let variantId: String
-    let quantity: Int
+public struct AddLineItemRequest: Codable {
+    public let variantId: String
+    public let quantity: Int
     
     enum CodingKeys: String, CodingKey {
         case variantId = "variant_id"
@@ -590,65 +590,65 @@ struct AddLineItemRequest: Codable {
     }
 }
 
-struct UpdateLineItemRequest: Codable {
-    let quantity: Int
+public struct UpdateLineItemRequest: Codable {
+    public let quantity: Int
 }
 
 // MARK: - Helper Extensions
 extension Cart {
-    func formattedTotal(currencyCode: String? = nil) -> String {
+    public func formattedTotal(currencyCode: String? = nil) -> String {
         return formatPrice(total, currencyCode: currencyCode ?? self.currencyCode)
     }
     
-    func formattedSubtotal(currencyCode: String? = nil) -> String {
+    public func formattedSubtotal(currencyCode: String? = nil) -> String {
         return formatPrice(subtotal, currencyCode: currencyCode ?? self.currencyCode)
     }
     
-    func formattedTaxTotal(currencyCode: String? = nil) -> String {
+    public func formattedTaxTotal(currencyCode: String? = nil) -> String {
         return formatPrice(taxTotal, currencyCode: currencyCode ?? self.currencyCode)
     }
     
-    func formattedShippingTotal(currencyCode: String? = nil) -> String {
+    public func formattedShippingTotal(currencyCode: String? = nil) -> String {
         return formatPrice(shippingTotal, currencyCode: currencyCode ?? self.currencyCode)
     }
     
-    func formattedDiscountTotal(currencyCode: String? = nil) -> String {
+    public func formattedDiscountTotal(currencyCode: String? = nil) -> String {
         return formatPrice(discountTotal, currencyCode: currencyCode ?? self.currencyCode)
     }
     
-    var formattedTotal: String {
+    public var formattedTotal: String {
         return formatPrice(total, currencyCode: currencyCode)
     }
     
-    var formattedSubtotal: String {
+    public var formattedSubtotal: String {
         return formatPrice(subtotal, currencyCode: currencyCode)
     }
     
-    var formattedTaxTotal: String {
+    public var formattedTaxTotal: String {
         return formatPrice(taxTotal, currencyCode: currencyCode)
     }
     
-    var formattedShippingTotal: String {
+    public var formattedShippingTotal: String {
         return formatPrice(shippingTotal, currencyCode: currencyCode)
     }
     
-    var formattedDiscountTotal: String {
+    public var formattedDiscountTotal: String {
         return formatPrice(discountTotal, currencyCode: currencyCode)
     }
     
-    var itemCount: Int {
+    public var itemCount: Int {
         return items?.reduce(0) { $0 + $1.quantity } ?? 0
     }
     
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         return items?.isEmpty ?? true
     }
     
-    var isAssociatedWithCustomer: Bool {
+    public var isAssociatedWithCustomer: Bool {
         return customerId != nil
     }
     
-    var customerStatus: String {
+    public var customerStatus: String {
         if let customerId = customerId {
             return "Customer: \(customerId)"
         } else {
@@ -656,71 +656,71 @@ extension Cart {
         }
     }
     
-    var hasShippingAddress: Bool {
+    public var hasShippingAddress: Bool {
         return shippingAddress != nil
     }
     
-    var hasBillingAddress: Bool {
+    public var hasBillingAddress: Bool {
         return billingAddress != nil
     }
     
-    var isReadyForCheckout: Bool {
+    public var isReadyForCheckout: Bool {
         return !isEmpty && hasShippingAddress && hasBillingAddress
     }
 }
 
 extension CartLineItem {
-    func formattedUnitPrice(currencyCode: String) -> String {
+    public func formattedUnitPrice(currencyCode: String) -> String {
         return formatPrice(unitPrice, currencyCode: currencyCode)
     }
     
-    func formattedTotal(currencyCode: String) -> String {
+    public func formattedTotal(currencyCode: String) -> String {
         // Calculate total since it's not provided in the API response
         let calculatedTotal = unitPrice * quantity
         return formatPrice(calculatedTotal, currencyCode: currencyCode)
     }
     
-    func formattedSubtotal(currencyCode: String) -> String {
+    public func formattedSubtotal(currencyCode: String) -> String {
         // Calculate subtotal since it's not provided in the API response
         let calculatedSubtotal = unitPrice * quantity
         return formatPrice(calculatedSubtotal, currencyCode: currencyCode)
     }
     
-    var formattedUnitPrice: String {
+    public var formattedUnitPrice: String {
         return formatPrice(unitPrice, currencyCode: "USD")
     }
     
-    var formattedTotal: String {
+    public var formattedTotal: String {
         // Calculate total since it's not provided in the API response
         let calculatedTotal = unitPrice * quantity
         return formatPrice(calculatedTotal, currencyCode: "USD")
     }
     
-    var formattedSubtotal: String {
+    public var formattedSubtotal: String {
         // Calculate subtotal since it's not provided in the API response
         let calculatedSubtotal = unitPrice * quantity
         return formatPrice(calculatedSubtotal, currencyCode: "USD")
     }
     
-    var calculatedTotal: Int {
+    public var calculatedTotal: Int {
         // Calculate total since it's not provided in the API response
         return unitPrice * quantity
     }
     
-    var calculatedSubtotal: Int {
+    public var calculatedSubtotal: Int {
         // Calculate subtotal since it's not provided in the API response
         return unitPrice * quantity
     }
     
-    var displayImage: String? {
+    public var displayImage: String? {
         return thumbnail
     }
     
-    var displayTitle: String {
+    public var displayTitle: String {
         return productTitle ?? title
     }
     
-    var displaySubtitle: String? {
+    public var displaySubtitle: String? {
         if let variantTitle = variantTitle, variantTitle != title {
             return variantTitle
         }
@@ -729,12 +729,12 @@ extension CartLineItem {
 }
 
 extension CartAddress {
-    var fullName: String {
+    public var fullName: String {
         let components = [firstName, lastName].compactMap { $0 }
         return components.joined(separator: " ")
     }
     
-    var fullAddress: String {
+    public var fullAddress: String {
         var components = [address1]
         
         if let address2 = address2 {
@@ -747,7 +747,7 @@ extension CartAddress {
         return components.joined(separator: "\n")
     }
     
-    var singleLineAddress: String {
+    public var singleLineAddress: String {
         var components = [address1]
         
         if let address2 = address2 {
