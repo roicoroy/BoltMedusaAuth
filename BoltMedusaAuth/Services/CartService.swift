@@ -412,7 +412,7 @@ class CartService: ObservableObject {
         }
     }
     
-    // MARK: - Address Management (Updated to use correct endpoint)
+    // MARK: - Address Management (Updated to use correct endpoint with address IDs)
     
     func addShippingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let cart = currentCart,
@@ -449,7 +449,7 @@ class CartService: ObservableObject {
             return
         }
         
-        // Create shipping address payload according to the API format
+        // Create shipping address payload according to the API format with address ID
         let shippingAddressPayload: [String: Any] = [
             "shipping_address": [
                 "first_name": address.firstName ?? "",
@@ -460,7 +460,8 @@ class CartService: ObservableObject {
                 "city": address.city,
                 "postal_code": address.postalCode,
                 "phone": address.phone ?? ""
-            ]
+            ],
+            "shipping_address_id": address.id
         ]
         
         print("📦 Shipping address payload:")
@@ -476,7 +477,7 @@ class CartService: ObservableObject {
             return
         }
         
-        // Create billing address payload according to the API format
+        // Create billing address payload according to the API format with address ID
         let billingAddressPayload: [String: Any] = [
             "billing_address": [
                 "first_name": address.firstName ?? "",
@@ -487,7 +488,8 @@ class CartService: ObservableObject {
                 "city": address.city,
                 "postal_code": address.postalCode,
                 "phone": address.phone ?? ""
-            ]
+            ],
+            "billing_address_id": address.id
         ]
         
         print("💳 Billing address payload:")
