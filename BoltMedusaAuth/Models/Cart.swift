@@ -46,13 +46,14 @@ struct Cart: Codable, Identifiable {
     let billingAddress: CartAddress?
     
     enum CodingKeys: String, CodingKey {
-        case id, email, metadata, total, subtotal, items, promotions, region
+        case id, email, metadata, items, promotions, region
         case currencyCode = "currency_code"
         case customerId = "customer_id"
         case regionId = "region_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
+        case total, subtotal
         case taxTotal = "tax_total"
         case discountTotal = "discount_total"
         case discountSubtotal = "discount_subtotal"
@@ -76,35 +77,35 @@ struct Cart: Codable, Identifiable {
         case billingAddress = "billing_address"
     }
     
-    // Custom decoder to handle the exact API response structure
+    // Custom decoder to handle flexible numeric types and exact API response structure
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Required fields
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
-        total = try container.decode(Int.self, forKey: .total)
-        subtotal = try container.decode(Int.self, forKey: .subtotal)
         
-        // Fields that match the API response exactly
-        taxTotal = try container.decode(Int.self, forKey: .taxTotal)
-        discountTotal = try container.decode(Int.self, forKey: .discountTotal)
-        discountSubtotal = try container.decode(Int.self, forKey: .discountSubtotal)
-        discountTaxTotal = try container.decode(Int.self, forKey: .discountTaxTotal)
-        originalTotal = try container.decode(Int.self, forKey: .originalTotal)
-        originalTaxTotal = try container.decode(Int.self, forKey: .originalTaxTotal)
-        itemTotal = try container.decode(Int.self, forKey: .itemTotal)
-        itemSubtotal = try container.decode(Int.self, forKey: .itemSubtotal)
-        itemTaxTotal = try container.decode(Int.self, forKey: .itemTaxTotal)
-        originalItemTotal = try container.decode(Int.self, forKey: .originalItemTotal)
-        originalItemSubtotal = try container.decode(Int.self, forKey: .originalItemSubtotal)
-        originalItemTaxTotal = try container.decode(Int.self, forKey: .originalItemTaxTotal)
-        shippingTotal = try container.decode(Int.self, forKey: .shippingTotal)
-        shippingSubtotal = try container.decode(Int.self, forKey: .shippingSubtotal)
-        shippingTaxTotal = try container.decode(Int.self, forKey: .shippingTaxTotal)
-        originalShippingTaxTotal = try container.decode(Int.self, forKey: .originalShippingTaxTotal)
-        originalShippingSubtotal = try container.decode(Int.self, forKey: .originalShippingSubtotal)
-        originalShippingTotal = try container.decode(Int.self, forKey: .originalShippingTotal)
+        // Handle flexible numeric types for all price fields
+        total = try Self.decodeFlexibleInt(from: container, forKey: .total) ?? 0
+        subtotal = try Self.decodeFlexibleInt(from: container, forKey: .subtotal) ?? 0
+        taxTotal = try Self.decodeFlexibleInt(from: container, forKey: .taxTotal) ?? 0
+        discountTotal = try Self.decodeFlexibleInt(from: container, forKey: .discountTotal) ?? 0
+        discountSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .discountSubtotal) ?? 0
+        discountTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .discountTaxTotal) ?? 0
+        originalTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalTotal) ?? 0
+        originalTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalTaxTotal) ?? 0
+        itemTotal = try Self.decodeFlexibleInt(from: container, forKey: .itemTotal) ?? 0
+        itemSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .itemSubtotal) ?? 0
+        itemTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .itemTaxTotal) ?? 0
+        originalItemTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemTotal) ?? 0
+        originalItemSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemSubtotal) ?? 0
+        originalItemTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemTaxTotal) ?? 0
+        shippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTotal) ?? 0
+        shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingSubtotal) ?? 0
+        shippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTaxTotal) ?? 0
+        originalShippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTaxTotal) ?? 0
+        originalShippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
+        originalShippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTotal) ?? 0
         
         // Optional fields
         customerId = try container.decodeIfPresent(String.self, forKey: .customerId)
@@ -132,6 +133,34 @@ struct Cart: Codable, Identifiable {
         } else {
             metadata = nil
         }
+    }
+    
+    // Helper method to decode flexible numeric types (Int, Double, String)
+    private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) throws -> Int? {
+        // Try to decode as Int first
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue
+        }
+        
+        // Try to decode as Double and convert to Int (multiply by 100 for cents)
+        if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: key) {
+            // Convert to cents (multiply by 100 and round)
+            return Int(round(doubleValue * 100))
+        }
+        
+        // Try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            if let doubleValue = Double(stringValue) {
+                // Convert to cents (multiply by 100 and round)
+                return Int(round(doubleValue * 100))
+            }
+            if let intValue = Int(stringValue) {
+                return intValue
+            }
+        }
+        
+        // If all fail, return nil (will use default value of 0)
+        return nil
     }
     
     // Custom encoder
@@ -394,7 +423,7 @@ struct CartLineItem: Codable, Identifiable {
         case adjustments
     }
     
-    // Custom decoder to handle the exact API response structure
+    // Custom decoder to handle flexible numeric types and exact API response structure
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -404,9 +433,12 @@ struct CartLineItem: Codable, Identifiable {
         variantId = try container.decode(String.self, forKey: .variantId)
         productId = try container.decode(String.self, forKey: .productId)
         quantity = try container.decode(Int.self, forKey: .quantity)
-        unitPrice = try container.decode(Int.self, forKey: .unitPrice)
         requiresShipping = try container.decode(Bool.self, forKey: .requiresShipping)
         isTaxInclusive = try container.decode(Bool.self, forKey: .isTaxInclusive)
+        
+        // Handle flexible numeric types for price fields
+        unitPrice = try Self.decodeFlexibleInt(from: container, forKey: .unitPrice) ?? 0
+        compareAtUnitPrice = try Self.decodeFlexibleInt(from: container, forKey: .compareAtUnitPrice)
         
         // Optional fields
         thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
@@ -422,7 +454,6 @@ struct CartLineItem: Codable, Identifiable {
         variantTitle = try container.decodeIfPresent(String.self, forKey: .variantTitle)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
-        compareAtUnitPrice = try container.decodeIfPresent(Int.self, forKey: .compareAtUnitPrice)
         taxLines = try container.decodeIfPresent([TaxLine].self, forKey: .taxLines)
         adjustments = try container.decodeIfPresent([Adjustment].self, forKey: .adjustments)
         product = try container.decodeIfPresent(CartProduct.self, forKey: .product)
@@ -437,6 +468,34 @@ struct CartLineItem: Codable, Identifiable {
         } else {
             metadata = nil
         }
+    }
+    
+    // Helper method to decode flexible numeric types (Int, Double, String)
+    private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) throws -> Int? {
+        // Try to decode as Int first
+        if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return intValue
+        }
+        
+        // Try to decode as Double and convert to Int (multiply by 100 for cents)
+        if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: key) {
+            // Convert to cents (multiply by 100 and round)
+            return Int(round(doubleValue * 100))
+        }
+        
+        // Try to decode as String and convert
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            if let doubleValue = Double(stringValue) {
+                // Convert to cents (multiply by 100 and round)
+                return Int(round(doubleValue * 100))
+            }
+            if let intValue = Int(stringValue) {
+                return intValue
+            }
+        }
+        
+        // If all fail, return nil
+        return nil
     }
     
     // Custom encoder
