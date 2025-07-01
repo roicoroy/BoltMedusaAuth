@@ -16,6 +16,7 @@ struct CartView: View {
     @State private var showingShippingAddressSelector = false
     @State private var showingBillingAddressSelector = false
     @State private var showingAddAddress = false
+    @State private var showingShippingOptions = false
     
     var body: some View {
         NavigationView {
@@ -49,7 +50,8 @@ struct CartView: View {
                                     showingCheckout: $showingCheckout,
                                     showingShippingAddressSelector: $showingShippingAddressSelector,
                                     showingBillingAddressSelector: $showingBillingAddressSelector,
-                                    showingAddAddress: $showingAddAddress
+                                    showingAddAddress: $showingAddAddress,
+                                    showingShippingOptions: $showingShippingOptions
                                 )
                             }
                         } else if regionService.hasSelectedRegion {
@@ -119,6 +121,11 @@ struct CartView: View {
                         authService.fetchCustomerProfile()
                     }
                 }
+        }
+        .sheet(isPresented: $showingShippingOptions) {
+            if let cart = cartService.currentCart {
+                ShippingOptionsView(cart: cart)
+            }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
             // When country changes, update cart region if cart exists
@@ -231,6 +238,7 @@ struct CartContentView: View {
     @Binding var showingShippingAddressSelector: Bool
     @Binding var showingBillingAddressSelector: Bool
     @Binding var showingAddAddress: Bool
+    @Binding var showingShippingOptions: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -264,7 +272,8 @@ struct CartContentView: View {
                 authService: authService,
                 showingShippingAddressSelector: $showingShippingAddressSelector,
                 showingBillingAddressSelector: $showingBillingAddressSelector,
-                showingAddAddress: $showingAddAddress
+                showingAddAddress: $showingAddAddress,
+                showingShippingOptions: $showingShippingOptions
             )
             .padding(.horizontal)
             
@@ -495,6 +504,7 @@ struct CartSummaryView: View {
     @Binding var showingShippingAddressSelector: Bool
     @Binding var showingBillingAddressSelector: Bool
     @Binding var showingAddAddress: Bool
+    @Binding var showingShippingOptions: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -515,6 +525,12 @@ struct CartSummaryView: View {
                 authService: authService,
                 showingBillingAddressSelector: $showingBillingAddressSelector,
                 showingAddAddress: $showingAddAddress
+            )
+            
+            // Shipping Options Section
+            ShippingOptionsSection(
+                cart: cart,
+                showingShippingOptions: $showingShippingOptions
             )
             
             // Price Summary Section
@@ -750,6 +766,46 @@ struct BillingAddressSection: View {
                         .padding(.top, 4)
                     }
                 }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct ShippingOptionsSection: View {
+    let cart: Cart
+    @Binding var showingShippingOptions: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "truck")
+                    .foregroundColor(.orange)
+                Text("Shipping Options")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("View available shipping methods for this cart")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                
+                Button("View Shipping Options") {
+                    showingShippingOptions = true
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding()
