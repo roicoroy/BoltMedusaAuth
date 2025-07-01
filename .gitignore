@@ -1,2 +1,21 @@
-node_modules/
-.env
+# Xcode
+.DS_Store
+*.xcodeproj
+*.xcworkspace
+*.playground
+xcuserdata/
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+
+# CocoaPods
+Pods/
+.symlinks/
+
+# Carthage
+Carthage/
+
+# General
+.swiftpm/

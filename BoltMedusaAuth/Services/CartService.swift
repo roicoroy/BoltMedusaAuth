@@ -706,6 +706,87 @@ class CartService: ObservableObject {
         completion(true)
     }
     
+    // MARK: - Payment Provider Management
+
+    func updateCartPaymentProvider(cartId: String, paymentCollectionId: String?, providerId: String, completion: @escaping (Bool) -> Void) {
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+            self?.errorMessage = nil
+        }
+
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)/payment-sessions") else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Invalid URL for updating payment provider"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+
+        let requestBody: [String: Any] = ["provider_id": providerId]
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody, options: [])
+            if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
+                print("📤 Update Cart Payment Provider Request JSON: \(jsonString)")
+            }
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Failed to encode payment provider update request: \(error.localizedDescription)"
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("💳 Update Cart Payment Provider Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("💳 Update Cart Payment Provider Response: \(responseString)")
+                    }
+
+                    if httpResponse.statusCode >= 400 {
+                        print("❌ Update Cart Payment Provider failed with status: \(httpResponse.statusCode)")
+                        if let errorData = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            print("❌ Error details: \(errorData)")
+                        }
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completionResult in
+                    self?.isLoading = false
+                    if case .failure(let error) = completionResult {
+                        self?.errorMessage = "Failed to update cart payment provider: \(error.localizedDescription)"
+                        print("❌ Update Cart Payment Provider error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("✅ Cart payment provider updated successfully.")
+                    completion(true)
+                }
+            )
+            .store(in: &cancellables)
+    }
+
     // MARK: - Line Item Management
     
     func addLineItem(variantId: String, quantity: Int = 1, regionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
@@ -1077,7 +1158,7 @@ class CartService: ObservableObject {
     
     // MARK: - Storage
     
-     func saveCartToStorage() {
+     public func saveCartToStorage() {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
@@ -1093,7 +1174,7 @@ class CartService: ObservableObject {
         }
     }
     
-     func loadCartFromStorage() {
+     public func loadCartFromStorage() {
         if let cartData = UserDefaults.standard.data(forKey: "medusa_cart"),
            let cart = try? JSONDecoder().decode(Cart.self, from: cartData) {
             DispatchQueue.main.async { [weak self] in
