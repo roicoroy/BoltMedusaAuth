@@ -662,35 +662,7 @@ class CartService: ObservableObject {
         completion(true)
     }
     
-    func copyShippingToBillingAddress(completion: @escaping (Bool) -> Void = { _ in }) {
-        guard let cart = currentCart,
-              let shippingAddress = cart.shippingAddress else {
-            print("No cart or shipping address to copy")
-            completion(false)
-            return
-        }
-        
-        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/billing-address") else {
-            print("Invalid URL for copying shipping to billing address")
-            completion(false)
-            return
-        }
-        
-        let addressData: [String: Any] = [
-            "first_name": shippingAddress.firstName ?? "",
-            "last_name": shippingAddress.lastName ?? "",
-            "address_1": shippingAddress.address1,
-            "address_2": shippingAddress.address2 ?? "",
-            "city": shippingAddress.city,
-            "country_code": shippingAddress.countryCode,
-            "postal_code": shippingAddress.postalCode,
-            "phone": shippingAddress.phone ?? "",
-            "company": shippingAddress.company ?? "",
-            "province": shippingAddress.province ?? ""
-        ]
-        
-        performAddressRequest(url: url, addressData: addressData, addressType: "billing", completion: completion)
-    }
+
     
     // MARK: - Line Item Management
     
@@ -1060,18 +1032,6 @@ class CartService: ObservableObject {
         fetchCart(cartId: cart.id)
     }
     
-    // MARK: - Currency Formatting
-    
-    func formatPrice(_ amount: Int, currencyCode: String) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode.uppercased()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        
-        let decimalAmount = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\(currencyCode.uppercased()) 0.00"
-    }
     
     // MARK: - Storage
     
