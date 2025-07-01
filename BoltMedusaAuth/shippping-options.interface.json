@@ -1,0 +1,40 @@
+{
+  "shipping_option": {
+    "id": "string",
+    "name": "string",
+    "price_type": "flat",
+    "service_zone_id": "string",
+    "provider_id": "string",
+    "provider": {
+      "id": "string",
+      "is_enabled": true
+    },
+    "type": {
+      "id": "string",
+      "label": "string",
+      "description": "string",
+      "code": "string"
+    },
+    "shipping_profile_id": "string",
+    "amount": 0,
+    "data": {},
+    "prices": [
+      {
+        "id": "string",
+        "currency_code": "usd",
+        "amount": 0,
+        "min_quantity": 0,
+        "max_quantity": 0
+      }
+    ],
+    "calculated_price": {
+      "id": "string",
+      "calculated_amount": 0,
+      "original_amount": 0,
+      "currency_code": "string",
+      "original_amount_with_tax": 0,
+      "original_amount_without_tax": 0
+    },
+    "insufficient_inventory": true
+  }
+}

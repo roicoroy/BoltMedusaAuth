@@ -12,24 +12,31 @@ struct ShippingOption: Codable, Identifiable {
     let id: String
     let name: String
     let priceType: String
-    let amount: Int?
-    let isReturn: Bool
-    let adminOnly: Bool
+    let serviceZoneId: String?
     let providerId: String?
+    let provider: ShippingProvider?
+    let type: ShippingType?
+    let shippingProfileId: String?
+    let amount: Int?
     let data: [String: Any]?
-    let includes_tax: Bool?
+    let prices: [ShippingPrice]?
+    let calculatedPrice: CalculatedPrice?
+    let insufficientInventory: Bool?
     let createdAt: String?
     let updatedAt: String?
     let deletedAt: String?
     let metadata: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, amount, data, metadata
+        case id, name, amount, data, prices, metadata
         case priceType = "price_type"
-        case isReturn = "is_return"
-        case adminOnly = "admin_only"
+        case serviceZoneId = "service_zone_id"
         case providerId = "provider_id"
-        case includes_tax
+        case provider
+        case type
+        case shippingProfileId = "shipping_profile_id"
+        case calculatedPrice = "calculated_price"
+        case insufficientInventory = "insufficient_inventory"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
@@ -42,11 +49,15 @@ struct ShippingOption: Codable, Identifiable {
         id = try container.decode(String.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         priceType = try container.decode(String.self, forKey: .priceType)
-        amount = try container.decodeIfPresent(Int.self, forKey: .amount)
-        isReturn = try container.decode(Bool.self, forKey: .isReturn)
-        adminOnly = try container.decode(Bool.self, forKey: .adminOnly)
+        serviceZoneId = try container.decodeIfPresent(String.self, forKey: .serviceZoneId)
         providerId = try container.decodeIfPresent(String.self, forKey: .providerId)
-        includes_tax = try container.decodeIfPresent(Bool.self, forKey: .includes_tax)
+        provider = try container.decodeIfPresent(ShippingProvider.self, forKey: .provider)
+        type = try container.decodeIfPresent(ShippingType.self, forKey: .type)
+        shippingProfileId = try container.decodeIfPresent(String.self, forKey: .shippingProfileId)
+        amount = try container.decodeIfPresent(Int.self, forKey: .amount)
+        prices = try container.decodeIfPresent([ShippingPrice].self, forKey: .prices)
+        calculatedPrice = try container.decodeIfPresent(CalculatedPrice.self, forKey: .calculatedPrice)
+        insufficientInventory = try container.decodeIfPresent(Bool.self, forKey: .insufficientInventory)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
@@ -81,16 +92,72 @@ struct ShippingOption: Codable, Identifiable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(priceType, forKey: .priceType)
-        try container.encodeIfPresent(amount, forKey: .amount)
-        try container.encode(isReturn, forKey: .isReturn)
-        try container.encode(adminOnly, forKey: .adminOnly)
+        try container.encodeIfPresent(serviceZoneId, forKey: .serviceZoneId)
         try container.encodeIfPresent(providerId, forKey: .providerId)
-        try container.encodeIfPresent(includes_tax, forKey: .includes_tax)
+        try container.encodeIfPresent(provider, forKey: .provider)
+        try container.encodeIfPresent(type, forKey: .type)
+        try container.encodeIfPresent(shippingProfileId, forKey: .shippingProfileId)
+        try container.encodeIfPresent(amount, forKey: .amount)
+        try container.encodeIfPresent(prices, forKey: .prices)
+        try container.encodeIfPresent(calculatedPrice, forKey: .calculatedPrice)
+        try container.encodeIfPresent(insufficientInventory, forKey: .insufficientInventory)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
         
         // Skip data and metadata encoding for simplicity
+    }
+}
+
+// MARK: - Supporting Models
+
+struct ShippingProvider: Codable, Identifiable {
+    let id: String
+    let isEnabled: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case isEnabled = "is_enabled"
+    }
+}
+
+struct ShippingType: Codable, Identifiable {
+    let id: String
+    let label: String
+    let description: String?
+    let code: String
+}
+
+struct ShippingPrice: Codable, Identifiable {
+    let id: String
+    let currencyCode: String
+    let amount: Int
+    let minQuantity: Int?
+    let maxQuantity: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, amount
+        case currencyCode = "currency_code"
+        case minQuantity = "min_quantity"
+        case maxQuantity = "max_quantity"
+    }
+}
+
+struct CalculatedPrice: Codable, Identifiable {
+    let id: String
+    let calculatedAmount: Int
+    let originalAmount: Int
+    let currencyCode: String
+    let originalAmountWithTax: Int?
+    let originalAmountWithoutTax: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case calculatedAmount = "calculated_amount"
+        case originalAmount = "original_amount"
+        case currencyCode = "currency_code"
+        case originalAmountWithTax = "original_amount_with_tax"
+        case originalAmountWithoutTax = "original_amount_without_tax"
     }
 }
 
@@ -106,6 +173,18 @@ struct ShippingOptionsResponse: Codable {
 // MARK: - Helper Extensions
 extension ShippingOption {
     func formattedAmount(currencyCode: String) -> String {
+        // Check if we have a calculated price first
+        if let calculatedPrice = calculatedPrice {
+            return formatPrice(calculatedPrice.calculatedAmount, currencyCode: calculatedPrice.currencyCode)
+        }
+        
+        // Check if we have a specific price for this currency
+        if let prices = prices,
+           let price = prices.first(where: { $0.currencyCode.lowercased() == currencyCode.lowercased() }) {
+            return formatPrice(price.amount, currencyCode: price.currencyCode)
+        }
+        
+        // Fall back to the base amount
         guard let amount = amount else {
             return "Contact for pricing"
         }
@@ -113,6 +192,17 @@ extension ShippingOption {
     }
     
     var formattedAmount: String {
+        // Check if we have a calculated price first
+        if let calculatedPrice = calculatedPrice {
+            return formatPrice(calculatedPrice.calculatedAmount, currencyCode: calculatedPrice.currencyCode)
+        }
+        
+        // Check if we have any prices
+        if let prices = prices, let firstPrice = prices.first {
+            return formatPrice(firstPrice.amount, currencyCode: firstPrice.currencyCode)
+        }
+        
+        // Fall back to the base amount
         guard let amount = amount else {
             return "Contact for pricing"
         }
@@ -125,7 +215,7 @@ extension ShippingOption {
     
     var priceTypeDisplay: String {
         switch priceType.lowercased() {
-        case "flat_rate":
+        case "flat_rate", "flat":
             return "Flat Rate"
         case "calculated":
             return "Calculated"
@@ -137,6 +227,17 @@ extension ShippingOption {
     }
     
     var isFree: Bool {
+        // Check calculated price first
+        if let calculatedPrice = calculatedPrice {
+            return calculatedPrice.calculatedAmount == 0
+        }
+        
+        // Check prices array
+        if let prices = prices {
+            return prices.allSatisfy { $0.amount == 0 }
+        }
+        
+        // Check base amount
         return amount == 0 || priceType.lowercased() == "free"
     }
     
@@ -145,6 +246,12 @@ extension ShippingOption {
     }
     
     var providerName: String {
+        // Use provider name if available
+        if let provider = provider {
+            return provider.id.capitalized
+        }
+        
+        // Fall back to provider ID
         guard let providerId = providerId else {
             return "Standard"
         }
@@ -157,9 +264,33 @@ extension ShippingOption {
             return "Webshipper"
         case "fulfillment-manual":
             return "Manual Fulfillment"
+        case "ups":
+            return "UPS"
+        case "fedex":
+            return "FedEx"
+        case "dhl":
+            return "DHL"
+        case "usps":
+            return "USPS"
         default:
             return providerId.capitalized
         }
+    }
+    
+    var isProviderEnabled: Bool {
+        return provider?.isEnabled ?? true
+    }
+    
+    var typeLabel: String? {
+        return type?.label
+    }
+    
+    var typeDescription: String? {
+        return type?.description
+    }
+    
+    var typeCode: String? {
+        return type?.code
     }
     
     var estimatedDelivery: String? {
@@ -171,6 +302,9 @@ extension ShippingOption {
             if let delivery = data["delivery_time"] as? String {
                 return delivery
             }
+            if let delivery = data["transit_time"] as? String {
+                return delivery
+            }
         }
         
         if let metadata = metadata {
@@ -180,12 +314,20 @@ extension ShippingOption {
             if let delivery = metadata["delivery_time"] as? String {
                 return delivery
             }
+            if let delivery = metadata["transit_time"] as? String {
+                return delivery
+            }
         }
         
         return nil
     }
     
     var description: String? {
+        // Try type description first
+        if let typeDesc = type?.description, !typeDesc.isEmpty {
+            return typeDesc
+        }
+        
         // Try to extract description from data or metadata
         if let data = data {
             if let desc = data["description"] as? String {
@@ -201,4 +343,62 @@ extension ShippingOption {
         
         return nil
     }
+    
+    var hasInsufficientInventory: Bool {
+        return insufficientInventory ?? false
+    }
+    
+    var isAvailable: Bool {
+        return !hasInsufficientInventory && isProviderEnabled
+    }
+    
+    var availabilityStatus: String {
+        if hasInsufficientInventory {
+            return "Insufficient Inventory"
+        } else if !isProviderEnabled {
+            return "Provider Disabled"
+        } else {
+            return "Available"
+        }
+    }
+    
+    var availabilityColor: Color {
+        if hasInsufficientInventory {
+            return .red
+        } else if !isProviderEnabled {
+            return .orange
+        } else {
+            return .green
+        }
+    }
 }
+
+// MARK: - Price Extensions
+extension ShippingPrice {
+    func formattedAmount() -> String {
+        return formatPrice(amount, currencyCode: currencyCode)
+    }
+}
+
+extension CalculatedPrice {
+    func formattedCalculatedAmount() -> String {
+        return formatPrice(calculatedAmount, currencyCode: currencyCode)
+    }
+    
+    func formattedOriginalAmount() -> String {
+        return formatPrice(originalAmount, currencyCode: currencyCode)
+    }
+    
+    func formattedOriginalAmountWithTax() -> String? {
+        guard let amount = originalAmountWithTax else { return nil }
+        return formatPrice(amount, currencyCode: currencyCode)
+    }
+    
+    func formattedOriginalAmountWithoutTax() -> String? {
+        guard let amount = originalAmountWithoutTax else { return nil }
+        return formatPrice(amount, currencyCode: currencyCode)
+    }
+}
+
+// Import Color for availability status
+import SwiftUI
