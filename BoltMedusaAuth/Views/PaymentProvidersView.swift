@@ -40,12 +40,16 @@ struct PaymentProvidersView: View {
                             selectedProviderId = providerId
                             logProviderSelection(providerId: providerId)
                             // Update cart with selected payment provider
-                            cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: cart.paymentCollection?.id, providerId: providerId) { success in
-                                if success {
-                                    print("💳 ✅ Cart payment provider updated successfully.")
-                                } else {
-                                    print("💳 ❌ Failed to update cart payment provider.")
+                            if let paymentCollectionId = cart.paymentCollection?.id {
+                                cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
+                                    if success {
+                                        print("💳 ✅ Cart payment provider updated successfully.")
+                                    } else {
+                                        print("💳 ❌ Failed to update cart payment provider.")
+                                    }
                                 }
+                            } else {
+                                print("💳 ❌ Payment collection is nil, cannot update payment provider.")
                             }
                         }
                     )
