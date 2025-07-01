@@ -711,7 +711,16 @@ class CartService: ObservableObject {
             self?.errorMessage = nil
         }
 
-        guard let url = URL(string: "\(baseURL)/store/payment-collections/\(paymentCollectionId)/payment-sessions") else {
+        guard let collectionId = paymentCollectionId else {
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "Payment collection ID is missing."
+                self?.isLoading = false
+            }
+            completion(false)
+            return
+        }
+
+        guard let url = URL(string: "\(baseURL)/store/payment-collections/\(collectionId)/payment-sessions") else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL for updating payment provider"
                 self?.isLoading = false
@@ -721,7 +730,8 @@ class CartService: ObservableObject {
         }
 
         let requestBody: [String: Any] = ["provider_id": providerId]
-
+        print("url::::::: \(url)")
+        print("requestBody::::: \(requestBody)")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
