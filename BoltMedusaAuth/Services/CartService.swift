@@ -775,7 +775,7 @@ class CartService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: CartResponse.self, decoder: JSONDecoder())
+            .decode(type: PaymentCollectionResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completionResult in
@@ -787,10 +787,16 @@ class CartService: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] response in
-                    self?.currentCart = response.cart
-                    self?.saveCartToStorage()
-                    print("✅ Cart payment provider updated successfully.")
-                    completion(true)
+                    if let cartService = self?.authService?.cartService, var currentCart = cartService.currentCart {
+                        currentCart.paymentCollection = response.paymentCollection
+                        cartService.currentCart = currentCart
+                        cartService.saveCartToStorage()
+                        print("✅ Cart payment provider updated successfully.")
+                        completion(true)
+                    } else {
+                        print("❌ Failed to update cart after payment provider update: CartService or currentCart is nil.")
+                        completion(false)
+                    }
                 }
             )
             .store(in: &cancellables)
