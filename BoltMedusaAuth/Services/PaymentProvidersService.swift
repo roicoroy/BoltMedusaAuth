@@ -338,7 +338,7 @@ class PaymentProvidersService: ObservableObject {
                 
                 // Proceed to create payment session
                 if let providerId = self.paymentProviders.first?.id {
-                    self.createPaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
+                    self.initializePaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
                         if success {
                             print("💳 ✅ Payment session created successfully.")
                         } else {
@@ -377,8 +377,8 @@ class PaymentProvidersService: ObservableObject {
         completion(false, nil)
     }
     
-    func createPaymentSession(paymentCollectionId: String, providerId: String, completion: @escaping (Bool) -> Void) {
-        print("💳 CREATING PAYMENT SESSION:")
+    func initializePaymentSession(paymentCollectionId: String, providerId: String, completion: @escaping (Bool) -> Void) {
+        print("💳 INITIALIZING PAYMENT SESSION:")
         print("💳 ===========================")
         print("💳 Payment Collection ID: \(paymentCollectionId)")
         print("💳 Provider ID: \(providerId)")
@@ -386,7 +386,7 @@ class PaymentProvidersService: ObservableObject {
         let urlString = "\(baseURL)/store/payment-collections/\(paymentCollectionId)/payment-sessions"
         
         guard let url = URL(string: urlString) else {
-            print("💳 ❌ Invalid URL for payment session creation")
+            print("💳 ❌ Invalid URL for payment session initialization")
             completion(false)
             return
         }
@@ -434,7 +434,7 @@ class PaymentProvidersService: ObservableObject {
             .sink(
                 receiveCompletion: { completionResult in
                     if case .failure(let error) = completionResult {
-                        print("💳 ❌ Payment session creation error: \(error)")
+                        print("💳 ❌ Payment session initialization error: \(error)")
                         completion(false)
                     }
                 },
@@ -442,7 +442,7 @@ class PaymentProvidersService: ObservableObject {
                     // Handle the response, typically a PaymentCollectionResponse with updated payment sessions
                     do {
                         let response = try JSONDecoder().decode(PaymentCollectionResponse.self, from: data)
-                        print("💳 ✅ Successfully decoded PaymentCollectionResponse after session creation.")
+                        print("💳 ✅ Successfully decoded PaymentCollectionResponse after session initialization.")
                         print("💳 Updated Payment Collection ID: \(response.paymentCollection.id)")
                         
                         // Update the cart with the new payment collection (which now includes sessions)
@@ -455,7 +455,7 @@ class PaymentProvidersService: ObservableObject {
                         
                         completion(true)
                     } catch {
-                        print("💳 ❌ Failed to decode PaymentCollectionResponse after session creation: \(error)")
+                        print("💳 ❌ Failed to decode PaymentCollectionResponse after session initialization: \(error)")
                         completion(false)
                     }
                 }
