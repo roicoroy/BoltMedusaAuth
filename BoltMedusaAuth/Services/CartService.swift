@@ -444,93 +444,34 @@ class CartService: ObservableObject {
     }
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        // Try multiple possible endpoints for Medusa v2
-        let possibleEndpoints = [
-            "\(baseURL)/store/carts/\(cartId)/addresses/shipping",
-            "\(baseURL)/store/carts/\(cartId)/shipping-address",
-            "\(baseURL)/store/carts/\(cartId)/address/shipping"
-        ]
-        
-        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "shipping", completion: completion)
+        updateCartAddresses(cartId: cartId, shippingAddress: address, completion: completion)
     }
     
     private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        // Try multiple possible endpoints for Medusa v2
-        let possibleEndpoints = [
-            "\(baseURL)/store/carts/\(cartId)/addresses/billing",
-            "\(baseURL)/store/carts/\(cartId)/billing-address",
-            "\(baseURL)/store/carts/\(cartId)/address/billing"
-        ]
-        
-        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "billing", completion: completion)
+        updateCartAddresses(cartId: cartId, billingAddress: address, completion: completion)
     }
     
-    private func tryAddressEndpoints(endpoints: [String], address: Address, addressType: String, completion: @escaping (Bool) -> Void) {
-        guard !endpoints.isEmpty else {
-            print("❌ No more endpoints to try for \(addressType) address")
+    private func updateCartAddresses(cartId: String, shippingAddress: Address? = nil, billingAddress: Address? = nil, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)") else {
+            print("❌ Invalid URL for cart address update")
             completion(false)
             return
         }
         
-        var remainingEndpoints = endpoints
-        let currentEndpoint = remainingEndpoints.removeFirst()
+        var requestBody: [String: Any] = [:]
         
-        guard let url = URL(string: currentEndpoint) else {
-            print("❌ Invalid URL for \(addressType) address: \(currentEndpoint)")
-            tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
-            return
+        if let shippingAddress = shippingAddress {
+            requestBody["shipping_address"] = shippingAddress.toDictionary()
+            print("📦 Updating cart with shipping address: \(shippingAddress.address1)")
         }
         
-        print("🔄 Trying \(addressType) address endpoint: \(currentEndpoint)")
-        
-        // Create a simplified address payload that matches Medusa's expected format
-        let addressData: [String: Any] = [
-            "first_name": address.firstName ?? "",
-            "last_name": address.lastName ?? "",
-            "address_1": address.address1,
-            "city": address.city,
-            "country_code": address.countryCode.lowercased(), // Ensure lowercase
-            "postal_code": address.postalCode
-        ]
-        
-        // Add optional fields only if they have values
-        var finalAddressData = addressData
-        
-        if let address2 = address.address2, !address2.isEmpty {
-            finalAddressData["address_2"] = address2
+        if let billingAddress = billingAddress {
+            requestBody["billing_address"] = billingAddress.toDictionary()
+            print("💳 Updating cart with billing address: \(billingAddress.address1)")
         }
         
-        if let phone = address.phone, !phone.isEmpty {
-            finalAddressData["phone"] = phone
-        }
-        
-        if let company = address.company, !company.isEmpty {
-            finalAddressData["company"] = company
-        }
-        
-        if let province = address.province, !province.isEmpty {
-            finalAddressData["province"] = province
-        }
-        
-        print("📦 \(addressType.capitalized) address payload:")
-        for (key, value) in finalAddressData {
-            print("  \(key): \(value)")
-        }
-        
-        performAddressRequest(url: url, addressData: finalAddressData, addressType: addressType) { success in
-            if success {
-                print("✅ Successfully added \(addressType) address using endpoint: \(currentEndpoint)")
-                completion(true)
-            } else {
-                print("❌ Failed with endpoint: \(currentEndpoint), trying next...")
-                self.tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
-            }
-        }
-    }
-    
-    private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
-        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
-            print("❌ No auth token found for \(addressType) address addition")
+        guard !requestBody.isEmpty else {
+            print("No addresses provided for cart update.")
             completion(false)
             return
         }
@@ -539,18 +480,18 @@ class CartService: ObservableObject {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
-            print("🚀 Sending \(addressType) address request to: \(url)")
-            
-            // Log the exact JSON being sent
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody, options: [])
             if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
-                print("📤 Request JSON: \(jsonString)")
+                print("📤 Update Cart Addresses Request JSON: \(jsonString)")
             }
         } catch {
-            print("❌ Failed to encode \(addressType) address data: \(error)")
+            print("❌ Failed to encode cart address update request: \(error)")
             completion(false)
             return
         }
@@ -558,109 +499,40 @@ class CartService: ObservableObject {
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("📍 Add \(addressType.capitalized) Address Response Status: \(httpResponse.statusCode)")
+                    print("📍 Update Cart Addresses Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("📍 Add \(addressType.capitalized) Address Response: \(responseString)")
+                        print("📍 Update Cart Addresses Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
-                        print("❌ \(addressType.capitalized) address addition failed with status: \(httpResponse.statusCode)")
-                        
-                        // Try to parse error message from response
+                        print("❌ Cart address update failed with status: \(httpResponse.statusCode)")
                         if let errorData = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                             print("❌ Error details: \(errorData)")
                         }
-                        
                         throw URLError(.badServerResponse)
                     }
                 }
                 return data
             }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { completionResult in
                     if case .failure(let error) = completionResult {
-                        print("❌ Failed to add \(addressType) address to cart: \(error)")
+                        print("❌ Failed to update cart addresses: \(error)")
                         completion(false)
                     }
                 },
-                receiveValue: { [weak self] data in
-                    // Handle the response - it might not always be a CartResponse
-                    self?.handleAddressResponse(data: data, addressType: addressType, completion: completion)
+                receiveValue: { [weak self] response in
+                    self?.currentCart = response.cart
+                    self?.saveCartToStorage()
+                    print("✅ Cart addresses updated successfully.")
+                    print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
+                    print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
+                    completion(true)
                 }
             )
             .store(in: &cancellables)
-    }
-    
-    private func handleAddressResponse(data: Data, addressType: String, completion: @escaping (Bool) -> Void) {
-        // Log the raw response for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("📍 \(addressType.capitalized) Address Raw Response: \(responseString)")
-        }
-        
-        // Try to decode as CartResponse first
-        do {
-            let response = try JSONDecoder().decode(CartResponse.self, from: data)
-            self.currentCart = response.cart
-            self.saveCartToStorage()
-            print("✅ \(addressType.capitalized) address successfully added to cart via CartResponse")
-            print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
-            print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
-            
-            // Log the address details for verification
-            if addressType == "shipping", let shippingAddress = response.cart.shippingAddress {
-                print("📦 Shipping address details:")
-                print("   Name: \(shippingAddress.fullName)")
-                print("   Address: \(shippingAddress.singleLineAddress)")
-            }
-            
-            if addressType == "billing", let billingAddress = response.cart.billingAddress {
-                print("💳 Billing address details:")
-                print("   Name: \(billingAddress.fullName)")
-                print("   Address: \(billingAddress.singleLineAddress)")
-            }
-            
-            completion(true)
-            return
-        } catch {
-            print("Failed to decode as CartResponse: \(error)")
-        }
-        
-        // Try to parse as JSON to see what structure we have
-        do {
-            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                print("\(addressType.capitalized) address response JSON structure: \(json)")
-                
-                // Check if it's a success response
-                if let success = json["success"] as? Bool, success {
-                    print("✅ \(addressType.capitalized) address added successfully - success flag found")
-                    completion(true)
-                    return
-                }
-                
-                // Check if cart is nested differently
-                if let cartData = json["cart"] as? [String: Any] {
-                    let cartJsonData = try JSONSerialization.data(withJSONObject: cartData, options: [])
-                    let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
-                    self.currentCart = cart
-                    self.saveCartToStorage()
-                    print("✅ \(addressType.capitalized) address added successfully - cart found in response")
-                    completion(true)
-                    return
-                }
-                
-                // If response doesn't contain cart data but operation was successful
-                print("✅ \(addressType.capitalized) address added successfully - response indicates success")
-                completion(true)
-                return
-            }
-        } catch {
-            print("Failed to parse \(addressType) address response JSON: \(error)")
-        }
-        
-        // If we can't parse the response but got here, it means the HTTP request was successful
-        print("✅ \(addressType.capitalized) address added successfully - HTTP was successful")
-        completion(true)
     }
     
     // MARK: - Shipping Method Management

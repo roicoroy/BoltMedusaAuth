@@ -42,6 +42,24 @@ struct Address: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+    
+    func toDictionary() -> [String: Any] {
+        var dict: [String: Any] = [
+            "address_1": address1,
+            "city": city,
+            "country_code": countryCode.lowercased(),
+            "postal_code": postalCode
+        ]
+        
+        if let firstName = firstName { dict["first_name"] = firstName }
+        if let lastName = lastName { dict["last_name"] = lastName }
+        if let address2 = address2 { dict["address_2"] = address2 }
+        if let phone = phone { dict["phone"] = phone }
+        if let company = company { dict["company"] = company }
+        if let province = province { dict["province"] = province }
+        
+        return dict
+    }
 }
 
 struct AddressRequest: Codable {
