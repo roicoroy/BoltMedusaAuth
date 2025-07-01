@@ -231,13 +231,25 @@ struct ShippingOptionCard: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
                     
-                    Text(option.priceTypeDisplay)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(priceTypeColor.opacity(0.2))
-                        .foregroundColor(priceTypeColor)
-                        .cornerRadius(4)
+                    HStack(spacing: 8) {
+                        Text(option.priceTypeDisplay)
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(priceTypeColor.opacity(0.2))
+                            .foregroundColor(priceTypeColor)
+                            .cornerRadius(4)
+                        
+                        if let typeLabel = option.typeLabel {
+                            Text(typeLabel)
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(4)
+                        }
+                    }
                 }
                 
                 Spacer()
@@ -279,14 +291,33 @@ struct ShippingOptionCard: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    
+                    if let typeCode = option.typeCode {
+                        HStack {
+                            Image(systemName: "barcode")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Code: \(typeCode)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 Spacer()
                 
                 // Status badges
                 VStack(alignment: .trailing, spacing: 4) {
-                    if option.isReturn {
-                        Text("Return Option")
+                    Text(option.availabilityStatus)
+                        .font(.caption2)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(option.availabilityColor.opacity(0.2))
+                        .foregroundColor(option.availabilityColor)
+                        .cornerRadius(3)
+                    
+                    if !option.isProviderEnabled {
+                        Text("Provider Disabled")
                             .font(.caption2)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
@@ -295,23 +326,13 @@ struct ShippingOptionCard: View {
                             .cornerRadius(3)
                     }
                     
-                    if option.adminOnly {
-                        Text("Admin Only")
+                    if option.hasInsufficientInventory {
+                        Text("Low Inventory")
                             .font(.caption2)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
                             .background(Color.red.opacity(0.2))
                             .foregroundColor(.red)
-                            .cornerRadius(3)
-                    }
-                    
-                    if option.includes_tax == true {
-                        Text("Tax Included")
-                            .font(.caption2)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.2))
-                            .foregroundColor(.blue)
                             .cornerRadius(3)
                     }
                 }
@@ -325,6 +346,96 @@ struct ShippingOptionCard: View {
                     .padding(.top, 4)
             }
             
+            // Calculated price details if available
+            if let calculatedPrice = option.calculatedPrice {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Price Breakdown:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text("Calculated Amount:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(calculatedPrice.formattedCalculatedAmount())
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    
+                    HStack {
+                        Text("Original Amount:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(calculatedPrice.formattedOriginalAmount())
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    
+                    if let withTax = calculatedPrice.formattedOriginalAmountWithTax() {
+                        HStack {
+                            Text("With Tax:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(withTax)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    
+                    if let withoutTax = calculatedPrice.formattedOriginalAmountWithoutTax() {
+                        HStack {
+                            Text("Without Tax:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(withoutTax)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+            }
+            
+            // Prices array if available
+            if let prices = option.prices, !prices.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Available Prices:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(prices) { price in
+                        HStack {
+                            Text(price.currencyCode.uppercased())
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Text(price.formattedAmount())
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            
+                            if let minQty = price.minQuantity, let maxQty = price.maxQuantity {
+                                Text("(\(minQty)-\(maxQty))")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+            }
+            
             // Technical details (collapsible)
             DisclosureGroup("Technical Details") {
                 VStack(alignment: .leading, spacing: 4) {
@@ -335,8 +446,27 @@ struct ShippingOptionCard: View {
                         DetailRow(title: "Amount (cents)", value: "\(amount)")
                     }
                     
+                    if let serviceZoneId = option.serviceZoneId {
+                        DetailRow(title: "Service Zone ID", value: serviceZoneId)
+                    }
+                    
                     if let providerId = option.providerId {
                         DetailRow(title: "Provider ID", value: providerId)
+                    }
+                    
+                    if let shippingProfileId = option.shippingProfileId {
+                        DetailRow(title: "Shipping Profile ID", value: shippingProfileId)
+                    }
+                    
+                    if let provider = option.provider {
+                        DetailRow(title: "Provider Enabled", value: "\(provider.isEnabled)")
+                    }
+                    
+                    if let type = option.type {
+                        DetailRow(title: "Type ID", value: type.id)
+                        if let code = type.code {
+                            DetailRow(title: "Type Code", value: code)
+                        }
                     }
                     
                     if let createdAt = option.createdAt {
@@ -387,7 +517,7 @@ struct ShippingOptionCard: View {
         switch option.priceType.lowercased() {
         case "free":
             return .green
-        case "flat_rate":
+        case "flat_rate", "flat":
             return .blue
         case "calculated":
             return .orange
