@@ -175,15 +175,16 @@ struct DebugView: View {
         output += "- Total: \(cart.total)\n"
         output += "- Subtotal: \(cart.subtotal)\n"
         output += "- Tax Total: \(cart.taxTotal)\n"
-        output += "- Shipping Total: \(cart.shippingTotal)\n"
+        output += "- Shipping Total: \(cart.shippingTotal) ⭐\n"
         output += "- Discount Total: \(cart.discountTotal)\n"
         output += "- Item Total: \(cart.itemTotal)\n\n"
         
         output += "Formatted Prices:\n"
-        output += "- Total: \(cart.formattedTotal)\n"
+        output += "- Total: \(cart.formattedTotal) ⭐\n"
         output += "- Subtotal: \(cart.formattedSubtotal)\n"
         output += "- Tax: \(cart.formattedTaxTotal)\n"
-        output += "- Shipping: \(cart.formattedShippingTotal)\n\n"
+        output += "- Shipping: \(cart.formattedShippingTotal) ⭐\n"
+        output += "- Discount: \(cart.formattedDiscountTotal)\n\n"
         
         output += "Items (\(cart.items?.count ?? 0)):\n"
         if let items = cart.items {
@@ -226,7 +227,18 @@ struct DebugView: View {
         output += "- Has Customer: \(cart.isAssociatedWithCustomer)\n"
         output += "- Has Shipping Address: \(cart.hasShippingAddress)\n"
         output += "- Has Billing Address: \(cart.hasBillingAddress)\n"
-        output += "- Ready for Checkout: \(cart.isReadyForCheckout)\n"
+        output += "- Ready for Checkout: \(cart.isReadyForCheckout)\n\n"
+        
+        output += "SHIPPING METHOD STATUS:\n"
+        output += "======================\n"
+        output += "- Shipping Total > 0: \(cart.shippingTotal > 0 ? "YES ✅" : "NO ❌")\n"
+        output += "- Shipping Amount: \(cart.shippingTotal) cents\n"
+        output += "- Formatted Shipping: \(cart.formattedShippingTotal)\n"
+        if cart.shippingTotal > 0 {
+            output += "- Status: Shipping method has been added to cart ✅\n"
+        } else {
+            output += "- Status: No shipping method selected ⚠️\n"
+        }
         
         return output
     }

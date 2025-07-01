@@ -125,6 +125,7 @@ struct CartView: View {
         .sheet(isPresented: $showingShippingOptions) {
             if let cart = cartService.currentCart {
                 ShippingOptionsView(cart: cart)
+                    .environmentObject(cartService)
             }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
@@ -790,14 +791,31 @@ struct ShippingOptionsSection: View {
             }
             
             VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
-                        .font(.caption)
-                    Text("View available shipping methods for this cart")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
+                // Show current shipping total if > 0
+                if cart.shippingTotal > 0 {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                        Text("Shipping method selected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(cart.formattedShippingTotal)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        Text("Select a shipping method to see delivery options")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
                 }
                 
                 Button("View Shipping Options") {
@@ -836,7 +854,9 @@ struct PriceSummarySection: View {
                 }
                 
                 if cart.shippingTotal > 0 {
-                    SummaryRow(title: "Shipping", value: cart.formattedShippingTotal)
+                    SummaryRow(title: "Shipping", value: cart.formattedShippingTotal, valueColor: .green)
+                } else {
+                    SummaryRow(title: "Shipping", value: "Not selected", valueColor: .orange)
                 }
                 
                 if cart.discountTotal > 0 {
@@ -868,6 +888,29 @@ struct PriceSummarySection: View {
                     Text("Currency: \(cart.currencyCode.uppercased())")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+                
+                // Shipping status indicator
+                if cart.shippingTotal > 0 {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption2)
+                        Text("Shipping method selected")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Spacer()
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption2)
+                        Text("Select shipping method to complete order")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Spacer()
+                    }
                 }
             }
         }
