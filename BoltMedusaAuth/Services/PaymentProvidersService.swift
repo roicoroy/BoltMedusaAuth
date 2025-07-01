@@ -52,7 +52,7 @@ class PaymentProvidersService: ObservableObject {
         }
         
         var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
+        urlRequest.httpMethod = "GET"  // ✅ FIXED: Changed from POST to GET
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
         
@@ -64,11 +64,11 @@ class PaymentProvidersService: ObservableObject {
         // CRITICAL: Add credentials include equivalent for iOS
         urlRequest.setValue("include", forHTTPHeaderField: "credentials")
         
-        // Empty body for POST request
-        urlRequest.httpBody = Data("{}".utf8)
+        // ✅ REMOVED: No body needed for GET request
         
         print("💳 Fetching payment providers for region: \(regionId)")
         print("💳 URL: \(urlString)")
+        print("💳 Method: GET")
         print("💳 Headers: \(urlRequest.allHTTPHeaderFields ?? [:])")
         
         URLSession.shared.dataTaskPublisher(for: urlRequest)

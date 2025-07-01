@@ -444,42 +444,47 @@ class CartService: ObservableObject {
     }
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        performAddressRequest(
-            cartId: cartId,
-            address: address,
-            addressType: "shipping",
-            completion: completion
-        )
+        // Try multiple possible endpoints for Medusa v2
+        let possibleEndpoints = [
+            "\(baseURL)/store/carts/\(cartId)/addresses/shipping",
+            "\(baseURL)/store/carts/\(cartId)/shipping-address",
+            "\(baseURL)/store/carts/\(cartId)/address/shipping"
+        ]
+        
+        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "shipping", completion: completion)
     }
     
     private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        performAddressRequest(
-            cartId: cartId,
-            address: address,
-            addressType: "billing",
-            completion: completion
-        )
+        // Try multiple possible endpoints for Medusa v2
+        let possibleEndpoints = [
+            "\(baseURL)/store/carts/\(cartId)/addresses/billing",
+            "\(baseURL)/store/carts/\(cartId)/billing-address",
+            "\(baseURL)/store/carts/\(cartId)/address/billing"
+        ]
+        
+        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "billing", completion: completion)
     }
     
-    private func performAddressRequest(cartId: String, address: Address, addressType: String, completion: @escaping (Bool) -> Void) {
-        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
-            print("❌ No auth token found for \(addressType) address addition")
+    private func tryAddressEndpoints(endpoints: [String], address: Address, addressType: String, completion: @escaping (Bool) -> Void) {
+        guard !endpoints.isEmpty else {
+            print("❌ No more endpoints to try for \(addressType) address")
             completion(false)
             return
         }
         
-        // Use the correct endpoint format
-        let urlString = "\(baseURL)/store/carts/\(cartId)"
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL for \(addressType) address: \(urlString)")
-            completion(false)
+        var remainingEndpoints = endpoints
+        let currentEndpoint = remainingEndpoints.removeFirst()
+        
+        guard let url = URL(string: currentEndpoint) else {
+            print("❌ Invalid URL for \(addressType) address: \(currentEndpoint)")
+            tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
             return
         }
         
-        print("🔄 Adding \(addressType) address to cart: \(cartId)")
+        print("🔄 Trying \(addressType) address endpoint: \(currentEndpoint)")
         
         // Create a simplified address payload that matches Medusa's expected format
-        var addressData: [String: Any] = [
+        let addressData: [String: Any] = [
             "first_name": address.firstName ?? "",
             "last_name": address.lastName ?? "",
             "address_1": address.address1,
@@ -489,33 +494,45 @@ class CartService: ObservableObject {
         ]
         
         // Add optional fields only if they have values
+        var finalAddressData = addressData
+        
         if let address2 = address.address2, !address2.isEmpty {
-            addressData["address_2"] = address2
+            finalAddressData["address_2"] = address2
         }
         
         if let phone = address.phone, !phone.isEmpty {
-            addressData["phone"] = phone
+            finalAddressData["phone"] = phone
         }
         
         if let company = address.company, !company.isEmpty {
-            addressData["company"] = company
+            finalAddressData["company"] = company
         }
         
         if let province = address.province, !province.isEmpty {
-            addressData["province"] = province
-        }
-        
-        // Create the request payload with the correct field name
-        let requestPayload: [String: Any]
-        if addressType == "shipping" {
-            requestPayload = ["shipping_address": addressData]
-        } else {
-            requestPayload = ["billing_address": addressData]
+            finalAddressData["province"] = province
         }
         
         print("📦 \(addressType.capitalized) address payload:")
-        for (key, value) in requestPayload {
+        for (key, value) in finalAddressData {
             print("  \(key): \(value)")
+        }
+        
+        performAddressRequest(url: url, addressData: finalAddressData, addressType: addressType) { success in
+            if success {
+                print("✅ Successfully added \(addressType) address using endpoint: \(currentEndpoint)")
+                completion(true)
+            } else {
+                print("❌ Failed with endpoint: \(currentEndpoint), trying next...")
+                self.tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
+            }
+        }
+    }
+    
+    private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
+            print("❌ No auth token found for \(addressType) address addition")
+            completion(false)
+            return
         }
         
         var urlRequest = URLRequest(url: url)
@@ -525,7 +542,7 @@ class CartService: ObservableObject {
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestPayload, options: [])
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
             print("🚀 Sending \(addressType) address request to: \(url)")
             
             // Log the exact JSON being sent
@@ -589,7 +606,6 @@ class CartService: ObservableObject {
             print("✅ \(addressType.capitalized) address successfully added to cart via CartResponse")
             print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
             print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
-            print("🚚 Cart shipping total: \(response.cart.shippingTotal) (\(response.cart.formattedShippingTotal))")
             
             // Log the address details for verification
             if addressType == "shipping", let shippingAddress = response.cart.shippingAddress {
@@ -647,17 +663,11 @@ class CartService: ObservableObject {
         completion(true)
     }
     
-    // MARK: - Shipping Method Management
+    // MARK: - Shipping Methods
     
     func addShippingMethodToCart(optionId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let cart = currentCart else {
             print("❌ No cart available for adding shipping method")
-            completion(false)
-            return
-        }
-        
-        guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
-            print("❌ No auth token found for adding shipping method")
             completion(false)
             return
         }
@@ -667,8 +677,7 @@ class CartService: ObservableObject {
             self?.errorMessage = nil
         }
         
-        let urlString = "\(baseURL)/store/carts/\(cart.id)/shipping-methods"
-        guard let url = URL(string: urlString) else {
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/shipping-methods") else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL for adding shipping method"
                 self?.isLoading = false
@@ -677,19 +686,23 @@ class CartService: ObservableObject {
             return
         }
         
-        let requestPayload = ["option_id": optionId]
+        let shippingMethodData = ["option_id": optionId]
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        // Add authentication header if user is logged in
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestPayload, options: [])
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: shippingMethodData, options: [])
             print("🚚 Adding shipping method to cart: \(cart.id)")
             print("🚚 Option ID: \(optionId)")
-            print("🚚 URL: \(urlString)")
+            print("🚚 URL: \(url)")
             
             if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
                 print("🚚 Request JSON: \(jsonString)")
@@ -745,20 +758,20 @@ class CartService: ObservableObject {
             let response = try JSONDecoder().decode(CartResponse.self, from: data)
             self.currentCart = response.cart
             self.saveCartToStorage()
-            print("✅ Shipping method successfully added to cart via CartResponse")
+            print("✅ Shipping method successfully added to cart")
             print("🚚 Cart shipping total updated: \(response.cart.shippingTotal) (\(response.cart.formattedShippingTotal))")
             print("💰 Cart total updated: \(response.cart.total) (\(response.cart.formattedTotal))")
             
             completion(true)
             return
         } catch {
-            print("Failed to decode shipping method response as CartResponse: \(error)")
+            print("🚚 Failed to decode as CartResponse: \(error)")
         }
         
         // Try to parse as JSON to see what structure we have
         do {
             if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                print("Shipping method response JSON structure: \(json)")
+                print("🚚 Shipping method response JSON structure: \(json)")
                 
                 // Check if it's a success response
                 if let success = json["success"] as? Bool, success {
@@ -778,13 +791,13 @@ class CartService: ObservableObject {
                     self.currentCart = cart
                     self.saveCartToStorage()
                     print("✅ Shipping method added successfully - cart found in response")
+                    print("🚚 Cart shipping total: \(cart.shippingTotal) (\(cart.formattedShippingTotal))")
                     completion(true)
                     return
                 }
                 
                 // If response doesn't contain cart data but operation was successful
-                print("✅ Shipping method added successfully - response indicates success")
-                // Refresh cart to get updated totals
+                print("✅ Shipping method added successfully - refreshing cart data")
                 if let cart = currentCart {
                     fetchCart(cartId: cart.id)
                 }
@@ -792,12 +805,11 @@ class CartService: ObservableObject {
                 return
             }
         } catch {
-            print("Failed to parse shipping method response JSON: \(error)")
+            print("🚚 Failed to parse shipping method response JSON: \(error)")
         }
         
         // If we can't parse the response but got here, it means the HTTP request was successful
         print("✅ Shipping method added successfully - HTTP was successful, refreshing cart")
-        // Refresh cart to get updated totals
         if let cart = currentCart {
             fetchCart(cartId: cart.id)
         }
