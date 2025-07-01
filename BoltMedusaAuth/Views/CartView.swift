@@ -17,6 +17,7 @@ struct CartView: View {
     @State private var showingBillingAddressSelector = false
     @State private var showingAddAddress = false
     @State private var showingShippingOptions = false
+    @State private var showingPaymentProviders = false
     
     var body: some View {
         NavigationView {
@@ -51,7 +52,8 @@ struct CartView: View {
                                     showingShippingAddressSelector: $showingShippingAddressSelector,
                                     showingBillingAddressSelector: $showingBillingAddressSelector,
                                     showingAddAddress: $showingAddAddress,
-                                    showingShippingOptions: $showingShippingOptions
+                                    showingShippingOptions: $showingShippingOptions,
+                                    showingPaymentProviders: $showingPaymentProviders
                                 )
                             }
                         } else if regionService.hasSelectedRegion {
@@ -126,6 +128,11 @@ struct CartView: View {
             if let cart = cartService.currentCart {
                 ShippingOptionsView(cart: cart)
                     .environmentObject(cartService)
+            }
+        }
+        .sheet(isPresented: $showingPaymentProviders) {
+            if let cart = cartService.currentCart {
+                PaymentProvidersView(cart: cart)
             }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
@@ -240,6 +247,7 @@ struct CartContentView: View {
     @Binding var showingBillingAddressSelector: Bool
     @Binding var showingAddAddress: Bool
     @Binding var showingShippingOptions: Bool
+    @Binding var showingPaymentProviders: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -274,7 +282,8 @@ struct CartContentView: View {
                 showingShippingAddressSelector: $showingShippingAddressSelector,
                 showingBillingAddressSelector: $showingBillingAddressSelector,
                 showingAddAddress: $showingAddAddress,
-                showingShippingOptions: $showingShippingOptions
+                showingShippingOptions: $showingShippingOptions,
+                showingPaymentProviders: $showingPaymentProviders
             )
             .padding(.horizontal)
             
@@ -506,6 +515,7 @@ struct CartSummaryView: View {
     @Binding var showingBillingAddressSelector: Bool
     @Binding var showingAddAddress: Bool
     @Binding var showingShippingOptions: Bool
+    @Binding var showingPaymentProviders: Bool
     
     var body: some View {
         VStack(spacing: 16) {
@@ -532,6 +542,12 @@ struct CartSummaryView: View {
             ShippingOptionsSection(
                 cart: cart,
                 showingShippingOptions: $showingShippingOptions
+            )
+            
+            // Payment Providers Section
+            PaymentProvidersSection(
+                cart: cart,
+                showingPaymentProviders: $showingPaymentProviders
             )
             
             // Price Summary Section
@@ -820,6 +836,59 @@ struct ShippingOptionsSection: View {
                 
                 Button("View Shipping Options") {
                     showingShippingOptions = true
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct PaymentProvidersSection: View {
+    let cart: Cart
+    @Binding var showingPaymentProviders: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "creditcard.circle")
+                    .foregroundColor(.purple)
+                Text("Payment Providers")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("View available payment methods for this region")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                
+                if let regionId = cart.regionId {
+                    HStack {
+                        Text("Region ID:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(regionId)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                }
+                
+                Button("View Payment Providers") {
+                    showingPaymentProviders = true
                 }
                 .font(.caption)
                 .foregroundColor(.blue)
