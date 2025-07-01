@@ -338,7 +338,7 @@ class PaymentProvidersService: ObservableObject {
                 
                 // Proceed to create payment session
                 if let providerId = self.paymentProviders.first?.id {
-                    self.initializePaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
+                    selfinitializePaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
                         if success {
                             print("💳 ✅ Payment session created successfully.")
                         } else {
