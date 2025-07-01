@@ -16,7 +16,7 @@ class CartService: ObservableObject {
     private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
     private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
     
-    private var cancellables = Set<AnyCancellable>()
+    private var cancellables = Set<AnyCodingable>()
     
     // Reference to auth service to get customer data
     weak var authService: AuthService?
@@ -449,29 +449,43 @@ class CartService: ObservableObject {
             return
         }
         
-        print("🔄 Adding shipping address to cart using endpoint: \(url)")
+        print("🔄 Adding shipping address to cart: \(cartId)")
         
-        // Create the address payload with shipping_address_id
-        let addressPayload: [String: Any] = [
-            "shipping_address_id": address.id,
-            "shipping_address": [
-                "first_name": address.firstName ?? "",
-                "last_name": address.lastName ?? "",
-                "address_1": address.address1,
-                "city": address.city,
-                "country_code": address.countryCode.lowercased(),
-                "postal_code": address.postalCode,
-                "address_2": address.address2 ?? "",
-                "phone": address.phone ?? "",
-                "company": address.company ?? "",
-                "province": address.province ?? ""
-            ].compactMapValues { value in
-                if let stringValue = value as? String, stringValue.isEmpty {
-                    return nil
-                }
-                return value
-            }
-        ]
+        // Create shipping address data step by step to avoid compiler issues
+        var shippingAddressData: [String: Any] = [:]
+        shippingAddressData["first_name"] = address.firstName ?? ""
+        shippingAddressData["last_name"] = address.lastName ?? ""
+        shippingAddressData["address_1"] = address.address1
+        shippingAddressData["city"] = address.city
+        shippingAddressData["country_code"] = address.countryCode.lowercased()
+        shippingAddressData["postal_code"] = address.postalCode
+        
+        // Add optional fields only if they have values
+        if let address2 = address.address2, !address2.isEmpty {
+            shippingAddressData["address_2"] = address2
+        }
+        
+        if let phone = address.phone, !phone.isEmpty {
+            shippingAddressData["phone"] = phone
+        }
+        
+        if let company = address.company, !company.isEmpty {
+            shippingAddressData["company"] = company
+        }
+        
+        if let province = address.province, !province.isEmpty {
+            shippingAddressData["province"] = province
+        }
+        
+        // Create the final payload step by step
+        var addressPayload: [String: Any] = [:]
+        addressPayload["shipping_address_id"] = address.id
+        addressPayload["shipping_address"] = shippingAddressData
+        
+        print("📦 Shipping address payload:")
+        for (key, value) in addressPayload {
+            print("  \(key): \(value)")
+        }
         
         performAddressRequest(url: url, addressData: addressPayload, addressType: "shipping", completion: completion)
     }
@@ -483,29 +497,43 @@ class CartService: ObservableObject {
             return
         }
         
-        print("🔄 Adding billing address to cart using endpoint: \(url)")
+        print("🔄 Adding billing address to cart: \(cartId)")
         
-        // Create the address payload with billing_address_id
-        let addressPayload: [String: Any] = [
-            "billing_address_id": address.id,
-            "billing_address": [
-                "first_name": address.firstName ?? "",
-                "last_name": address.lastName ?? "",
-                "address_1": address.address1,
-                "city": address.city,
-                "country_code": address.countryCode.lowercased(),
-                "postal_code": address.postalCode,
-                "address_2": address.address2 ?? "",
-                "phone": address.phone ?? "",
-                "company": address.company ?? "",
-                "province": address.province ?? ""
-            ].compactMapValues { value in
-                if let stringValue = value as? String, stringValue.isEmpty {
-                    return nil
-                }
-                return value
-            }
-        ]
+        // Create billing address data step by step to avoid compiler issues
+        var billingAddressData: [String: Any] = [:]
+        billingAddressData["first_name"] = address.firstName ?? ""
+        billingAddressData["last_name"] = address.lastName ?? ""
+        billingAddressData["address_1"] = address.address1
+        billingAddressData["city"] = address.city
+        billingAddressData["country_code"] = address.countryCode.lowercased()
+        billingAddressData["postal_code"] = address.postalCode
+        
+        // Add optional fields only if they have values
+        if let address2 = address.address2, !address2.isEmpty {
+            billingAddressData["address_2"] = address2
+        }
+        
+        if let phone = address.phone, !phone.isEmpty {
+            billingAddressData["phone"] = phone
+        }
+        
+        if let company = address.company, !company.isEmpty {
+            billingAddressData["company"] = company
+        }
+        
+        if let province = address.province, !province.isEmpty {
+            billingAddressData["province"] = province
+        }
+        
+        // Create the final payload step by step
+        var addressPayload: [String: Any] = [:]
+        addressPayload["billing_address_id"] = address.id
+        addressPayload["billing_address"] = billingAddressData
+        
+        print("💳 Billing address payload:")
+        for (key, value) in addressPayload {
+            print("  \(key): \(value)")
+        }
         
         performAddressRequest(url: url, addressData: addressPayload, addressType: "billing", completion: completion)
     }
@@ -668,7 +696,7 @@ class CartService: ObservableObject {
             return
         }
         
-        let request = ["option_id": optionId]
+        let shippingMethodRequest = ["option_id": optionId]
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -681,10 +709,9 @@ class CartService: ObservableObject {
         }
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: request, options: [])
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: shippingMethodRequest, options: [])
             print("🚚 Adding shipping method to cart: \(cart.id)")
             print("🚚 Option ID: \(optionId)")
-            print("🚚 URL: \(url)")
             
             if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
                 print("🚚 Request JSON: \(jsonString)")
@@ -712,7 +739,6 @@ class CartService: ObservableObject {
                 }
                 return data
             }
-            .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completionResult in
@@ -723,16 +749,78 @@ class CartService: ObservableObject {
                         completion(false)
                     }
                 },
-                receiveValue: { [weak self] response in
-                    self?.currentCart = response.cart
-                    self?.saveCartToStorage()
-                    print("🚚 Shipping method added successfully to cart: \(response.cart.id)")
-                    print("🚚 Cart total updated to: \(response.cart.formattedTotal)")
-                    print("🚚 Shipping total: \(response.cart.formattedShippingTotal)")
-                    completion(true)
+                receiveValue: { [weak self] data in
+                    self?.handleShippingMethodResponse(data: data, completion: completion)
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    private func handleShippingMethodResponse(data: Data, completion: @escaping (Bool) -> Void) {
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🚚 Shipping Method Raw Response: \(responseString)")
+        }
+        
+        // Try to decode as CartResponse first
+        do {
+            let response = try JSONDecoder().decode(CartResponse.self, from: data)
+            self.currentCart = response.cart
+            self.saveCartToStorage()
+            print("✅ Shipping method successfully added to cart")
+            print("🚚 Cart total updated to: \(response.cart.formattedTotal)")
+            print("🚚 Shipping total: \(response.cart.formattedShippingTotal)")
+            completion(true)
+            return
+        } catch {
+            print("Failed to decode shipping method response as CartResponse: \(error)")
+        }
+        
+        // Try to parse as JSON to see what structure we have
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                print("🚚 Shipping method response JSON structure: \(json)")
+                
+                // Check if it's a success response
+                if let success = json["success"] as? Bool, success {
+                    print("✅ Shipping method added successfully - success flag found")
+                    // Refresh cart to get updated totals
+                    if let cart = currentCart {
+                        fetchCart(cartId: cart.id)
+                    }
+                    completion(true)
+                    return
+                }
+                
+                // Check if cart is nested differently
+                if let cartData = json["cart"] as? [String: Any] {
+                    let cartJsonData = try JSONSerialization.data(withJSONObject: cartData, options: [])
+                    let cart = try JSONDecoder().decode(Cart.self, from: cartJsonData)
+                    self.currentCart = cart
+                    self.saveCartToStorage()
+                    print("✅ Shipping method added successfully - cart found in response")
+                    completion(true)
+                    return
+                }
+                
+                // If response doesn't contain cart data but operation was successful
+                print("✅ Shipping method added successfully - refreshing cart")
+                if let cart = currentCart {
+                    fetchCart(cartId: cart.id)
+                }
+                completion(true)
+                return
+            }
+        } catch {
+            print("Failed to parse shipping method response JSON: \(error)")
+        }
+        
+        // If we can't parse the response but got here, it means the HTTP request was successful
+        print("✅ Shipping method added successfully - HTTP was successful, refreshing cart")
+        if let cart = currentCart {
+            fetchCart(cartId: cart.id)
+        }
+        completion(true)
     }
     
     // MARK: - Line Item Management
