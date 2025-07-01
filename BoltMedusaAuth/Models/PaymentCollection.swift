@@ -15,6 +15,7 @@ public struct PaymentCollection: Codable, Identifiable {
     public let amount: Double
     public let status: String?
     public let paymentProviders: [PaymentCollectionProvider]?
+    public let paymentSessions: [PaymentSession]?
     public let metadata: [String: Any]?
     public let createdAt: String?
     public let updatedAt: String?
@@ -24,6 +25,7 @@ public struct PaymentCollection: Codable, Identifiable {
         case id, amount, status, metadata
         case currencyCode = "currency_code"
         case paymentProviders = "payment_providers"
+        case paymentSessions = "payment_sessions"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
@@ -38,6 +40,7 @@ public struct PaymentCollection: Codable, Identifiable {
         amount = try container.decode(Double.self, forKey: .amount)
         status = try container.decodeIfPresent(String.self, forKey: .status)
         paymentProviders = try container.decodeIfPresent([PaymentCollectionProvider].self, forKey: .paymentProviders)
+        paymentSessions = try container.decodeIfPresent([PaymentSession].self, forKey: .paymentSessions)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         completedAt = try container.decodeIfPresent(String.self, forKey: .completedAt)
@@ -63,6 +66,7 @@ public struct PaymentCollection: Codable, Identifiable {
         try container.encode(amount, forKey: .amount)
         try container.encodeIfPresent(status, forKey: .status)
         try container.encodeIfPresent(paymentProviders, forKey: .paymentProviders)
+        try container.encodeIfPresent(paymentSessions, forKey: .paymentSessions)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(completedAt, forKey: .completedAt)

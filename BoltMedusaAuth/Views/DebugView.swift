@@ -229,6 +229,36 @@ struct DebugView: View {
         output += "- Has Billing Address: \(cart.hasBillingAddress)\n"
         output += "- Ready for Checkout: \(cart.isReadyForCheckout)\n\n"
         
+        output += "PAYMENT COLLECTION:\n"
+        output += "==================\n"
+        if let paymentCollection = cart.paymentCollection {
+            output += "- ID: \(paymentCollection.id)\n"
+            output += "- Amount: \(paymentCollection.amount) \(paymentCollection.currencyCode.uppercased())\n"
+            output += "- Status: \(paymentCollection.displayStatus)\n"
+            output += "- Created At: \(paymentCollection.formattedCreatedDate)\n"
+            output += "- Updated At: \(paymentCollection.formattedUpdatedDate)\n"
+            
+            if let sessions = paymentCollection.paymentSessions, !sessions.isEmpty {
+                output += "\n  Payment Sessions (\(sessions.count)):\n"
+                for (index, session) in sessions.enumerated() {
+                    output += "    Session \(index + 1):\n"
+                    output += "      - ID: \(session.id)\n"
+                    output += "      - Provider ID: \(session.providerId ?? "nil")\n"
+                    output += "      - Status: \(session.status ?? "nil")\n"
+                    output += "      - Amount: \(session.amount) \(session.currencyCode ?? "nil")\n"
+                    if let data = session.data {
+                        output += "      - Data: \(data)\n"
+                    }
+                    output += "\n"
+                }
+            } else {
+                output += "  No payment sessions\n"
+            }
+        } else {
+            output += "No payment collection found\n"
+        }
+        output += "\n"
+        
         output += "SHIPPING METHOD STATUS:\n"
         output += "======================\n"
         output += "- Shipping Total > 0: \(cart.shippingTotal > 0 ? "YES ✅" : "NO ❌")\n"
