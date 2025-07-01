@@ -35,7 +35,7 @@ struct PaymentCollection: Codable, Identifiable {
         
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
-        amount = Double(try container.decode(Int.self, forKey: .amount))
+        amount = try container.decode(Double.self, forKey: .amount)
         status = try container.decode(String.self, forKey: .status)
         paymentProviders = try container.decodeIfPresent([PaymentCollectionProvider].self, forKey: .paymentProviders)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)

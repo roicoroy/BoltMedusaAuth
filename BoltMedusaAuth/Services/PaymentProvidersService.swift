@@ -131,11 +131,11 @@ class PaymentProvidersService: ObservableObject {
             print("💳 Successfully loaded \(response.paymentProviders.count) payment providers")
             
             // Log each payment provider for debugging
-            for (index, provider) in response.paymentProviders.enumerated() {
-                print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
-                print("💳   - Enabled: \(provider.isEnabled ?? true)")
-                print("💳   - Type: \(provider.providerType.displayName)")
-            }
+//            for (index, provider) in response.paymentProviders.enumerated() {
+//                print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
+//                print("💳   - Enabled: \(provider.isEnabled ?? true)")
+//                print("💳   - Type: \(provider.providerType.displayName)")
+//            }
             
             return
         } catch {
@@ -213,9 +213,9 @@ class PaymentProvidersService: ObservableObject {
                     print("💳 Successfully loaded \(response.paymentProviders.count) payment providers (manual parsing)")
                     
                     // Log each payment provider for debugging
-                    for (index, provider) in response.paymentProviders.enumerated() {
-                        print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
-                    }
+//                    for (index, provider) in response.paymentProviders.enumerated() {
+//                        print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
+//                    }
                     
                     return
                 }
@@ -250,7 +250,8 @@ class PaymentProvidersService: ObservableObject {
             return
         }
         
-        let request = CreatePaymentCollectionRequest(cartId: cartId)
+//        let request = CreatePaymentCollectionRequest(cartId: cartId)
+        let requestData = ["cart_id": cartId]
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -263,7 +264,7 @@ class PaymentProvidersService: ObservableObject {
         }
         
         do {
-            let jsonData = try JSONEncoder().encode(request)
+            let jsonData = try JSONEncoder().encode(requestData)
             urlRequest.httpBody = jsonData
             
             // Log the request payload
