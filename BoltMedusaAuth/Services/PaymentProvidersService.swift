@@ -333,7 +333,7 @@ class PaymentProvidersService: ObservableObject {
             if let cartService = self.cartService, var currentCart = cartService.currentCart {
                 currentCart.paymentCollection = response.paymentCollection
                 cartService.currentCart = currentCart
-                cartService.saveCartToStorage()
+                cartService.fetchCart(cartId: currentCart.id)
                 print("💳 ✅ Cart updated with new payment collection ID: \(response.paymentCollection.id)")
                 
                 // Proceed to create payment session
