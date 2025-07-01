@@ -412,7 +412,7 @@ class CartService: ObservableObject {
         }
     }
     
-    // MARK: - Manual Address Management (for address selector)
+    // MARK: - Address Management (Updated to use correct endpoint)
     
     func addShippingAddressFromCustomerAddress(addressId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         guard let cart = currentCart,
@@ -443,91 +443,60 @@ class CartService: ObservableObject {
     }
     
     private func addShippingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        // Try multiple possible endpoints for Medusa v2
-        let possibleEndpoints = [
-            "\(baseURL)/store/carts/\(cartId)/addresses/shipping",
-            "\(baseURL)/store/carts/\(cartId)/shipping-address",
-            "\(baseURL)/store/carts/\(cartId)/address/shipping"
-        ]
-        
-        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "shipping", completion: completion)
-    }
-    
-    private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
-        // Try multiple possible endpoints for Medusa v2
-        let possibleEndpoints = [
-            "\(baseURL)/store/carts/\(cartId)/addresses/billing",
-            "\(baseURL)/store/carts/\(cartId)/billing-address",
-            "\(baseURL)/store/carts/\(cartId)/address/billing"
-        ]
-        
-        tryAddressEndpoints(endpoints: possibleEndpoints, address: address, addressType: "billing", completion: completion)
-    }
-    
-    private func tryAddressEndpoints(endpoints: [String], address: Address, addressType: String, completion: @escaping (Bool) -> Void) {
-        guard !endpoints.isEmpty else {
-            print("❌ No more endpoints to try for \(addressType) address")
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)") else {
+            print("❌ Invalid URL for shipping address addition")
             completion(false)
             return
         }
         
-        var remainingEndpoints = endpoints
-        let currentEndpoint = remainingEndpoints.removeFirst()
+        // Create shipping address payload according to the API format
+        let shippingAddressPayload: [String: Any] = [
+            "shipping_address": [
+                "first_name": address.firstName ?? "",
+                "last_name": address.lastName ?? "",
+                "address_1": address.address1,
+                "address_2": address.address2 ?? "",
+                "country_code": address.countryCode.lowercased(),
+                "city": address.city,
+                "postal_code": address.postalCode,
+                "phone": address.phone ?? ""
+            ]
+        ]
         
-        guard let url = URL(string: currentEndpoint) else {
-            print("❌ Invalid URL for \(addressType) address: \(currentEndpoint)")
-            tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
+        print("📦 Shipping address payload:")
+        print(shippingAddressPayload)
+        
+        performAddressRequest(url: url, payload: shippingAddressPayload, addressType: "shipping", completion: completion)
+    }
+    
+    private func addBillingAddressToCart(cartId: String, address: Address, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cartId)") else {
+            print("❌ Invalid URL for billing address addition")
+            completion(false)
             return
         }
         
-        print("🔄 Trying \(addressType) address endpoint: \(currentEndpoint)")
-        
-        // Create a simplified address payload that matches Medusa's expected format
-        let addressData: [String: Any] = [
-            "first_name": address.firstName ?? "",
-            "last_name": address.lastName ?? "",
-            "address_1": address.address1,
-            "city": address.city,
-            "country_code": address.countryCode.lowercased(), // Ensure lowercase
-            "postal_code": address.postalCode
+        // Create billing address payload according to the API format
+        let billingAddressPayload: [String: Any] = [
+            "billing_address": [
+                "first_name": address.firstName ?? "",
+                "last_name": address.lastName ?? "",
+                "address_1": address.address1,
+                "address_2": address.address2 ?? "",
+                "country_code": address.countryCode.lowercased(),
+                "city": address.city,
+                "postal_code": address.postalCode,
+                "phone": address.phone ?? ""
+            ]
         ]
         
-        // Add optional fields only if they have values
-        var finalAddressData = addressData
+        print("💳 Billing address payload:")
+        print(billingAddressPayload)
         
-        if let address2 = address.address2, !address2.isEmpty {
-            finalAddressData["address_2"] = address2
-        }
-        
-        if let phone = address.phone, !phone.isEmpty {
-            finalAddressData["phone"] = phone
-        }
-        
-        if let company = address.company, !company.isEmpty {
-            finalAddressData["company"] = company
-        }
-        
-        if let province = address.province, !province.isEmpty {
-            finalAddressData["province"] = province
-        }
-        
-        print("📦 \(addressType.capitalized) address payload:")
-        for (key, value) in finalAddressData {
-            print("  \(key): \(value)")
-        }
-        
-        performAddressRequest(url: url, addressData: finalAddressData, addressType: addressType) { success in
-            if success {
-                print("✅ Successfully added \(addressType) address using endpoint: \(currentEndpoint)")
-                completion(true)
-            } else {
-                print("❌ Failed with endpoint: \(currentEndpoint), trying next...")
-                self.tryAddressEndpoints(endpoints: remainingEndpoints, address: address, addressType: addressType, completion: completion)
-            }
-        }
+        performAddressRequest(url: url, payload: billingAddressPayload, addressType: "billing", completion: completion)
     }
     
-    private func performAddressRequest(url: URL, addressData: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
+    private func performAddressRequest(url: URL, payload: [String: Any], addressType: String, completion: @escaping (Bool) -> Void) {
         guard let token = UserDefaults.standard.string(forKey: "auth_token") else {
             print("❌ No auth token found for \(addressType) address addition")
             completion(false)
@@ -541,7 +510,7 @@ class CartService: ObservableObject {
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: addressData, options: [])
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
             print("🚀 Sending \(addressType) address request to: \(url)")
             
             // Log the exact JSON being sent
@@ -584,7 +553,7 @@ class CartService: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] data in
-                    // Handle the response - it might not always be a CartResponse
+                    // Handle the response - it should be a CartResponse
                     self?.handleAddressResponse(data: data, addressType: addressType, completion: completion)
                 }
             )
@@ -597,12 +566,12 @@ class CartService: ObservableObject {
             print("📍 \(addressType.capitalized) Address Raw Response: \(responseString)")
         }
         
-        // Try to decode as CartResponse first
+        // Try to decode as CartResponse
         do {
             let response = try JSONDecoder().decode(CartResponse.self, from: data)
             self.currentCart = response.cart
             self.saveCartToStorage()
-            print("✅ \(addressType.capitalized) address successfully added to cart via CartResponse")
+            print("✅ \(addressType.capitalized) address successfully added to cart")
             print("📦 Cart now has shipping address: \(response.cart.hasShippingAddress)")
             print("💳 Cart now has billing address: \(response.cart.hasBillingAddress)")
             
@@ -661,8 +630,6 @@ class CartService: ObservableObject {
         print("✅ \(addressType.capitalized) address added successfully - HTTP was successful")
         completion(true)
     }
-    
-
     
     // MARK: - Line Item Management
     
@@ -1031,7 +998,6 @@ class CartService: ObservableObject {
         print("Refreshing cart: \(cart.id)")
         fetchCart(cartId: cart.id)
     }
-    
     
     // MARK: - Storage
     
