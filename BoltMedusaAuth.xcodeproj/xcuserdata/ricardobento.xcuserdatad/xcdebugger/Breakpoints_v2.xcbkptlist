@@ -78,8 +78,8 @@
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "71"
-            endingLineNumber = "71"
+            startingLineNumber = "72"
+            endingLineNumber = "72"
             landmarkName = "fetchPaymentProviders(regionId:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -94,8 +94,8 @@
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "82"
-            endingLineNumber = "82"
+            startingLineNumber = "83"
+            endingLineNumber = "83"
             landmarkName = "fetchPaymentProviders(regionId:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -103,15 +103,15 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "D3C07767-D3B8-4008-89E3-03D97ED5DF8E"
+            uuid = "08BE39BC-A0BB-4CDC-BE45-9628921C7634"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "302"
-            endingLineNumber = "302"
+            startingLineNumber = "311"
+            endingLineNumber = "311"
             landmarkName = "createPaymentCollection(cartId:completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -119,124 +119,64 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "0608FC55-E11D-41FE-A54C-0F7887CD999A"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "319"
-            endingLineNumber = "319"
-            landmarkName = "handlePaymentCollectionResponse(data:completion:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "D7F356A4-5B81-4AE0-ACB7-F73CD20F185B"
+            uuid = "A5311149-E7F1-4147-8F26-B18992E096E8"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "329"
-            endingLineNumber = "329"
+            startingLineNumber = "320"
+            endingLineNumber = "320"
             landmarkName = "handlePaymentCollectionResponse(data:completion:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "D7F356A4-5B81-4AE0-ACB7-F73CD20F185B - 3c20041c103fce22"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BoltMedusaAuth.PaymentProvidersService.handlePaymentCollectionResponse(data: Foundation.Data, completion: (Swift.Bool, Swift.Optional&lt;BoltMedusaAuth.PaymentCollection&gt;) -&gt; ()) -&gt; ()"
-                  moduleName = "BoltMedusaAuth.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/ricardobento/LOCAL/BOLT.NEW/MEDUSA-IOS/BoltMedusaAuth/BoltMedusaAuth/Services/PaymentProvidersService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "330"
-                  endingLineNumber = "330">
-               </Location>
-               <Location
-                  uuid = "D7F356A4-5B81-4AE0-ACB7-F73CD20F185B - 3c20041c103fcfc3"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BoltMedusaAuth.PaymentProvidersService.handlePaymentCollectionResponse(data: Foundation.Data, completion: (Swift.Bool, Swift.Optional&lt;BoltMedusaAuth.PaymentCollection&gt;) -&gt; ()) -&gt; ()"
-                  moduleName = "BoltMedusaAuth.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/ricardobento/LOCAL/BOLT.NEW/MEDUSA-IOS/BoltMedusaAuth/BoltMedusaAuth/Services/PaymentProvidersService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "329"
-                  endingLineNumber = "329">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E313FB34-181A-4443-B916-525CD58C8687"
+            uuid = "5468D3FF-4CAF-41E2-9B3D-20488CA4C94E"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "386"
-            endingLineNumber = "386"
-            landmarkName = "handlePaymentCollectionResponse(data:completion:)"
+            startingLineNumber = "273"
+            endingLineNumber = "273"
+            landmarkName = "createPaymentCollection(cartId:completion:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "E313FB34-181A-4443-B916-525CD58C8687 - 3c20041c103fc759"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BoltMedusaAuth.PaymentProvidersService.handlePaymentCollectionResponse(data: Foundation.Data, completion: (Swift.Bool, Swift.Optional&lt;BoltMedusaAuth.PaymentCollection&gt;) -&gt; ()) -&gt; ()"
-                  moduleName = "BoltMedusaAuth.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/ricardobento/LOCAL/BOLT.NEW/MEDUSA-IOS/BoltMedusaAuth/BoltMedusaAuth/Services/PaymentProvidersService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "387"
-                  endingLineNumber = "387">
-               </Location>
-               <Location
-                  uuid = "E313FB34-181A-4443-B916-525CD58C8687 - 3c20041c103fc77a"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BoltMedusaAuth.PaymentProvidersService.handlePaymentCollectionResponse(data: Foundation.Data, completion: (Swift.Bool, Swift.Optional&lt;BoltMedusaAuth.PaymentCollection&gt;) -&gt; ()) -&gt; ()"
-                  moduleName = "BoltMedusaAuth.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/ricardobento/LOCAL/BOLT.NEW/MEDUSA-IOS/BoltMedusaAuth/BoltMedusaAuth/Services/PaymentProvidersService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "386"
-                  endingLineNumber = "386">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "1215931C-3902-4025-8E7B-1B3C54A4A272"
-            shouldBeEnabled = "No"
+            uuid = "F18D6237-61FE-420E-B6D6-9D7B434B0057"
+            shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "382"
-            endingLineNumber = "382"
-            landmarkName = "handlePaymentCollectionResponse(data:completion:)"
+            startingLineNumber = "299"
+            endingLineNumber = "299"
+            landmarkName = "createPaymentCollection(cartId:completion:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "51A5D64F-DCD1-4208-BF01-B6D7843400C9"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "BoltMedusaAuth/Services/PaymentProvidersService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "292"
+            endingLineNumber = "292"
+            landmarkName = "createPaymentCollection(cartId:completion:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

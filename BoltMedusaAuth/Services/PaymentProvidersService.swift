@@ -1,3 +1,4 @@
+
 //
 //  PaymentProvidersService.swift
 //  BoltMedusaAuth
@@ -7,6 +8,7 @@
 
 import Foundation
 import Combine
+import BoltMedusaAuth
 
 class PaymentProvidersService: ObservableObject {
     @Published var paymentProviders: [PaymentProvider] = []
@@ -17,6 +19,7 @@ class PaymentProvidersService: ObservableObject {
     private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
     
     private var cancellables = Set<AnyCancellable>()
+    weak var cartService: CartService?
     
     deinit {
         cancellables.removeAll()
@@ -131,11 +134,11 @@ class PaymentProvidersService: ObservableObject {
             print("💳 Successfully loaded \(response.paymentProviders.count) payment providers")
             
             // Log each payment provider for debugging
-//            for (index, provider) in response.paymentProviders.enumerated() {
-//                print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
-//                print("💳   - Enabled: \(provider.isEnabled ?? true)")
-//                print("💳   - Type: \(provider.providerType.displayName)")
-//            }
+            for (index, provider) in response.paymentProviders.enumerated() {
+                print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
+                print("💳   - Enabled: \(provider.isEnabled ?? true)")
+                print("💳   - Type: \(provider.providerType.displayName)")
+            }
             
             return
         } catch {
@@ -213,9 +216,9 @@ class PaymentProvidersService: ObservableObject {
                     print("💳 Successfully loaded \(response.paymentProviders.count) payment providers (manual parsing)")
                     
                     // Log each payment provider for debugging
-//                    for (index, provider) in response.paymentProviders.enumerated() {
-//                        print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
-//                    }
+                    for (index, provider) in response.paymentProviders.enumerated() {
+                        print("💳 Provider \(index + 1): \(provider.displayName) (ID: \(provider.id)) - \(provider.statusText)")
+                    }
                     
                     return
                 }
@@ -250,8 +253,7 @@ class PaymentProvidersService: ObservableObject {
             return
         }
         
-//        let request = CreatePaymentCollectionRequest(cartId: cartId)
-        let requestData = ["cart_id": cartId]
+        let request = CreatePaymentCollectionRequest(cartId: cartId)
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -264,7 +266,7 @@ class PaymentProvidersService: ObservableObject {
         }
         
         do {
-            let jsonData = try JSONEncoder().encode(requestData)
+            let jsonData = try JSONEncoder().encode(request)
             urlRequest.httpBody = jsonData
             
             // Log the request payload
@@ -326,7 +328,28 @@ class PaymentProvidersService: ObservableObject {
             print("💳 Payment Collection ID: \(response.paymentCollection.id)")
             print("💳 Amount: \(response.paymentCollection.amount)")
             print("💳 Currency: \(response.paymentCollection.currencyCode)")
-            print("💳 Status: \(response.paymentCollection.status)")
+            print("💳 Status: \(response.paymentCollection.status ?? "N/A")")
+            
+            // Update the cart with the new payment collection
+            if let cartService = self.cartService, var currentCart = cartService.currentCart {
+                currentCart.paymentCollection = response.paymentCollection
+                cartService.currentCart = currentCart
+                cartService.saveCartToStorage()
+                print("💳 ✅ Cart updated with new payment collection ID: \(response.paymentCollection.id)")
+                
+                // Proceed to create payment session
+                if let providerId = self.paymentProviders.first?.id {
+                    self.createPaymentSession(paymentCollectionId: response.paymentCollection.id, providerId: providerId) { success in
+                        if success {
+                            print("💳 ✅ Payment session created successfully.")
+                        } else {
+                            print("💳 ❌ Failed to create payment session.")
+                        }
+                    }
+                } else {
+                    print("💳 ❌ No payment provider available to create session.")
+                }
+            }
             
             completion(true, response.paymentCollection)
             return
@@ -404,6 +427,92 @@ class PaymentProvidersService: ObservableObject {
         completion(false, nil)
     }
     
+    func createPaymentSession(paymentCollectionId: String, providerId: String, completion: @escaping (Bool) -> Void) {
+        print("💳 CREATING PAYMENT SESSION:")
+        print("💳 ===========================")
+        print("💳 Payment Collection ID: \(paymentCollectionId)")
+        print("💳 Provider ID: \(providerId)")
+        
+        let urlString = "\(baseURL)/store/payment-collections/\(paymentCollectionId)/payment-sessions"
+        
+        guard let url = URL(string: urlString) else {
+            print("💳 ❌ Invalid URL for payment session creation")
+            completion(false)
+            return
+        }
+        
+        let requestBody: [String: Any] = ["provider_id": providerId]
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+        
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody, options: [])
+            if let jsonString = String(data: urlRequest.httpBody!, encoding: .utf8) {
+                print("💳 Request Payload: \(jsonString)")
+            }
+        } catch {
+            print("💳 ❌ Failed to encode payment session request: \(error)")
+            completion(false)
+            return
+        }
+        
+        print("💳 Sending POST request to: \(urlString)")
+        print("💳 Headers: \(urlRequest.allHTTPHeaderFields ?? [:])")
+        
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("💳 Payment Session Response Status: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("💳 Payment Session Response: \(responseString)")
+                    }
+                    
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completionResult in
+                    if case .failure(let error) = completionResult {
+                        print("💳 ❌ Payment session creation error: \(error)")
+                        completion(false)
+                    }
+                },
+                receiveValue: { data in
+                    // Handle the response, typically a PaymentCollectionResponse with updated payment sessions
+                    do {
+                        let response = try JSONDecoder().decode(PaymentCollectionResponse.self, from: data)
+                        print("💳 ✅ Successfully decoded PaymentCollectionResponse after session creation.")
+                        print("💳 Updated Payment Collection ID: \(response.paymentCollection.id)")
+                        
+                        // Update the cart with the new payment collection (which now includes sessions)
+                        if let cartService = self.cartService, var currentCart = cartService.currentCart {
+                            currentCart.paymentCollection = response.paymentCollection
+                            cartService.currentCart = currentCart
+                            cartService.saveCartToStorage()
+                            print("💳 ✅ Cart updated with new payment collection and sessions.")
+                        }
+                        
+                        completion(true)
+                    } catch {
+                        print("💳 ❌ Failed to decode PaymentCollectionResponse after session creation: \(error)")
+                        completion(false)
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     func clearPaymentProviders() {
         DispatchQueue.main.async { [weak self] in
             self?.paymentProviders = []
@@ -418,4 +527,209 @@ class PaymentProvidersService: ObservableObject {
     func refreshPaymentProviders(regionId: String) {
         fetchPaymentProviders(regionId: regionId)
     }
+}
+
+
+
+import SwiftUI
+
+// MARK: - Payment Provider Models
+struct PaymentProvider: Codable, Identifiable {
+    let id: String
+    let name: String?
+    let description: String?
+    let isEnabled: Bool?
+    let metadata: [String: Any]?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, metadata
+        case isEnabled = "is_enabled"
+    }
+    
+    // Custom decoder to handle flexible metadata
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled)
+        
+        // Handle metadata as flexible dictionary
+        if container.contains(.metadata) {
+            if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
+                metadata = metadataDict.mapValues { $0.value }
+            } else {
+                metadata = nil
+            }
+        } else {
+            metadata = nil
+        }
+    }
+    
+    // Custom encoder
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encodeIfPresent(isEnabled, forKey: .isEnabled)
+        
+        // Skip metadata encoding for simplicity
+    }
+}
+
+// MARK: - API Response Models
+struct PaymentProvidersResponse: Codable {
+    let paymentProviders: [PaymentProvider]
+    let limit: Int
+    let offset: Int
+    let count: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case limit, offset, count
+        case paymentProviders = "payment_providers"
+    }
+}
+
+// MARK: - Helper Extensions
+extension PaymentProvider {
+    var displayName: String {
+        return name ?? id.capitalized
+    }
+    
+    var displayDescription: String {
+        return description ?? "Payment provider"
+    }
+    
+    var providerType: PaymentProviderType {
+        let lowercaseId = id.lowercased()
+        
+        if lowercaseId.contains("stripe") {
+            return .stripe
+        } else if lowercaseId.contains("paypal") {
+            return .paypal
+        } else if lowercaseId.contains("manual") {
+            return .manual
+        } else if lowercaseId.contains("klarna") {
+            return .klarna
+        } else if lowercaseId.contains("apple") || lowercaseId.contains("applepay") {
+            return .applePay
+        } else if lowercaseId.contains("google") || lowercaseId.contains("googlepay") {
+            return .googlePay
+        } else if lowercaseId.contains("razorpay") {
+            return .razorpay
+        } else if lowercaseId.contains("square") {
+            return .square
+        } else if lowercaseId.contains("adyen") {
+            return .adyen
+        } else {
+            return .other
+        }
+    }
+    
+    var iconName: String {
+        switch providerType {
+        case .stripe:
+            return "creditcard"
+        case .paypal:
+            return "dollarsign.circle"
+        case .manual:
+            return "hand.raised"
+        case .klarna:
+            return "k.circle"
+        case .applePay:
+            return "applelogo"
+        case .googlePay:
+            return "g.circle"
+        case .razorpay:
+            return "r.circle"
+        case .square:
+            return "square"
+        case .adyen:
+            return "a.circle"
+        case .other:
+            return "creditcard.circle"
+        }
+    }
+    
+    var iconColor: Color {
+        switch providerType {
+        case .stripe:
+            return .purple
+        case .paypal:
+            return .blue
+        case .manual:
+            return .orange
+        case .klarna:
+            return .pink
+        case .applePay:
+            return .black
+        case .googlePay:
+            return .green
+        case .razorpay:
+            return .blue
+        case .square:
+            return .black
+        case .adyen:
+            return .green
+        case .other:
+            return .gray
+        }
+    }
+    
+    var isAvailable: Bool {
+        return isEnabled ?? true
+    }
+    
+    var statusText: String {
+        if isAvailable {
+            return "Available"
+        } else {
+            return "Disabled"
+        }
+    }
+    
+    var statusColor: Color {
+        return isAvailable ? .green : .red
+    }
+    
+    var supportedMethods: [String] {
+        switch providerType {
+        case .stripe:
+            return ["Credit Card", "Debit Card", "Apple Pay", "Google Pay"]
+        case .paypal:
+            return ["PayPal Account", "Credit Card", "Debit Card"]
+        case .manual:
+            return ["Cash", "Bank Transfer", "Check"]
+        case .klarna:
+            return ["Pay Later", "Pay in 3", "Financing"]
+        case .applePay:
+            return ["Apple Pay", "Touch ID", "Face ID"]
+        case .googlePay:
+            return ["Google Pay", "Android Pay"]
+        case .razorpay:
+            return ["UPI", "Net Banking", "Wallets", "Cards"]
+        case .square:
+            return ["Credit Card", "Debit Card", "Cash App"]
+        case .adyen:
+            return ["Credit Card", "Debit Card", "Local Payment Methods"]
+        case .other:
+            return ["Various Payment Methods"]
+        }
+    }
+}
+
+enum PaymentProviderType {
+    case stripe
+    case paypal
+    case manual
+    case klarna
+    case applePay
+    case googlePay
+    case razorpay
+    case square
+    case adyen
+    case other
 }

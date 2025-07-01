@@ -9,16 +9,16 @@ import Foundation
 import SwiftUI
 
 // MARK: - Payment Collection Models
-struct PaymentCollection: Codable, Identifiable {
-    let id: String
-    let currencyCode: String
-    let amount: Double
-    let status: String
-    let paymentProviders: [PaymentCollectionProvider]?
-    let metadata: [String: Any]?
-    let createdAt: String?
-    let updatedAt: String?
-    let completedAt: String?
+public struct PaymentCollection: Codable, Identifiable {
+    public let id: String
+    public let currencyCode: String
+    public let amount: Double
+    public let status: String?
+    public let paymentProviders: [PaymentCollectionProvider]?
+    public let metadata: [String: Any]?
+    public let createdAt: String?
+    public let updatedAt: String?
+    public let completedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id, amount, status, metadata
@@ -30,13 +30,13 @@ struct PaymentCollection: Codable, Identifiable {
     }
     
     // Custom decoder to handle flexible metadata
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
         amount = try container.decode(Double.self, forKey: .amount)
-        status = try container.decode(String.self, forKey: .status)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
         paymentProviders = try container.decodeIfPresent([PaymentCollectionProvider].self, forKey: .paymentProviders)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
@@ -55,13 +55,13 @@ struct PaymentCollection: Codable, Identifiable {
     }
     
     // Custom encoder
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(id, forKey: .id)
         try container.encode(currencyCode, forKey: .currencyCode)
         try container.encode(amount, forKey: .amount)
-        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(status, forKey: .status)
         try container.encodeIfPresent(paymentProviders, forKey: .paymentProviders)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
@@ -71,10 +71,10 @@ struct PaymentCollection: Codable, Identifiable {
     }
 }
 
-struct PaymentCollectionProvider: Codable, Identifiable {
-    let id: String
-    let name: String?
-    let isEnabled: Bool?
+public struct PaymentCollectionProvider: Codable, Identifiable {
+    public let id: String
+    public let name: String?
+    public let isEnabled: Bool?
     
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -83,16 +83,16 @@ struct PaymentCollectionProvider: Codable, Identifiable {
 }
 
 // MARK: - API Request/Response Models
-struct CreatePaymentCollectionRequest: Codable {
-    let cartId: String
+public struct CreatePaymentCollectionRequest: Codable {
+    public let cartId: String
     
     enum CodingKeys: String, CodingKey {
         case cartId = "cart_id"
     }
 }
 
-struct PaymentCollectionResponse: Codable {
-    let paymentCollection: PaymentCollection
+public struct PaymentCollectionResponse: Codable {
+    public let paymentCollection: PaymentCollection
     
     enum CodingKeys: String, CodingKey {
         case paymentCollection = "payment_collection"
@@ -101,17 +101,17 @@ struct PaymentCollectionResponse: Codable {
 
 // MARK: - Helper Extensions
 extension PaymentCollection {
-    func formattedAmount() -> String {
+    public func formattedAmount() -> String {
         return formatPrice(Int(amount), currencyCode: currencyCode)
     }
     
     
-    var displayStatus: String {
-        return status.capitalized
+    public var displayStatus: String {
+        return (status ?? "").capitalized
     }
     
-    var statusColor: Color {
-        switch status.lowercased() {
+    public var statusColor: Color {
+        switch (status ?? "").lowercased() {
         case "pending", "requires_action":
             return .orange
         case "completed", "succeeded":
@@ -125,27 +125,27 @@ extension PaymentCollection {
         }
     }
     
-    var isCompleted: Bool {
-        return status.lowercased() == "completed" || status.lowercased() == "succeeded"
+    public var isCompleted: Bool {
+        return (status ?? "").lowercased() == "completed" || (status ?? "").lowercased() == "succeeded"
     }
     
-    var isPending: Bool {
-        return status.lowercased() == "pending" || status.lowercased() == "requires_action"
+    public var isPending: Bool {
+        return (status ?? "").lowercased() == "pending" || (status ?? "").lowercased() == "requires_action"
     }
     
-    var isFailed: Bool {
-        return status.lowercased() == "failed" || status.lowercased() == "canceled" || status.lowercased() == "cancelled"
+    public var isFailed: Bool {
+        return (status ?? "").lowercased() == "failed" || (status ?? "").lowercased() == "canceled" || (status ?? "").lowercased() == "cancelled"
     }
     
-    var isProcessing: Bool {
-        return status.lowercased() == "processing"
+    public var isProcessing: Bool {
+        return (status ?? "").lowercased() == "processing"
     }
     
-    var providerCount: Int {
+    public var providerCount: Int {
         return paymentProviders?.count ?? 0
     }
     
-    var providerNames: String {
+    public var providerNames: String {
         guard let providers = paymentProviders, !providers.isEmpty else {
             return "No providers"
         }
@@ -153,37 +153,37 @@ extension PaymentCollection {
         return providers.compactMap { $0.name ?? $0.id }.joined(separator: ", ")
     }
     
-    var enabledProviders: [PaymentCollectionProvider] {
+    public var enabledProviders: [PaymentCollectionProvider] {
         return paymentProviders?.filter { $0.isEnabled ?? true } ?? []
     }
     
-    var disabledProviders: [PaymentCollectionProvider] {
+    public var disabledProviders: [PaymentCollectionProvider] {
         return paymentProviders?.filter { !($0.isEnabled ?? true) } ?? []
     }
     
-    var hasEnabledProviders: Bool {
+    public var hasEnabledProviders: Bool {
         return !enabledProviders.isEmpty
     }
     
-    var createdDate: Date? {
+    public var createdDate: Date? {
         guard let createdAt = createdAt else { return nil }
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: createdAt)
     }
     
-    var updatedDate: Date? {
+    public var updatedDate: Date? {
         guard let updatedAt = updatedAt else { return nil }
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: updatedAt)
     }
     
-    var completedDate: Date? {
+    public var completedDate: Date? {
         guard let completedAt = completedAt else { return nil }
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: completedAt)
     }
     
-    func formattedDate(_ date: Date?) -> String {
+    public func formattedDate(_ date: Date?) -> String {
         guard let date = date else { return "N/A" }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -191,33 +191,33 @@ extension PaymentCollection {
         return formatter.string(from: date)
     }
     
-    var formattedCreatedDate: String {
+    public var formattedCreatedDate: String {
         return formattedDate(createdDate)
     }
     
-    var formattedUpdatedDate: String {
+    public var formattedUpdatedDate: String {
         return formattedDate(updatedDate)
     }
     
-    var formattedCompletedDate: String {
+    public var formattedCompletedDate: String {
         return formattedDate(completedDate)
     }
 }
 
 extension PaymentCollectionProvider {
-    var displayName: String {
+    public var displayName: String {
         return name ?? id.capitalized
     }
     
-    var isAvailable: Bool {
+    public var isAvailable: Bool {
         return isEnabled ?? true
     }
     
-    var statusText: String {
+    public var statusText: String {
         return isAvailable ? "Enabled" : "Disabled"
     }
     
-    var statusColor: Color {
+    public var statusColor: Color {
         return isAvailable ? .green : .red
     }
 }

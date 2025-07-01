@@ -44,6 +44,7 @@ struct Cart: Codable, Identifiable {
     let region: CartRegion?
     let shippingAddress: CartAddress?
     let billingAddress: CartAddress?
+    var paymentCollection: PaymentCollection?
     
     enum CodingKeys: String, CodingKey {
         case id, email, metadata, items, promotions, region
@@ -75,6 +76,7 @@ struct Cart: Codable, Identifiable {
         case salesChannelId = "sales_channel_id"
         case shippingAddress = "shipping_address"
         case billingAddress = "billing_address"
+        case paymentCollection = "payment_collection"
     }
     
     // Custom decoder to handle flexible numeric types and exact API response structure
@@ -122,6 +124,7 @@ struct Cart: Codable, Identifiable {
         region = try container.decodeIfPresent(CartRegion.self, forKey: .region)
         shippingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .shippingAddress)
         billingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .billingAddress)
+        paymentCollection = try container.decodeIfPresent(PaymentCollection.self, forKey: .paymentCollection)
         
         // Handle metadata as flexible dictionary - can be null or object
         if container.contains(.metadata) {
@@ -202,6 +205,7 @@ struct Cart: Codable, Identifiable {
         try container.encodeIfPresent(region, forKey: .region)
         try container.encodeIfPresent(shippingAddress, forKey: .shippingAddress)
         try container.encodeIfPresent(billingAddress, forKey: .billingAddress)
+        try container.encodeIfPresent(paymentCollection, forKey: .paymentCollection)
         
         // Skip metadata encoding for simplicity
     }
