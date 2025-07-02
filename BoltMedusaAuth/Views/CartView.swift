@@ -11,6 +11,7 @@ struct CartView: View {
     @EnvironmentObject var cartService: CartService
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var authService: AuthService
+    @Environment(\.presentationMode) var presentationMode
     @State private var showingCheckout = false
     @State private var showingCountrySelector = false
     @State private var showingShippingAddressSelector = false
@@ -22,6 +23,7 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                
                 // Country Selector Header (shared component)
                 SharedCountryHeaderView(
                     regionService: regionService,
@@ -82,16 +84,29 @@ struct CartView: View {
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if let cart = cartService.currentCart, !cart.isEmpty {
-                        Button("Clear") {
-                            cartService.clearCart()
-                        }
-                        .foregroundColor(.red)
-                    }
-                }
-            }
+//            .toolbar {
+//                ToolbarItem(placement: .navigationBarLeading) {
+//                    Button("Close") {
+//                        presentationMode.wrappedValue.dismiss()
+//                    }
+//                }
+//                ToolbarItem(placement: .navigationBarTrailing) {
+//                    HStack {
+//                        if let cart = cartService.currentCart, !cart.isEmpty {
+//                            Button("Clear") {
+//                                cartService.clearCart()
+//                            }
+//                            .foregroundColor(.red)
+//                        }
+//                        Button("Refresh") {
+//                            cartService.refreshCart()
+//                            regionService.refreshRegions()
+//                        }
+//                        .disabled(cartService.isLoading || regionService.isLoading)
+//                    }
+//                }
+//            }
+            
         }
         .sheet(isPresented: $showingCheckout) {
             CheckoutView(cart: cartService.currentCart)
@@ -103,20 +118,20 @@ struct CartView: View {
             AddressSelectorView(
                 title: "Select Shipping Address",
                 addressType: .shipping,
-                authService: authService,
-                cartService: cartService
+                authService: _authService,
+                cartService: _cartService
             )
         }
         .sheet(isPresented: $showingBillingAddressSelector) {
             AddressSelectorView(
                 title: "Select Billing Address",
                 addressType: .billing,
-                authService: authService,
-                cartService: cartService
+                authService: _authService,
+                cartService: _cartService
             )
         }
         .sheet(isPresented: $showingAddAddress) {
-            AddAddressView(authService: authService)
+            AddAddressView()
                 .onDisappear {
                     // Refresh customer profile after address is added
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -1118,11 +1133,13 @@ struct CheckoutView: View {
             .padding()
             .navigationTitle("Checkout")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-            )
+            }
         }
     }
 }
@@ -1132,8 +1149,8 @@ struct CheckoutView: View {
 struct AddressSelectorView: View {
     let title: String
     let addressType: AddressType
-    @ObservedObject var authService: AuthService
-    @ObservedObject var cartService: CartService
+    @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var cartService: CartService
     @Environment(\.presentationMode) var presentationMode
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -1188,12 +1205,16 @@ struct AddressSelectorView: View {
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: isLoading ? AnyView(ProgressView().scaleEffect(0.8)) : AnyView(EmptyView())
-            )
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    isLoading ? AnyView(ProgressView().scaleEffect(0.8)) : AnyView(EmptyView())
+                }
+            }
         }
     }
     

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AddAddressView: View {
-    @ObservedObject var authService: AuthService
+    @EnvironmentObject var authService: AuthService
     @Environment(\.presentationMode) var presentationMode
     
     @State private var addressName = ""
@@ -232,11 +232,13 @@ struct AddAddressView: View {
             }
             .navigationTitle("New Address")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-            )
+            }
         }
     }
     
@@ -294,5 +296,6 @@ struct FormField: View {
 }
 
 #Preview {
-    AddAddressView(authService: AuthService())
+    AddAddressView()
+        .environmentObject(AuthService())
 }

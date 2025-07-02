@@ -9,15 +9,14 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @StateObject private var authService = AuthService()
+    @EnvironmentObject var authService: AuthService
 
     var body: some View {
         Group {
             if authService.isAuthenticated {
-                MainTabView(authService: authService)
+                MainTabView()
             } else {
                 LoginView()
-                    .environmentObject(authService)
             }
         }
         .animation(.easeInOut, value: authService.isAuthenticated)
@@ -26,5 +25,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environmentObject(AuthService())
 }
+

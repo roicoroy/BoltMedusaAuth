@@ -108,7 +108,6 @@ struct LoginView: View {
         }
         .sheet(isPresented: $showingRegistration) {
             RegistrationView()
-                .environmentObject(authService)
         }
     }
 }

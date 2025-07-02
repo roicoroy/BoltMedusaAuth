@@ -291,11 +291,13 @@ struct EditAddressView: View {
             }
             .navigationTitle("Edit Address")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-            )
+            }
         }
         .alert("Delete Address", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }

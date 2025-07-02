@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @ObservedObject var authService: AuthService
+    @EnvironmentObject var authService: AuthService
     @State private var showingAddAddress = false
     @State private var selectedAddress: Address?
     @State private var showingEditAddress = false
@@ -153,14 +153,16 @@ struct DashboardView: View {
                 authService.fetchCustomerProfile()
             }
         }
-        .sheet(isPresented: $showingAddAddress) {
-            AddAddressView(authService: authService)
-        }
-        .sheet(isPresented: $showingEditAddress) {
-            if let address = selectedAddress {
-                EditAddressView(authService: authService, address: address)
-            }
-        }
+//        .sheet(isPresented: $showingAddAddress) {
+//            AddAddressView()
+//                .environmentObject(authService)
+//        }
+//        .sheet(isPresented: $showingEditAddress) {
+//            if let address = selectedAddress {
+//                EditAddressView(address: address)
+//                    .environmentObject(authService)
+//            }
+//        }
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -272,10 +274,4 @@ struct AddressCard: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-
-#Preview {
-    let authService = AuthService()
-    return DashboardView(authService: authService)
 }

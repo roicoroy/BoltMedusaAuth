@@ -448,7 +448,6 @@ class PaymentProvidersService: ObservableObject {
                         // Update the cart with the new payment collection (which now includes sessions)
                         if let cartService = self.cartService, var currentCart = cartService.currentCart {
                             currentCart.paymentCollection = response.paymentCollection
-//                            cartService.currentCart = currentCart
                             cartService.fetchCart(cartId: currentCart.id)
                             print("💳 ✅ Cart updated with new payment collection and sessions")
                         }

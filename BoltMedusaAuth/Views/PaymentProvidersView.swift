@@ -66,7 +66,7 @@ struct PaymentProvidersView: View {
                 }
                 
                 // Create Payment Collection Button
-                if let selectedProviderId = selectedProviderId {
+                if let selectedProviderId = selectedProviderId, selectedProviderId != "stripe" {
                     CreatePaymentCollectionButton(
                         selectedProviderId: selectedProviderId,
                         isLoading: isCreatingPaymentCollection,
@@ -75,20 +75,37 @@ struct PaymentProvidersView: View {
                         }
                     )
                 }
+
+                if selectedProviderId == "stripe" {
+                    NavigationLink(destination: StripePaymentView()) {
+                        Text("Continue to Payment")
+                            .font(.headline)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                            .padding()
+                    }
+                }
                 
                 Spacer()
             }
             .navigationTitle("Payment Providers")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: Button("Refresh") {
-                    paymentProvidersService.fetchPaymentProviders(for: cart)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-                .disabled(paymentProvidersService.isLoading)
-            )
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Refresh") {
+                        paymentProvidersService.fetchPaymentProviders(for: cart)
+                    }
+                    .disabled(paymentProvidersService.isLoading)
+                }
+            }
         }
         .onAppear {
             paymentProvidersService.fetchPaymentProviders(for: cart)

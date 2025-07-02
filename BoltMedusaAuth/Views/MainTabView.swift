@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @ObservedObject var authService: AuthService
+    @EnvironmentObject var authService: AuthService
     @StateObject private var cartService = CartService()
     @StateObject private var regionService = RegionService()
     
     var body: some View {
         TabView {
-            DashboardView(authService: authService)
+            DashboardView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
@@ -85,5 +85,6 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView(authService: AuthService())
+    MainTabView()
+        .environmentObject(AuthService())
 }

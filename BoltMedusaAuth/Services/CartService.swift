@@ -1142,6 +1142,51 @@ class CartService: ObservableObject {
         // Optionally, you could clear the cart here:
         // clearCart()
     }
+
+    func completeCart(completion: @escaping (Bool) -> Void) {
+        guard let cart = currentCart else {
+            completion(false)
+            return
+        }
+
+        guard let url = URL(string: "\(baseURL)/store/carts/\(cart.id)/complete") else {
+            completion(false)
+            return
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
+
+        if let token = UserDefaults.standard.string(forKey: "auth_token") {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        URLSession.shared.dataTaskPublisher(for: urlRequest)
+            .tryMap { data, response -> Data in
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode >= 400 {
+                        throw URLError(.badServerResponse)
+                    }
+                }
+                return data
+            }
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { result in
+                switch result {
+                case .finished:
+                    break
+                case .failure(let error):
+                    print("Failed to complete cart: \(error)")
+                    completion(false)
+                }
+            }, receiveValue: { [weak self] _ in
+                self?.clearCart()
+                completion(true)
+            })
+            .store(in: &cancellables)
+    }
     
     // MARK: - Utility Methods
     
