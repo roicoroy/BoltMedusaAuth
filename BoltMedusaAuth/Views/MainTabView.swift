@@ -34,6 +34,12 @@ struct MainTabView: View {
                     Image(systemName: "list.bullet.rectangle.portrait")
                     Text("Categories")
                 }
+
+            ProductCollectionsView()
+                .tabItem {
+                    Image(systemName: "square.stack.3d.up.fill")
+                    Text("Collections")
+                }
             
             CartView()
                 .tabItem {

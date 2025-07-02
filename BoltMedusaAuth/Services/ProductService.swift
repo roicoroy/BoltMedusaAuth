@@ -26,7 +26,7 @@ class ProductService: ObservableObject {
         cancellables.removeAll()
     }
     
-    func fetchProducts(limit: Int = 50, offset: Int = 0, categoryId: String? = nil) {
+    func fetchProducts(limit: Int = 50, offset: Int = 0, categoryId: String? = nil, collectionId: String? = nil) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
@@ -35,6 +35,9 @@ class ProductService: ObservableObject {
         var urlString = "\(baseURL)/store/products?limit=\(limit)&offset=\(offset)"
         if let categoryId = categoryId {
             urlString += "&category_id[]=\(categoryId)"
+        }
+        if let collectionId = collectionId {
+            urlString += "&collection_id[]=\(collectionId)"
         }
         
         guard let url = URL(string: urlString) else {
@@ -122,7 +125,7 @@ class ProductService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func searchProducts(query: String, limit: Int = 50, categoryId: String? = nil) {
+    func searchProducts(query: String, limit: Int = 50, categoryId: String? = nil, collectionId: String? = nil) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
@@ -139,6 +142,9 @@ class ProductService: ObservableObject {
         var urlString = "\(baseURL)/store/products?q=\(encodedQuery)&limit=\(limit)"
         if let categoryId = categoryId {
             urlString += "&category_id[]=\(categoryId)"
+        }
+        if let collectionId = collectionId {
+            urlString += "&collection_id[]=\(collectionId)"
         }
         
         guard let url = URL(string: urlString) else {
