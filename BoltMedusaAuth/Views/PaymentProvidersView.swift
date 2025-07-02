@@ -72,24 +72,24 @@ struct PaymentProvidersView: View {
                     onCreatePaymentCollection: {
                         createPaymentCollection(providerId: selectedProviderId)
                     }
-                )                    
+                )
             }
 
             if selectedProviderId == "pp_stripe_stripe" {
-                    NavigationLink(destination: StripePaymentView()) {
-                        Text("Continue to Payment")
-                            .font(.headline)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                            .padding()
-                    }
-                    .simultaneousGesture(TapGesture().onEnded { _ in
-                        print("DEBUG: 'Continue to Payment' button tapped. NavigationLink activated.")
-                    })
+                NavigationLink(destination: StripePaymentView()) {
+                    Text("Continue to Payment")
+                        .font(.headline)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                        .padding()
                 }
+                .simultaneousGesture(TapGesture().onEnded { _ in
+                    print("DEBUG: 'Continue to Payment' button tapped. NavigationLink activated.")
+                })
+            }
             
             Spacer()
         }

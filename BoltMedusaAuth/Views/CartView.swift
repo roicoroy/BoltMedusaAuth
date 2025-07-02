@@ -322,6 +322,20 @@ struct CartContentView: View {
                 .cornerRadius(12)
             }
             .padding(.horizontal)
+
+            // Stripe Payment Button (conditional)
+            if let clientSecret = cart.paymentCollection?.paymentSessions?.first?.data?["client_secret"]?.value as? String {
+                NavigationLink(destination: StripePaymentView()) {
+                    Text("Pay with Stripe")
+                        .font(.headline)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.purple)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding(.horizontal)
+            }
         }
     }
 }
