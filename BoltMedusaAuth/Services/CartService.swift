@@ -234,7 +234,7 @@ class CartService: ObservableObject {
                 if let httpResponse = response as? HTTPURLResponse {
                     print("Fetch Cart Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("Fetch Cart Response: \(responseString)")
+//                        print("Fetch Cart Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
@@ -255,19 +255,17 @@ class CartService: ObservableObject {
                 },
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
-
-                    print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
-                    print("📦 Cart has shipping address: \(response.cart.hasShippingAddress)")
-                    print("💳 Cart has billing address: \(response.cart.hasBillingAddress)")
+                    
                     if let paymentSessions = response.cart.paymentCollection?.paymentSessions,
                        let firstSession = paymentSessions.first,
                        let clientSecretValue = firstSession.data?["client_secret"]?.value,
                        let clientSecret = clientSecretValue as? String {
                         print("Found client secret: \(clientSecret)")
                         print("🚚 Cart client secret: \(clientSecret)")
-                    } else {
-                        print("🚚 Client secret not found or could not be cast to String.")
                     }
+//                    else {
+//                        print("🚚 Client secret not found or could not be cast to String.")
+//                    }
                     
                     
                     
@@ -803,6 +801,8 @@ class CartService: ObservableObject {
                         currentCart.paymentCollection = response.paymentCollection
                         cartService.currentCart = currentCart
                         cartService.saveCartToStorage()
+                        
+                        self?.fetchCart(cartId: currentCart.id)
                         print("✅ Cart payment provider updated successfully.")
                         completion(true)
                     } else {
@@ -1234,15 +1234,6 @@ class CartService: ObservableObject {
         guard let cart = currentCart else { return }
         if let encoded = try? JSONEncoder().encode(cart) {
             UserDefaults.standard.set(encoded, forKey: "medusa_cart")
-            print("💾 Cart saved to storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
-            if let customerId = cart.customerId {
-                print("👤 Cart is associated with customer: \(customerId)")
-            } else {
-                print("👤 Cart is anonymous (no customer association)")
-            }
-            print("📦 Cart has shipping address: \(cart.hasShippingAddress)")
-            print("💳 Cart has billing address: \(cart.hasBillingAddress)")
-            print("🚚 Cart shipping total: \(cart.shippingTotal) (\(cart.formattedShippingTotal))")
         }
     }
     
@@ -1252,15 +1243,6 @@ class CartService: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            print("💾 Cart loaded from storage: \(cart.id) with \(cart.itemCount) items, currency: \(cart.currencyCode)")
-            if let customerId = cart.customerId {
-                print("👤 Cart is associated with customer: \(customerId)")
-            } else {
-                print("👤 Cart is anonymous (no customer association)")
-            }
-            print("📦 Cart has shipping address: \(cart.hasShippingAddress)")
-            print("💳 Cart has billing address: \(cart.hasBillingAddress)")
-            print("🚚 Cart shipping total: \(cart.shippingTotal) (\(cart.formattedShippingTotal))")
             // Refresh cart data from server to ensure it's up to date
             fetchCart(cartId: cart.id)
         } else {

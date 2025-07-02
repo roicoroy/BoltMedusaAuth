@@ -65,6 +65,15 @@ struct PaymentProvidersView: View {
             }
             
             // Create Payment Collection Button
+            if let selectedProviderId = selectedProviderId, selectedProviderId == "pp_stripe_stripe" {
+                CreatePaymentCollectionButton(
+                    selectedProviderId: selectedProviderId,
+                    isLoading: isCreatingPaymentCollection,
+                    onCreatePaymentCollection: {
+                        createPaymentCollection(providerId: selectedProviderId)
+                    }
+                )
+            }
             if let selectedProviderId = selectedProviderId, selectedProviderId != "pp_stripe_stripe" {
                 CreatePaymentCollectionButton(
                     selectedProviderId: selectedProviderId,
@@ -74,7 +83,6 @@ struct PaymentProvidersView: View {
                     }
                 )
             }
-
             if selectedProviderId == "pp_stripe_stripe" {
                 NavigationLink(destination: StripePaymentView()) {
                     Text("Continue to Payment")

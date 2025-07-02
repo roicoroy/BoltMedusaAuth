@@ -15,7 +15,7 @@ class PaymentProvidersService: ObservableObject {
     @Published var errorMessage: String?
     
     private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
-    private let publishableKey = "pk_test_51Pzad704q0B7q2wz8zASldczqkHqbIvXsB2DBO20OEkAC9q7RUvoiBcZ9NVOakZMTWtg2vxgcJQN0mUpXtrThg2D00fHtuTwvj"
+    private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
     
     private var cancellables = Set<AnyCancellable>()
     weak var cartService: CartService?
@@ -448,6 +448,7 @@ class PaymentProvidersService: ObservableObject {
                         // Update the cart with the new payment collection (which now includes sessions)
                         if let cartService = self.cartService, var currentCart = cartService.currentCart {
                             currentCart.paymentCollection = response.paymentCollection
+
                             cartService.fetchCart(cartId: currentCart.id)
                             print("💳 ✅ Cart updated with new payment collection and sessions")
                         }

@@ -85,11 +85,6 @@ struct CartView: View {
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
                         if let cart = cartService.currentCart, !cart.isEmpty {
