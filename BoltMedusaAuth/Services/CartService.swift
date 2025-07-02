@@ -259,8 +259,15 @@ class CartService: ObservableObject {
                     print("Cart fetched successfully: \(response.cart.id) with currency: \(response.cart.currencyCode)")
                     print("📦 Cart has shipping address: \(response.cart.hasShippingAddress)")
                     print("💳 Cart has billing address: \(response.cart.hasBillingAddress)")
-                    print("🚚 Cart shipping total: \(response.cart.shippingTotal) (\(response.cart.formattedShippingTotal))")
-                    
+                    if let paymentSessions = response.cart.paymentCollection?.paymentSessions,
+                       let firstSession = paymentSessions.first,
+                       let clientSecretValue = firstSession.data?["client_secret"]?.value,
+                       let clientSecret = clientSecretValue as? String {
+                        print("Found client secret: \(clientSecret)")
+                        print("🚚 Cart client secret: \(clientSecret)")
+                    } else {
+                        print("🚚 Client secret not found or could not be cast to String.")
+                    }
                     // If user is logged in and cart doesn't have customer_id, associate it
                     if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
                         self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
