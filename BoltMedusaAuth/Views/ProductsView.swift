@@ -176,49 +176,47 @@ struct SharedCountrySelectorView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search Bar
-                SearchBarView(searchText: $searchText)
-                    .padding()
-                
-                if regionService.isLoading {
-                    LoadingCountriesView()
-                } else if filteredCountries.isEmpty {
-                    EmptyCountriesView(
-                        searchText: searchText,
-                        onClearSearch: { searchText = "" },
-                        onRetry: { regionService.refreshRegions() }
-                    )
-                } else {
-                    List {
-                        ForEach(filteredCountries) { country in
-                            CountryRowView(
-                                country: country,
-                                isSelected: regionService.selectedCountry?.id == country.id
-                            ) {
-                                print("🌍 User selected country: \(country.label) (\(country.currencyCode))")
-                                regionService.selectCountry(country)
-                                presentationMode.wrappedValue.dismiss()
-                            }
+        VStack(spacing: 0) {
+            // Search Bar
+            SearchBarView(searchText: $searchText)
+                .padding()
+            
+            if regionService.isLoading {
+                LoadingCountriesView()
+            } else if filteredCountries.isEmpty {
+                EmptyCountriesView(
+                    searchText: searchText,
+                    onClearSearch: { searchText = "" },
+                    onRetry: { regionService.refreshRegions() }
+                )
+            } else {
+                List {
+                    ForEach(filteredCountries) { country in
+                        CountryRowView(
+                            country: country,
+                            isSelected: regionService.selectedCountry?.id == country.id
+                        ) {
+                            print("🌍 User selected country: \(country.label) (\(country.currencyCode))")
+                            regionService.selectCountry(country)
+                            presentationMode.wrappedValue.dismiss()
                         }
                     }
                 }
-                
-                if let errorMessage = regionService.errorMessage {
-                    ErrorBannerView(
-                        message: errorMessage,
-                        onRetry: { regionService.refreshRegions() }
-                    )
-                }
             }
-            .navigationTitle("Select Country")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
+            
+            if let errorMessage = regionService.errorMessage {
+                ErrorBannerView(
+                    message: errorMessage,
+                    onRetry: { regionService.refreshRegions() }
+                )
+            }
+        }
+        .navigationTitle("Select Country")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
                 }
             }
         }

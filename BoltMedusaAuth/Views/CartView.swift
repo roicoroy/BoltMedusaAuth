@@ -84,28 +84,28 @@ struct CartView: View {
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
-//            .toolbar {
-//                ToolbarItem(placement: .navigationBarLeading) {
-//                    Button("Close") {
-//                        presentationMode.wrappedValue.dismiss()
-//                    }
-//                }
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    HStack {
-//                        if let cart = cartService.currentCart, !cart.isEmpty {
-//                            Button("Clear") {
-//                                cartService.clearCart()
-//                            }
-//                            .foregroundColor(.red)
-//                        }
-//                        Button("Refresh") {
-//                            cartService.refreshCart()
-//                            regionService.refreshRegions()
-//                        }
-//                        .disabled(cartService.isLoading || regionService.isLoading)
-//                    }
-//                }
-//            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        if let cart = cartService.currentCart, !cart.isEmpty {
+                            Button("Clear") {
+                                cartService.clearCart()
+                            }
+                            .foregroundColor(.red)
+                        }
+                        Button("Refresh") {
+                            cartService.refreshCart()
+                            regionService.refreshRegions()
+                        }
+                        .disabled(cartService.isLoading || regionService.isLoading)
+                    }
+                }
+            }
             
         }
         .sheet(isPresented: $showingCheckout) {

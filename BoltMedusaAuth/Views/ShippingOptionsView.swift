@@ -68,15 +68,19 @@ struct ShippingOptionsView: View {
             }
             .navigationTitle("Shipping Options")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: Button("Refresh") {
-                    shippingService.fetchShippingOptions(for: cart.id)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-                .disabled(shippingService.isLoading)
-            )
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Refresh") {
+                        shippingService.fetchShippingOptions(for: cart.id)
+                    }
+                    .disabled(shippingService.isLoading)
+                }
+            }
         }
         .onAppear {
             shippingService.fetchShippingOptions(for: cart.id)
