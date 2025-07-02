@@ -1200,7 +1200,7 @@ class CartService: ObservableObject {
             // Check if cart currency matches the new region's expected currency
             // If not, update the cart region or create a new one
             print("Cart exists: \(currentCart.id) with currency: \(currentCart.currencyCode)")
-            print("Checking if cart needs region update for region: \(regionId)")
+            
             
             // For now, we'll update the cart region
             updateCartRegion(newRegionId: regionId, completion: completion)

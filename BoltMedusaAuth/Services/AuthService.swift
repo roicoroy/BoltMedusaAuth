@@ -765,7 +765,7 @@ class AuthService: ObservableObject {
                         print("Delete Address Success Response: \(responseString)")
                     }
                     
-                    print("Address deleted successfully")
+                    
                     
                     // Refresh customer profile to get updated addresses
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

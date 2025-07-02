@@ -23,8 +23,6 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                
-            
                 // Main scrollable content
                 ScrollView {
                     VStack(spacing: 16) {
@@ -87,11 +85,6 @@ struct CartView: View {
                             }
                             .foregroundColor(.red)
                         }
-                        Button("Refresh") {
-                            cartService.refreshCart()
-                            regionService.refreshRegions()
-                        }
-                        .disabled(cartService.isLoading || regionService.isLoading)
                     }
                 }
             }
