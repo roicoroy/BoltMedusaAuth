@@ -130,6 +130,18 @@ struct DashboardView: View {
                     .cornerRadius(12)
                     .padding(.horizontal)
                     
+                    // Completed Orders Button
+                    NavigationLink(destination: CompletedOrdersView()) {
+                        Text("Completed Orders")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    
                     // Logout button
                     Button(action: {
                         authService.logout()
@@ -153,16 +165,16 @@ struct DashboardView: View {
                 authService.fetchCustomerProfile()
             }
         }
-//        .sheet(isPresented: $showingAddAddress) {
-//            AddAddressView()
-//                .environmentObject(authService)
-//        }
-//        .sheet(isPresented: $showingEditAddress) {
-//            if let address = selectedAddress {
-//                EditAddressView(address: address)
-//                    .environmentObject(authService)
-//            }
-//        }
+        .sheet(isPresented: $showingAddAddress) {
+            AddAddressView()
+                .environmentObject(authService)
+        }
+        .sheet(isPresented: $showingEditAddress) {
+            if let address = selectedAddress {
+                EditAddressView(address: address)
+                    .environmentObject(authService)
+            }
+        }
     }
     
     private func formatDate(_ dateString: String) -> String {

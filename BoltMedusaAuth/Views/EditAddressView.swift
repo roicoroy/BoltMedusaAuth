@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct EditAddressView: View {
-    @ObservedObject var authService: AuthService
+    @EnvironmentObject var authService: AuthService
     @Environment(\.presentationMode) var presentationMode
     
     let address: Address
@@ -30,8 +30,7 @@ struct EditAddressView: View {
     @State private var errorMessage: String?
     @State private var showingDeleteAlert = false
     
-    init(authService: AuthService, address: Address) {
-        self.authService = authService
+    init(address: Address) {
         self.address = address
         
         // Initialize state variables with current address values
@@ -380,5 +379,6 @@ struct EditAddressView: View {
         updatedAt: "2023-01-01T00:00:00Z"
     )
     
-    EditAddressView(authService: AuthService(), address: sampleAddress)
+    EditAddressView(address: sampleAddress)
+        .environmentObject(AuthService())
 }

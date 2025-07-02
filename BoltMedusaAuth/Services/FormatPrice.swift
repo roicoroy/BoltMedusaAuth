@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Currency Formatting
 
-func formatPrice(_ amount: Int, currencyCode: String) -> String {
+public func formatPrice(_ amount: Int, currencyCode: String) -> String {
     let formatter = NumberFormatter()
     formatter.numberStyle = .currency
     formatter.currencyCode = currencyCode.uppercased()
