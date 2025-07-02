@@ -18,65 +18,64 @@ struct PaymentProvidersView: View {
     @EnvironmentObject var cartService: CartService // Added EnvironmentObject
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header Info
-                PaymentCartInfoHeader(cart: cart)
-                
-                // Main Content
-                if paymentProvidersService.isLoading {
-                    LoadingPaymentProvidersView()
-                } else if paymentProvidersService.paymentProviders.isEmpty && paymentProvidersService.errorMessage == nil {
-                    EmptyPaymentProvidersView(
-                        onRetry: {
-                            paymentProvidersService.fetchPaymentProviders(for: cart)
-                        }
-                    )
-                } else if !paymentProvidersService.paymentProviders.isEmpty {
-                    PaymentProvidersListView(
-                        paymentProviders: paymentProvidersService.paymentProviders,
-                        selectedProviderId: $selectedProviderId,
-                        onSelectProvider: { providerId in
-                            selectedProviderId = providerId
-                            logProviderSelection(providerId: providerId)
-                            // Update cart with selected payment provider
-                            if let paymentCollectionId = cart.paymentCollection?.id {
-                                cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
-                                    if success {
-                                        print("💳 ✅ Cart payment provider updated successfully.")
-                                    } else {
-                                        print("💳 ❌ Failed to update cart payment provider.")
-                                    }
+        VStack(spacing: 0) {
+            // Header Info
+            PaymentCartInfoHeader(cart: cart)
+            
+            // Main Content
+            if paymentProvidersService.isLoading {
+                LoadingPaymentProvidersView()
+            } else if paymentProvidersService.paymentProviders.isEmpty && paymentProvidersService.errorMessage == nil {
+                EmptyPaymentProvidersView(
+                    onRetry: {
+                        paymentProvidersService.fetchPaymentProviders(for: cart)
+                    }
+                )
+            } else if !paymentProvidersService.paymentProviders.isEmpty {
+                PaymentProvidersListView(
+                    paymentProviders: paymentProvidersService.paymentProviders,
+                    selectedProviderId: $selectedProviderId,
+                    onSelectProvider: { providerId in
+                        selectedProviderId = providerId
+                        logProviderSelection(providerId: providerId)
+                        // Update cart with selected payment provider
+                        if let paymentCollectionId = cart.paymentCollection?.id {
+                            cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
+                                if success {
+                                    print("💳 ✅ Cart payment provider updated successfully.")
+                                } else {
+                                    print("💳 ❌ Failed to update cart payment provider.")
                                 }
-                            } else {
-                                print("💳 ❌ Payment collection is nil, cannot update payment provider.")
                             }
+                        } else {
+                            print("💳 ❌ Payment collection is nil, cannot update payment provider.")
                         }
-                    )
-                }
-                
-                // Error Message
-                if let errorMessage = paymentProvidersService.errorMessage {
-                    PaymentErrorMessageView(
-                        message: errorMessage,
-                        onRetry: {
-                            paymentProvidersService.fetchPaymentProviders(for: cart)
-                        }
-                    )
-                }
-                
-                // Create Payment Collection Button
-                if let selectedProviderId = selectedProviderId, selectedProviderId != "stripe" {
-                    CreatePaymentCollectionButton(
-                        selectedProviderId: selectedProviderId,
-                        isLoading: isCreatingPaymentCollection,
-                        onCreatePaymentCollection: {
-                            createPaymentCollection(providerId: selectedProviderId)
-                        }
-                    )
-                }
+                    }
+                )
+            }
+            
+            // Error Message
+            if let errorMessage = paymentProvidersService.errorMessage {
+                PaymentErrorMessageView(
+                    message: errorMessage,
+                    onRetry: {
+                        paymentProvidersService.fetchPaymentProviders(for: cart)
+                    }
+                )
+            }
+            
+            // Create Payment Collection Button
+            if let selectedProviderId = selectedProviderId, selectedProviderId != "pp_stripe_stripe" {
+                CreatePaymentCollectionButton(
+                    selectedProviderId: selectedProviderId,
+                    isLoading: isCreatingPaymentCollection,
+                    onCreatePaymentCollection: {
+                        createPaymentCollection(providerId: selectedProviderId)
+                    }
+                )                    
+            }
 
-                if selectedProviderId == "stripe" {
+            if selectedProviderId == "pp_stripe_stripe" {
                     NavigationLink(destination: StripePaymentView()) {
                         Text("Continue to Payment")
                             .font(.headline)
@@ -87,24 +86,26 @@ struct PaymentProvidersView: View {
                             .cornerRadius(10)
                             .padding()
                     }
+                    .simultaneousGesture(TapGesture().onEnded { _ in
+                        print("DEBUG: 'Continue to Payment' button tapped. NavigationLink activated.")
+                    })
                 }
-                
-                Spacer()
+            
+            Spacer()
+        }
+        .navigationTitle("Payment Providers")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
-            .navigationTitle("Payment Providers")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Refresh") {
+                    paymentProvidersService.fetchPaymentProviders(for: cart)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Refresh") {
-                        paymentProvidersService.fetchPaymentProviders(for: cart)
-                    }
-                    .disabled(paymentProvidersService.isLoading)
-                }
+                .disabled(paymentProvidersService.isLoading)
             }
         }
         .onAppear {

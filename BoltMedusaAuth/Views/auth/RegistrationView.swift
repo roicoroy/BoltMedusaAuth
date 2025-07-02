@@ -168,11 +168,13 @@ struct RegistrationView: View {
             }
             .navigationTitle("Sign Up")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
-            )
+            }
         }
         .onChange(of: authService.isAuthenticated) { isAuthenticated in
             if isAuthenticated {
