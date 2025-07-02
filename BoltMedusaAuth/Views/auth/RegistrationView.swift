@@ -186,5 +186,4 @@ struct RegistrationView: View {
 
 #Preview {
     RegistrationView()
-        .environmentObject(AuthService())
 }

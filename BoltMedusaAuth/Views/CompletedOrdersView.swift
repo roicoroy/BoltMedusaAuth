@@ -107,5 +107,4 @@ struct OrderRowView: View {
 
 #Preview {
     CompletedOrdersView()
-        .environmentObject(AuthService())
 }

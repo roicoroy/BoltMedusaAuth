@@ -528,7 +528,4 @@ struct ProductCard: View {
 
 #Preview {
     ProductsView()
-        .environmentObject(RegionService())
-        .environmentObject(CartService())
-        .environmentObject(AuthService())
 }

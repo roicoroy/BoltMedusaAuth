@@ -1311,7 +1311,4 @@ struct AddressSelectorRow: View {
 
 #Preview {
     CartView()
-        .environmentObject(CartService())
-        .environmentObject(RegionService())
-        .environmentObject(AuthService())
 }

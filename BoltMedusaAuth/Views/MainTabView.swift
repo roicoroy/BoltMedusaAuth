@@ -6,12 +6,26 @@
 //
 
 import SwiftUI
+import StripeCore
 
 struct MainTabView: View {
-    @EnvironmentObject var authService: AuthService
-    @StateObject private var cartService = CartService()
+    private let networkManager = NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")
+
+    @StateObject private var authService: AuthService
+    @StateObject private var cartService: CartService
     @StateObject private var regionService = RegionService()
-    
+    @StateObject private var productCategoryService: ProductCategoryService
+    @StateObject private var productCollectionService: ProductCollectionService
+    @StateObject private var productService: ProductService
+
+    init() {
+        _authService = StateObject(wrappedValue: AuthService(networkManager: NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")))
+        _cartService = StateObject(wrappedValue: CartService(networkManager: NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")))
+        _productCategoryService = StateObject(wrappedValue: ProductCategoryService(networkManager: NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")))
+        _productCollectionService = StateObject(wrappedValue: ProductCollectionService(networkManager: NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")))
+        _productService = StateObject(wrappedValue: ProductService(networkManager: NetworkManager(baseURL: "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app", publishableKey: "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a")))
+    }
+
     var body: some View {
         TabView {
             DashboardView()
@@ -19,28 +33,38 @@ struct MainTabView: View {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-            
+                .environmentObject(authService)
+
             ProductsView()
                 .environmentObject(regionService)
                 .environmentObject(cartService)
                 .environmentObject(authService)
+                .environmentObject(productService)
                 .tabItem {
                     Image(systemName: "cube.box")
                     Text("Products")
                 }
 
             ProductCategoriesView()
+                .environmentObject(productCategoryService)
+                .environmentObject(regionService)
+                .environmentObject(cartService)
+                .environmentObject(authService)
                 .tabItem {
                     Image(systemName: "list.bullet.rectangle.portrait")
                     Text("Categories")
                 }
 
             ProductCollectionsView()
+                .environmentObject(productCollectionService)
+                .environmentObject(regionService)
+                .environmentObject(cartService)
+                .environmentObject(authService)
                 .tabItem {
                     Image(systemName: "square.stack.3d.up.fill")
                     Text("Collections")
                 }
-            
+
             CartView()
                 .tabItem {
                     Image(systemName: cartService.currentCart?.isEmpty == false ? "cart.fill.badge.plus" : "cart")
@@ -50,7 +74,7 @@ struct MainTabView: View {
                 .environmentObject(cartService)
                 .environmentObject(regionService)
                 .environmentObject(authService)
-            
+
             DebugView()
                 .tabItem {
                     Image(systemName: "ladybug")
@@ -59,11 +83,10 @@ struct MainTabView: View {
         }
         .accentColor(.blue)
         .onAppear {
-            // Set up service references for cross-communication
+            StripeAPI.defaultPublishableKey = "pk_test_51Pzad704q0B7q2wz8zASldczqkHqbIvXsB2DBO20OEkAC9q7RUvoiBcZ9NVOakZMTWtg2vxgcJQN0mUpXtrThg2D00fHtuTwvj"
             authService.setCartService(cartService)
             cartService.setAuthService(authService)
             
-            // Initialize cart when app starts if region is available
             if regionService.hasSelectedRegion, cartService.currentCart == nil {
                 if let regionId = regionService.selectedRegionId {
                     cartService.createCartIfNeeded(regionId: regionId)
@@ -71,7 +94,6 @@ struct MainTabView: View {
             }
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
-            // When region changes, update or create cart for that region
             if let newCountry = newCountry {
                 print("🌍 Country changed globally to: \(newCountry.label) (\(newCountry.currencyCode))")
                 cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
@@ -84,13 +106,10 @@ struct MainTabView: View {
             }
         }
         .onChange(of: authService.isAuthenticated) { isAuthenticated in
-            // When authentication status changes, handle cart association
             if isAuthenticated {
                 print("👤 User logged in, cart service will handle association")
-                // Cart service will automatically associate cart when user logs in
             } else {
                 print("👤 User logged out, cart service will handle cleanup")
-                // Cart service will handle logout cleanup
             }
         }
     }
@@ -98,5 +117,4 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .environmentObject(AuthService())
 }

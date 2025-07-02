@@ -13,12 +13,11 @@ class ProductCollectionService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String? = nil
 
-    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
-    private let publishableKey = "pk_d62e2de8f849db562e79a89c8a08ec4f5d23f1a958a344d5f64dfc38ad39fa1a"
-
+    private let networkManager: NetworkManager
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    init(networkManager: NetworkManager) {
+        self.networkManager = networkManager
         // Optionally fetch collections on init
         // fetchProductCollections()
     }
@@ -27,71 +26,42 @@ class ProductCollectionService: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        guard let url = URL(string: "\(baseURL)/store/collections") else {
-            errorMessage = "Invalid URL for product collections"
-            isLoading = false
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-
-        URLSession.shared.dataTaskPublisher(for: request)
-            .tryMap { data, response -> Data in
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    throw URLError(.badServerResponse)
-                }
-                return data
+        networkManager.request(
+            path: "/store/collections",
+            method: "GET"
+        )
+        .decode(type: ProductCollectionsResponse.self, decoder: JSONDecoder())
+        .receive(on: DispatchQueue.main)
+        .sink(receiveCompletion: { [weak self] completion in
+            self?.isLoading = false
+            if case let .failure(error) = completion {
+                self?.errorMessage = "Failed to fetch product collections: \(error.localizedDescription)"
             }
-            .decode(type: ProductCollectionsResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                self?.isLoading = false
-                if case let .failure(error) = completion {
-                    self?.errorMessage = "Failed to fetch product collections: \(error.localizedDescription)"
-                }
-            }, receiveValue: { [weak self] response in
-                self?.productCollections = response.collections
-            })
-            .store(in: &cancellables)
+        }, receiveValue: { [weak self] response in
+            self?.productCollections = response.collections
+        })
+        .store(in: &cancellables)
     }
 
     func fetchProductCollection(id: String) {
         isLoading = true
         errorMessage = nil
 
-        guard let url = URL(string: "\(baseURL)/store/collections/\(id)") else {
-            errorMessage = "Invalid URL for product collection with ID: \(id)"
-            isLoading = false
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-
-        URLSession.shared.dataTaskPublisher(for: request)
-            .tryMap { data, response -> Data in
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    throw URLError(.badServerResponse)
-                }
-                return data
+        networkManager.request(
+            path: "/store/collections/\(id)",
+            method: "GET"
+        )
+        .decode(type: ProductCollectionResponse.self, decoder: JSONDecoder())
+        .receive(on: DispatchQueue.main)
+        .sink(receiveCompletion: { [weak self] completion in
+            self?.isLoading = false
+            if case let .failure(error) = completion {
+                self?.errorMessage = "Failed to fetch product collection \(id): \(error.localizedDescription)"
             }
-            .decode(type: ProductCollectionResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                self?.isLoading = false
-                if case let .failure(error) = completion {
-                    self?.errorMessage = "Failed to fetch product collection \(id): \(error.localizedDescription)"
-                }
-            }, receiveValue: { [weak self] response in
-                // Handle single collection response, e.g., add to a dictionary or a specific published property
-                print("Fetched single product collection: \(response.collection.title)")
-            })
-            .store(in: &cancellables)
+        }, receiveValue: { [weak self] response in
+            print("Fetched single product collection: \(response.collection.title)")
+        })
+        .store(in: &cancellables)
     }
 }
 
@@ -108,7 +78,7 @@ class ProductCollectionService: ObservableObject {
     }
 }
 
- struct ProductCollectionResponse: Codable {
+ public struct ProductCollectionResponse: Codable {
      let collection: ProductCollection
 
     enum CodingKeys: String, CodingKey {

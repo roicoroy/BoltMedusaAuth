@@ -37,7 +37,7 @@ public struct Cart: Codable, Identifiable {
     public let originalShippingTaxTotal: Int
     public let originalShippingSubtotal: Int
     public let originalShippingTotal: Int
-    public let metadata: [String: Any]?
+    public let metadata: [String: AnyCodable]?
     public let salesChannelId: String?
     public let items: [CartLineItem]?
     public let promotions: [CartPromotion]?
@@ -46,7 +46,7 @@ public struct Cart: Codable, Identifiable {
     public let billingAddress: CartAddress?
     public var paymentCollection: PaymentCollection? // Added paymentCollection
 
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id, email, metadata, items, promotions, region
         case currencyCode = "currency_code"
         case customerId = "customer_id"
@@ -76,18 +76,15 @@ public struct Cart: Codable, Identifiable {
         case salesChannelId = "sales_channel_id"
         case shippingAddress = "shipping_address"
         case billingAddress = "billing_address"
-        case paymentCollection = "payment_collection" // Added paymentCollection
+        case paymentCollection = "payment_collection"
     }
 
-    // Custom decoder to handle flexible numeric types and exact API response structure
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        // Required fields
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
 
-        // Handle flexible numeric types for all price fields
         total = try Self.decodeFlexibleInt(from: container, forKey: .total) ?? 0
         subtotal = try Self.decodeFlexibleInt(from: container, forKey: .subtotal) ?? 0
         taxTotal = try Self.decodeFlexibleInt(from: container, forKey: .taxTotal) ?? 0
@@ -109,7 +106,6 @@ public struct Cart: Codable, Identifiable {
         originalShippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
         originalShippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTotal) ?? 0
         
-        // Optional fields
         customerId = try container.decodeIfPresent(String.self, forKey: .customerId)
         email = try container.decodeIfPresent(String.self, forKey: .email)
         regionId = try container.decodeIfPresent(String.self, forKey: .regionId)
@@ -118,18 +114,16 @@ public struct Cart: Codable, Identifiable {
         completedAt = try container.decodeIfPresent(String.self, forKey: .completedAt)
         salesChannelId = try container.decodeIfPresent(String.self, forKey: .salesChannelId)
         
-        // Arrays and objects
         items = try container.decodeIfPresent([CartLineItem].self, forKey: .items)
         promotions = try container.decodeIfPresent([CartPromotion].self, forKey: .promotions)
         region = try container.decodeIfPresent(CartRegion.self, forKey: .region)
         shippingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .shippingAddress)
         billingAddress = try container.decodeIfPresent(CartAddress.self, forKey: .billingAddress)
-        paymentCollection = try container.decodeIfPresent(PaymentCollection.self, forKey: .paymentCollection) // Decoded paymentCollection
+        paymentCollection = try container.decodeIfPresent(PaymentCollection.self, forKey: .paymentCollection)
         
-        // Handle metadata as flexible dictionary - can be null or object
         if container.contains(.metadata) {
             if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
-                metadata = metadataDict.mapValues { $0.value }
+                metadata = metadataDict
             } else {
                 metadata = nil
             }
@@ -138,35 +132,24 @@ public struct Cart: Codable, Identifiable {
         }
     }
     
-    // Helper method to decode flexible numeric types (Int, Double, String)
     private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) throws -> Int? {
-        // Try to decode as Int first
         if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
             return intValue
         }
-        
-        // Try to decode as Double and convert to Int (multiply by 100 for cents)
         if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: key) {
-            // Convert to cents (multiply by 100 and round)
             return Int(round(doubleValue * 100))
         }
-        
-        // Try to decode as String and convert
         if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
             if let doubleValue = Double(stringValue) {
-                // Convert to cents (multiply by 100 and round)
                 return Int(round(doubleValue * 100))
             }
             if let intValue = Int(stringValue) {
                 return intValue
             }
         }
-        
-        // If all fail, return nil (will use default value of 0)
         return nil
     }
     
-    // Custom encoder
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -205,13 +188,12 @@ public struct Cart: Codable, Identifiable {
         try container.encodeIfPresent(region, forKey: .region)
         try container.encodeIfPresent(shippingAddress, forKey: .shippingAddress)
         try container.encodeIfPresent(billingAddress, forKey: .billingAddress)
-        try container.encodeIfPresent(paymentCollection, forKey: .paymentCollection) // Encoded paymentCollection
+        try container.encodeIfPresent(paymentCollection, forKey: .paymentCollection)
         
         // Skip metadata encoding for simplicity
     }
 }
 
-// MARK: - Helper struct for flexible JSON decoding
 public struct AnyCodable: Codable {
     public let value: Any
     
@@ -260,7 +242,6 @@ public struct AnyCodable: Codable {
     }
 }
 
-// MARK: - Cart Address Model
 public struct CartAddress: Codable, Identifiable {
     public let id: String?
     public let firstName: String?
@@ -273,9 +254,9 @@ public struct CartAddress: Codable, Identifiable {
     public let province: String?
     public let postalCode: String
     public let phone: String?
-    public let metadata: [String: Any]?
+    public let metadata: [String: AnyCodable]?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id, company, city, phone, metadata
         case firstName = "first_name"
         case lastName = "last_name"
@@ -286,7 +267,6 @@ public struct CartAddress: Codable, Identifiable {
         case postalCode = "postal_code"
     }
     
-    // Custom decoder to handle flexible metadata
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -302,10 +282,9 @@ public struct CartAddress: Codable, Identifiable {
         postalCode = try container.decode(String.self, forKey: .postalCode)
         phone = try container.decodeIfPresent(String.self, forKey: .phone)
         
-        // Handle metadata as flexible dictionary
         if container.contains(.metadata) {
             if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
-                metadata = metadataDict.mapValues { $0.value }
+                metadata = metadataDict
             } else {
                 metadata = nil
             }
@@ -314,7 +293,6 @@ public struct CartAddress: Codable, Identifiable {
         }
     }
     
-    // Custom encoder
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -341,7 +319,7 @@ public struct CartRegion: Codable, Identifiable {
     public let automaticTaxes: Bool
     public let countries: [CartCountry]?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id, name, countries
         case currencyCode = "currency_code"
         case automaticTaxes = "automatic_taxes"
@@ -355,14 +333,14 @@ public struct CartCountry: Codable, Identifiable {
     public let name: String
     public let displayName: String
     public let regionId: String
-    public let metadata: String?
+    public let metadata: [String: AnyCodable]?
     public let createdAt: String?
     public let updatedAt: String?
     public let deletedAt: String?
     
     public var id: String { iso2 }
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case name, metadata
         case iso2 = "iso_2"
         case iso3 = "iso_3"
@@ -372,6 +350,29 @@ public struct CartCountry: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        iso2 = try container.decode(String.self, forKey: .iso2)
+        iso3 = try container.decode(String.self, forKey: .iso3)
+        numCode = try container.decode(String.self, forKey: .numCode)
+        name = try container.decode(String.self, forKey: .name)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        regionId = try container.decode(String.self, forKey: .regionId)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+        deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+
+        if container.contains(.metadata) {
+            if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
+                metadata = metadataDict
+            } else {
+                metadata = nil
+            }
+        } else {
+            metadata = nil
+        }
     }
 }
 
@@ -395,7 +396,7 @@ public struct CartLineItem: Codable, Identifiable {
     public let variantBarcode: String?
     public let variantTitle: String?
     public let requiresShipping: Bool
-    public let metadata: [String: Any]?
+    public let metadata: [String: AnyCodable]?
     public let createdAt: String?
     public let updatedAt: String?
     public let title: String
@@ -407,7 +408,7 @@ public struct CartLineItem: Codable, Identifiable {
     public let adjustments: [Adjustment]?
     public let product: CartProduct?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id, thumbnail, title, quantity, metadata, product
         case variantId = "variant_id"
         case productId = "product_id"
@@ -431,11 +432,9 @@ public struct CartLineItem: Codable, Identifiable {
         case adjustments
     }
     
-    // Custom decoder to handle flexible numeric types and exact API response structure
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Required fields
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
         variantId = try container.decode(String.self, forKey: .variantId)
@@ -444,11 +443,9 @@ public struct CartLineItem: Codable, Identifiable {
         requiresShipping = try container.decode(Bool.self, forKey: .requiresShipping)
         isTaxInclusive = try container.decode(Bool.self, forKey: .isTaxInclusive)
         
-        // Handle flexible numeric types for price fields
         unitPrice = try Self.decodeFlexibleInt(from: container, forKey: .unitPrice) ?? 0
         compareAtUnitPrice = try Self.decodeFlexibleInt(from: container, forKey: .compareAtUnitPrice)
         
-        // Optional fields
         thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)
         productTypeId = try container.decodeIfPresent(String.self, forKey: .productTypeId)
         productTitle = try container.decodeIfPresent(String.self, forKey: .productTitle)
@@ -466,10 +463,9 @@ public struct CartLineItem: Codable, Identifiable {
         adjustments = try container.decodeIfPresent([Adjustment].self, forKey: .adjustments)
         product = try container.decodeIfPresent(CartProduct.self, forKey: .product)
         
-        // Handle metadata as flexible dictionary
         if container.contains(.metadata) {
             if let metadataDict = try? container.decode([String: AnyCodable].self, forKey: .metadata) {
-                metadata = metadataDict.mapValues { $0.value }
+                metadata = metadataDict
             } else {
                 metadata = nil
             }
@@ -478,35 +474,24 @@ public struct CartLineItem: Codable, Identifiable {
         }
     }
     
-    // Helper method to decode flexible numeric types (Int, Double, String)
     private static func decodeFlexibleInt(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) throws -> Int? {
-        // Try to decode as Int first
         if let intValue = try? container.decodeIfPresent(Int.self, forKey: key) {
             return intValue
         }
-        
-        // Try to decode as Double and convert to Int (multiply by 100 for cents)
         if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: key) {
-            // Convert to cents (multiply by 100 and round)
             return Int(round(doubleValue * 100))
         }
-        
-        // Try to decode as String and convert
         if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
             if let doubleValue = Double(stringValue) {
-                // Convert to cents (multiply by 100 and round)
                 return Int(round(doubleValue * 100))
             }
             if let intValue = Int(stringValue) {
                 return intValue
             }
         }
-        
-        // If all fail, return nil
         return nil
     }
     
-    // Custom encoder
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -556,17 +541,11 @@ public struct CartProduct: Codable, Identifiable {
     public let categories: [ProductCategory]?
     public let tags: [ProductTag]?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id, categories, tags
         case collectionId = "collection_id"
         case typeId = "type_id"
     }
-}
-
-
-
-public struct ProductTag: Codable, Identifiable {
-    public let id: String
 }
 
 // MARK: - API Request/Response Models
@@ -577,7 +556,7 @@ public struct CartResponse: Codable {
 public struct CreateCartRequest: Codable {
     public let regionId: String
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case regionId = "region_id"
     }
 }
@@ -586,7 +565,7 @@ public struct AddLineItemRequest: Codable {
     public let variantId: String
     public let quantity: Int
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case variantId = "variant_id"
         case quantity
     }
@@ -677,13 +656,11 @@ extension CartLineItem {
     }
     
     public func formattedTotal(currencyCode: String) -> String {
-        // Calculate total since it's not provided in the API response
         let calculatedTotal = unitPrice * quantity
         return formatPrice(calculatedTotal, currencyCode: currencyCode)
     }
     
     public func formattedSubtotal(currencyCode: String) -> String {
-        // Calculate subtotal since it's not provided in the API response
         let calculatedSubtotal = unitPrice * quantity
         return formatPrice(calculatedSubtotal, currencyCode: currencyCode)
     }
@@ -693,24 +670,20 @@ extension CartLineItem {
     }
     
     public var formattedTotal: String {
-        // Calculate total since it's not provided in the API response
         let calculatedTotal = unitPrice * quantity
         return formatPrice(calculatedTotal, currencyCode: "USD")
     }
     
     public var formattedSubtotal: String {
-        // Calculate subtotal since it's not provided in the API response
         let calculatedSubtotal = unitPrice * quantity
         return formatPrice(calculatedSubtotal, currencyCode: "USD")
     }
     
     public var calculatedTotal: Int {
-        // Calculate total since it's not provided in the API response
         return unitPrice * quantity
     }
     
     public var calculatedSubtotal: Int {
-        // Calculate subtotal since it's not provided in the API response
         return unitPrice * quantity
     }
     

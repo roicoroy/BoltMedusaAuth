@@ -297,5 +297,4 @@ struct FormField: View {
 
 #Preview {
     AddAddressView()
-        .environmentObject(AuthService())
 }

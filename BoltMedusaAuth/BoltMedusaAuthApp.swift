@@ -11,12 +11,6 @@ import Stripe
 
 @main
 struct BoltMedusaAuthApp: App {
-    @StateObject private var authService = AuthService()
-
-    init() {
-        // Configure Stripe with your publishable key
-        StripeAPI.defaultPublishableKey = "pk_test_51Pzad704q0B7q2wz8zASldczqkHqbIvXsB2DBO20OEkAC9q7RUvoiBcZ9NVOakZMTWtg2vxgcJQN0mUpXtrThg2D00fHtuTwvj"
-    }
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -33,8 +27,7 @@ struct BoltMedusaAuthApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(authService)
+            MainTabView()
         }
         .modelContainer(sharedModelContainer)
     }

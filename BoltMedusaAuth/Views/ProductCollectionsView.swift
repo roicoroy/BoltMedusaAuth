@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ProductCollectionsView: View {
-    @StateObject var productCollectionService = ProductCollectionService()
+    @EnvironmentObject var productCollectionService: ProductCollectionService
 
     var body: some View {
         NavigationView {
@@ -16,8 +16,8 @@ struct ProductCollectionsView: View {
                 collection in
                 NavigationLink(destination: ProductsByCollectionView(collection: collection)
                     .environmentObject(RegionService())
-                    .environmentObject(CartService())
-                    .environmentObject(AuthService())) {
+                    .environmentObject(CartService(networkManager: <#NetworkManager#>))
+                    .environmentObject(AuthService(networkManager: <#NetworkManager#>))) {
                     Text(collection.title)
                 }
             }
