@@ -28,6 +28,12 @@ struct MainTabView: View {
                     Image(systemName: "cube.box")
                     Text("Products")
                 }
+
+            ProductCategoriesView()
+                .tabItem {
+                    Image(systemName: "list.bullet.rectangle.portrait")
+                    Text("Categories")
+                }
             
             CartView()
                 .tabItem {

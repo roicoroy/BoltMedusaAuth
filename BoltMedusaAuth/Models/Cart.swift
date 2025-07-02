@@ -563,9 +563,7 @@ public struct CartProduct: Codable, Identifiable {
     }
 }
 
-public struct ProductCategory: Codable, Identifiable {
-    public let id: String
-}
+
 
 public struct ProductTag: Codable, Identifiable {
     public let id: String

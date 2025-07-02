@@ -26,13 +26,18 @@ class ProductService: ObservableObject {
         cancellables.removeAll()
     }
     
-    func fetchProducts(limit: Int = 50, offset: Int = 0) {
+    func fetchProducts(limit: Int = 50, offset: Int = 0, categoryId: String? = nil) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
         }
         
-        guard let url = URL(string: "\(baseURL)/store/products?limit=\(limit)&offset=\(offset)") else {
+        var urlString = "\(baseURL)/store/products?limit=\(limit)&offset=\(offset)"
+        if let categoryId = categoryId {
+            urlString += "&category_id[]=\(categoryId)"
+        }
+        
+        guard let url = URL(string: urlString) else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid URL for products"
                 self?.isLoading = false
@@ -117,14 +122,26 @@ class ProductService: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func searchProducts(query: String, limit: Int = 50) {
+    func searchProducts(query: String, limit: Int = 50, categoryId: String? = nil) {
         DispatchQueue.main.async { [weak self] in
             self?.isLoading = true
             self?.errorMessage = nil
         }
         
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/store/products?q=\(encodedQuery)&limit=\(limit)") else {
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            DispatchQueue.main.async {
+                self.errorMessage = "Invalid search query"
+                self.isLoading = false
+            }
+            return
+        }
+        
+        var urlString = "\(baseURL)/store/products?q=\(encodedQuery)&limit=\(limit)"
+        if let categoryId = categoryId {
+            urlString += "&category_id[]=\(categoryId)"
+        }
+        
+        guard let url = URL(string: urlString) else {
             DispatchQueue.main.async { [weak self] in
                 self?.errorMessage = "Invalid search query"
                 self?.isLoading = false
