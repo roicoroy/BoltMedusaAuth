@@ -381,4 +381,5 @@ struct EditAddressView: View {
     
     EditAddressView(address: sampleAddress)
         .environmentObject(AuthService())
+        .environmentObject(AuthService())
 }

@@ -18,274 +18,274 @@ struct ProductDetailView: View {
     @State private var showingAddToCartSuccess = false
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Product Images
-                    if let images = product.images, !images.isEmpty {
-                        TabView(selection: $selectedImageIndex) {
-                            ForEach(Array(images.enumerated()), id: \.offset) { index, image in
-                                AsyncImage(url: URL(string: image.url)) { imageView in
-                                    imageView
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } placeholder: {
-                                    Rectangle()
-                                        .fill(Color(.systemGray5))
-                                        .overlay(
-                                            ProgressView()
-                                        )
-                                }
-                                .tag(index)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Product Images
+                if let images = product.images, !images.isEmpty {
+                    TabView(selection: $selectedImageIndex) {
+                        ForEach(Array(images.enumerated()), id: \.offset) { index, image in
+                            AsyncImage(url: URL(string: image.url)) { imageView in
+                                imageView
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(Color(.systemGray5))
+                                    .overlay(
+                                        ProgressView()
+                                    )
                             }
+                            .tag(index)
                         }
-                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                        .frame(height: 300)
-                        .cornerRadius(12)
-                    } else if let thumbnail = product.thumbnail {
-                        AsyncImage(url: URL(string: thumbnail)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        } placeholder: {
-                            Rectangle()
-                                .fill(Color(.systemGray5))
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.gray)
-                                )
-                        }
-                        .frame(height: 300)
-                        .cornerRadius(12)
                     }
-                    
-                    // Product Info
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Title and Price
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(product.title)
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            
-                            if let subtitle = product.subtitle {
-                                Text(subtitle)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            HStack {
-                                if let selectedCountry = regionService.selectedCountry {
-                                    Text(selectedVariant?.displayPrice(currencyCode: selectedCountry.currencyCode) ?? product.displayPrice(currencyCode: selectedCountry.currencyCode))
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    
-                                    Text("(\(selectedCountry.formattedCurrency))")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text(selectedVariant?.displayPrice ?? product.displayPrice)
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                }
-                                
-                                Spacer()
-                                
-                                if !product.isAvailable {
-                                    Text("Contact for Availability")
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.orange.opacity(0.2))
-                                        .foregroundColor(.orange)
-                                        .cornerRadius(6)
-                                }
-                            }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                    .frame(height: 300)
+                    .cornerRadius(12)
+                } else if let thumbnail = product.thumbnail {
+                    AsyncImage(url: URL(string: thumbnail)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                            )
+                    }
+                    .frame(height: 300)
+                    .cornerRadius(12)
+                }
+                
+                // Product Info
+                VStack(alignment: .leading, spacing: 16) {
+                    // Title and Price
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(product.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        if let subtitle = product.subtitle {
+                            Text(subtitle)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
                         
-                        Divider()
-                        
-                        // Description
-                        if let description = product.description {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Description")
-                                    .font(.headline)
+                        HStack {
+                            if let selectedCountry = regionService.selectedCountry {
+                                Text(selectedVariant?.displayPrice(currencyCode: selectedCountry.currencyCode) ?? product.displayPrice(currencyCode: selectedCountry.currencyCode))
+                                    .font(.title3)
                                     .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
                                 
-                                Text(description)
-                                    .font(.body)
+                                Text("(\(selectedCountry.formattedCurrency))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text(selectedVariant?.displayPrice ?? product.displayPrice)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
                                     .foregroundColor(.primary)
                             }
                             
-                            Divider()
-                        }
-                        
-                        // Variants
-                        if let variants = product.variants, variants.count > 1 {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Variants")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                LazyVGrid(columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ], spacing: 8) {
-                                    ForEach(variants) { variant in
-                                        VariantCard(
-                                            variant: variant,
-                                            currencyCode: regionService.selectedCountry?.currencyCode ?? "USD",
-                                            isSelected: selectedVariant?.id == variant.id
-                                        ) {
-                                            selectedVariant = variant
-                                        }
-                                    }
-                                }
-                            }
+                            Spacer()
                             
-                            Divider()
+                            if !product.isAvailable {
+                                Text("Contact for Availability")
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.orange.opacity(0.2))
+                                    .foregroundColor(.orange)
+                                    .cornerRadius(6)
+                            }
                         }
-                        
-                        // Quantity Selector
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Quantity")
+                    }
+                    
+                    Divider()
+                    
+                    // Description
+                    if let description = product.description {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                             
-                            HStack {
-                                Button(action: {
-                                    if quantity > 1 {
-                                        quantity -= 1
+                            Text(description)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
+                        
+                        Divider()
+                    }
+                    
+                    // Variants
+                    if let variants = product.variants, variants.count > 1 {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Variants")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 8) {
+                                ForEach(variants) { variant in
+                                    VariantCard(
+                                        variant: variant,
+                                        currencyCode: regionService.selectedCountry?.currencyCode ?? "USD",
+                                        isSelected: selectedVariant?.id == variant.id
+                                    ) {
+                                        selectedVariant = variant
                                     }
-                                }) {
-                                    Image(systemName: "minus.circle")
-                                        .font(.title2)
-                                        .foregroundColor(quantity > 1 ? .blue : .gray)
                                 }
-                                .disabled(quantity <= 1)
-                                
-                                Text("\(quantity)")
-                                    .font(.title3)
-                                    .fontWeight(.medium)
-                                    .frame(minWidth: 40)
-                                
-                                Button(action: {
-                                    quantity += 1
-                                }) {
-                                    Image(systemName: "plus.circle")
-                                        .font(.title2)
-                                        .foregroundColor(.blue)
-                                }
-                                
-                                Spacer()
                             }
                         }
                         
                         Divider()
+                    }
+                    
+                    // Quantity Selector
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Quantity")
+                            .font(.headline)
+                            .fontWeight(.semibold)
                         
-                        // Add to Cart Button
-                        Button(action: {
-                            addToCart()
-                        }) {
-                            HStack {
-                                if cartService.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
+                        HStack {
+                            Button(action: {
+                                if quantity > 1 {
+                                    quantity -= 1
                                 }
-                                
-                                Image(systemName: "cart.badge.plus")
-                                Text("Add to Cart")
-                                    .fontWeight(.semibold)
+                            }) {
+                                Image(systemName: "minus.circle")
+                                    .font(.title2)
+                                    .foregroundColor(quantity > 1 ? .blue : .gray)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(canAddToCart ? Color.blue : Color.gray)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        .disabled(!canAddToCart)
-                        
-                        // Error message
-                        if let errorMessage = cartService.errorMessage {
-                            Text(errorMessage)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .padding(.horizontal)
-                        }
-                        
-                        // Country requirement message
-                        if !regionService.hasSelectedRegion {
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .foregroundColor(.orange)
-                                Text("Please select a country to add items to cart")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                            .padding()
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(8)
-                        }
-                        
-                        // Product Details
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Product Details")
-                                .font(.headline)
-                                .fontWeight(.semibold)
+                            .disabled(quantity <= 1)
                             
-                            VStack(spacing: 8) {
-                                if let handle = product.handle {
-                                    DetailRow(title: "Handle", value: handle)
+                            Text("\(quantity)")
+                                .font(.title3)
+                                .fontWeight(.medium)
+                                .frame(minWidth: 40)
+                            
+                            Button(action: {
+                                quantity += 1
+                            }) {
+                                Image(systemName: "plus.circle")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Spacer()
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // Add to Cart Button
+                    Button(action: {
+                        addToCart()
+                    }) {
+                        HStack {
+                            if cartService.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            }
+                            
+                            Image(systemName: "cart.badge.plus")
+                            Text("Add to Cart")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(canAddToCart ? Color.blue : Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(!canAddToCart)
+                    
+                    // Error message
+                    if let errorMessage = cartService.errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .padding(.horizontal)
+                    }
+                    
+                    // Country requirement message
+                    if !regionService.hasSelectedRegion {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.orange)
+                            Text("Please select a country to add items to cart")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    // Product Details
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Product Details")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        VStack(spacing: 8) {
+                            if let handle = product.handle {
+                                DetailRow(title: "Handle", value: handle)
+                            }
+                            
+                            DetailRow(title: "Status", value: product.displayStatus)
+                            
+                            if let weight = product.weight {
+                                DetailRow(title: "Weight", value: "\(weight)g")
+                            }
+                            
+                            if let dimensions = formatDimensions() {
+                                DetailRow(title: "Dimensions", value: dimensions)
+                            }
+                            
+                            if let material = product.material {
+                                DetailRow(title: "Material", value: material)
+                            }
+                            
+                            if let originCountry = product.originCountry {
+                                DetailRow(title: "Origin", value: originCountry)
+                            }
+                            
+                            if let sku = selectedVariant?.sku ?? product.variants?.first?.sku {
+                                DetailRow(title: "SKU", value: sku)
+                            }
+                            
+                            // Inventory Management Info
+                            if let variant = selectedVariant ?? product.variants?.first {
+                                if let manageInventory = variant.manageInventory {
+                                    DetailRow(title: "Inventory Managed", value: manageInventory ? "Yes" : "No")
                                 }
                                 
-                                DetailRow(title: "Status", value: product.displayStatus)
-                                
-                                if let weight = product.weight {
-                                    DetailRow(title: "Weight", value: "\(weight)g")
-                                }
-                                
-                                if let dimensions = formatDimensions() {
-                                    DetailRow(title: "Dimensions", value: dimensions)
-                                }
-                                
-                                if let material = product.material {
-                                    DetailRow(title: "Material", value: material)
-                                }
-                                
-                                if let originCountry = product.originCountry {
-                                    DetailRow(title: "Origin", value: originCountry)
-                                }
-                                
-                                if let sku = selectedVariant?.sku ?? product.variants?.first?.sku {
-                                    DetailRow(title: "SKU", value: sku)
-                                }
-                                
-                                // Inventory Management Info
-                                if let variant = selectedVariant ?? product.variants?.first {
-                                    if let manageInventory = variant.manageInventory {
-                                        DetailRow(title: "Inventory Managed", value: manageInventory ? "Yes" : "No")
-                                    }
-                                    
-                                    if let allowBackorder = variant.allowBackorder {
-                                        DetailRow(title: "Backorder Allowed", value: allowBackorder ? "Yes" : "No")
-                                    }
+                                if let allowBackorder = variant.allowBackorder {
+                                    DetailRow(title: "Backorder Allowed", value: allowBackorder ? "Yes" : "No")
                                 }
                             }
                         }
                     }
-                    .padding()
                 }
+                .padding()
             }
-            .navigationTitle("Product Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                trailing: Button("Done") {
+        }
+        .navigationTitle("Product Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
                     presentationMode.wrappedValue.dismiss()
                 }
-            )
+            }
         }
         .onAppear {
             selectedVariant = product.variants?.first

@@ -13,8 +13,7 @@ struct ProductsView: View {
     @EnvironmentObject var cartService: CartService
     @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
-    @State private var selectedProduct: Product?
-    @State private var showingProductDetail = false
+    
     @State private var showingCountrySelector = false
     
     private var filteredProducts: [Product] {
@@ -54,11 +53,7 @@ struct ProductsView: View {
                 } else {
                     ProductsGridView(
                         products: filteredProducts,
-                        regionService: regionService,
-                        onProductTap: { product in
-                            selectedProduct = product
-                            showingProductDetail = true
-                        }
+                        regionService: regionService
                     )
                 }
                 
@@ -75,15 +70,8 @@ struct ProductsView: View {
                 regionService.refreshRegions()
             }
         }
-        .sheet(isPresented: $showingProductDetail) {
-            if let product = selectedProduct {
-                ProductDetailView(product: product, regionService: regionService)
-                    .environmentObject(cartService)
-            }
-        }
-        .sheet(isPresented: $showingCountrySelector) {
-            SharedCountrySelectorView(regionService: regionService)
-        }
+        
+        
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
                 // Debounce search
@@ -381,8 +369,8 @@ struct EmptyCountriesView: View {
 struct ProductsGridView: View {
     let products: [Product]
     @ObservedObject var regionService: RegionService
-    let onProductTap: (Product) -> Void
-    
+    @EnvironmentObject var cartService: CartService
+
     var body: some View {
         ScrollView {
             LazyVGrid(columns: [
@@ -390,11 +378,11 @@ struct ProductsGridView: View {
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 16) {
                 ForEach(products) { product in
-                    ProductCard(
-                        product: product,
-                        currencyCode: regionService.selectedCountry?.currencyCode ?? "USD"
-                    ) {
-                        onProductTap(product)
+                    NavigationLink(destination: ProductDetailView(product: product, regionService: regionService).environmentObject(cartService)) {
+                        ProductCard(
+                            product: product,
+                            currencyCode: regionService.selectedCountry?.currencyCode ?? "USD"
+                        )
                     }
                 }
             }
@@ -450,82 +438,78 @@ struct ErrorBannerView: View {
 struct ProductCard: View {
     let product: Product
     let currencyCode: String
-    let onTap: () -> Void
     
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Product Image
-                AsyncImage(url: URL(string: product.displayImage ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.title)
-                                .foregroundColor(.gray)
-                        )
-                }
-                .frame(height: 120)
-                .clipped()
-                .cornerRadius(8)
-                
-                // Product Info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(product.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    if let subtitle = product.subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    
-                    HStack {
-                        Text(product.displayPrice(currencyCode: currencyCode))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
-                        
-                        if !product.isAvailable {
-                            Text("Contact Us")
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
-                                .foregroundColor(.orange)
-                                .cornerRadius(4)
-                        }
-                    }
-                    
-                    // Status indicator
-                    if let status = product.status {
-                        Text(status.rawValue.capitalized)
-                            .font(.caption2)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(statusColor(for: status).opacity(0.2))
-                            .foregroundColor(statusColor(for: status))
-                            .cornerRadius(3)
-                    }
-                }
-                .padding(.horizontal, 4)
+        VStack(alignment: .leading, spacing: 8) {
+            // Product Image
+            AsyncImage(url: URL(string: product.displayImage ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color(.systemGray5))
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundColor(.gray)
+                    )
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            .frame(height: 120)
+            .clipped()
+            .cornerRadius(8)
+            
+            // Product Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(product.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                if let subtitle = product.subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                HStack {
+                    Text(product.displayPrice(currencyCode: currencyCode))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    if !product.isAvailable {
+                        Text("Contact Us")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.2))
+                            .foregroundColor(.orange)
+                            .cornerRadius(4)
+                    }
+                }
+                
+                // Status indicator
+                if let status = product.status {
+                    Text(status.rawValue.capitalized)
+                        .font(.caption2)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(statusColor(for: status).opacity(0.2))
+                        .foregroundColor(statusColor(for: status))
+                        .cornerRadius(3)
+                }
+            }
+            .padding(.horizontal, 4)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
     }
     
     private func statusColor(for status: ProductStatus) -> Color {
@@ -540,7 +524,7 @@ struct ProductCard: View {
             return .red
         }
     }
-}
+
 
 #Preview {
     ProductsView()
