@@ -24,13 +24,7 @@ struct CartView: View {
         NavigationView {
             VStack(spacing: 0) {
                 
-                // Country Selector Header (shared component)
-                SharedCountryHeaderView(
-                    regionService: regionService,
-                    showingCountrySelector: $showingCountrySelector,
-                    title: "Shopping Country"
-                )
-                
+            
                 // Main scrollable content
                 ScrollView {
                     VStack(spacing: 16) {
@@ -145,23 +139,7 @@ struct CartView: View {
                 PaymentProvidersView(cart: cart)
             }
         }
-        .onChange(of: regionService.selectedCountry) { newCountry in
-            // When country changes, update cart region if cart exists
-            if let newCountry = newCountry {
-                print("🛒 Cart view detected country change: \(newCountry.label) (\(newCountry.currencyCode))")
-                
-                if cartService.currentCart != nil {
-                    // Cart exists, update its region
-                    cartService.createCartIfNeeded(regionId: newCountry.regionId) { success in
-                        if success {
-                            print("✅ Cart updated for new country successfully")
-                        } else {
-                            print("❌ Failed to update cart for new country")
-                        }
-                    }
-                }
-            }
-        }
+        
         .onChange(of: authService.isAuthenticated) { isAuthenticated in
             if isAuthenticated {
                 // When user logs in, refresh cart to get customer association
@@ -297,26 +275,6 @@ struct CartContentView: View {
             )
             .padding(.horizontal)
             
-            // Checkout button
-            Button(action: {
-                showingCheckout = true
-            }) {
-                HStack {
-                    Text("Proceed to Checkout")
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Text(cart.formattedTotal)
-                        .fontWeight(.bold)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            .padding(.horizontal)
 
             // Stripe Payment Button (conditional)
             if let clientSecret = cart.paymentCollection?.paymentSessions?.first?.data?["client_secret"]?.value as? String {

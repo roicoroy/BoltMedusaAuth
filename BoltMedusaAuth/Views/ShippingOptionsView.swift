@@ -20,8 +20,8 @@ struct ShippingOptionsView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Header Info
-                CartInfoHeader(cart: cart)
+//                // Header Info
+//                CartInfoHeader(cart: cart)
                 
                 // Main Content
                 if shippingService.isLoading {

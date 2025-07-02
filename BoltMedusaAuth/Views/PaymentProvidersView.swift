@@ -20,7 +20,7 @@ struct PaymentProvidersView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header Info
-            PaymentCartInfoHeader(cart: cart)
+//            PaymentCartInfoHeader(cart: cart)
             
             // Main Content
             if paymentProvidersService.isLoading {
@@ -73,30 +73,6 @@ struct PaymentProvidersView: View {
                         createPaymentCollection(providerId: selectedProviderId)
                     }
                 )
-            }
-            if let selectedProviderId = selectedProviderId, selectedProviderId != "pp_stripe_stripe" {
-                CreatePaymentCollectionButton(
-                    selectedProviderId: selectedProviderId,
-                    isLoading: isCreatingPaymentCollection,
-                    onCreatePaymentCollection: {
-                        createPaymentCollection(providerId: selectedProviderId)
-                    }
-                )
-            }
-            if selectedProviderId == "pp_stripe_stripe" {
-                NavigationLink(destination: StripePaymentView()) {
-                    Text("Continue to Payment")
-                        .font(.headline)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding()
-                }
-                .simultaneousGesture(TapGesture().onEnded { _ in
-                    print("DEBUG: 'Continue to Payment' button tapped. NavigationLink activated.")
-                })
             }
             
             Spacer()

@@ -36,7 +36,9 @@ struct CompletedOrdersView: View {
                 } else {
                     List(ordersService.orders) {
                         order in
-                        OrderRowView(order: order)
+                        NavigationLink(destination: OrderDetailView(order: order)) {
+                            OrderRowView(order: order)
+                        }
                     }
                 }
             }
