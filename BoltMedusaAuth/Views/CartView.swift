@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CartView: View {
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var authService: AuthService
     @Environment(\.presentationMode) var presentationMode
@@ -76,18 +76,18 @@ struct CartView: View {
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        if let cart = cartService.currentCart, !cart.isEmpty {
-                            Button("Clear") {
-                                cartService.clearCart()
-                            }
-                            .foregroundColor(.red)
-                        }
-                    }
-                }
-            }
+//            .toolbar {
+//                ToolbarItem(placement: .navigationBarTrailing) {
+//                    HStack {
+//                        if let cart = cartService.currentCart, !cart.isEmpty {
+//                            Button("Clear") {
+//                                cartService.clearCart()
+//                            }
+//                            .foregroundColor(.red)
+//                        }
+//                    }
+//                }
+//            }
             
         }
         .sheet(isPresented: $showingCheckout) {
@@ -221,7 +221,7 @@ struct EmptyCartView: View {
 
 struct CartContentView: View {
     let cart: Cart
-    @ObservedObject var cartService: CartService
+    @ObservedObject var cartService: CartServiceReview
     @ObservedObject var authService: AuthService
     @Binding var showingCheckout: Bool
     @Binding var showingShippingAddressSelector: Bool
@@ -288,7 +288,7 @@ struct CartContentView: View {
 
 struct NoCartView: View {
     @ObservedObject var regionService: RegionService
-    @ObservedObject var cartService: CartService
+    @ObservedObject var cartService: CartServiceReview
     
     var body: some View {
         VStack(spacing: 20) {
@@ -315,7 +315,7 @@ struct NoCartView: View {
 }
 
 struct CartErrorMessagesView: View {
-    @ObservedObject var cartService: CartService
+    @ObservedObject var cartService: CartServiceReview
     @ObservedObject var regionService: RegionService
     
     var body: some View {
@@ -1110,7 +1110,7 @@ struct AddressSelectorView: View {
     let title: String
     let addressType: AddressType
     @EnvironmentObject var authService: AuthService
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @Environment(\.presentationMode) var presentationMode
     @State private var isLoading = false
     @State private var errorMessage: String?

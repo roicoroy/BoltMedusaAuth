@@ -375,7 +375,7 @@ struct EmptyCountriesView: View {
 struct ProductsGridView: View {
     let products: [Product]
     @ObservedObject var regionService: RegionService
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
 
     var body: some View {
         ScrollView {

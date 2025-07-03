@@ -13,7 +13,7 @@ class CartService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
+    private let baseURL = "https://c78f-2a00-23c7-dc88-f401-34e7-2fab-9e9a-f265.ngrok-free.app"
     private let publishableKey = "pk_7b9a964b0ae6d083f0d2e70a5db350e2d6a7d93aceea46949373ff2872ead0fc"
     
     private var cancellables = Set<AnyCancellable>()

@@ -10,7 +10,7 @@ class AuthService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     // Cart service reference for handling cart association
-    weak var cartService: CartService?
+    weak var cartService: CartServiceReview?
     
     init() {
         checkAuthenticationStatus()
@@ -22,7 +22,7 @@ class AuthService: ObservableObject {
     
     // MARK: - Cart Service Integration
     
-    func setCartService(_ cartService: CartService) {
+    func setCartService(_ cartService: CartServiceReview) {
         self.cartService = cartService
     }
     

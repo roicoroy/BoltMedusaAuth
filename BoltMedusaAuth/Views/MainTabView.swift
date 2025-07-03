@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject var authService: AuthService
-    @StateObject private var cartService = CartService()
+    @StateObject private var cartService = CartServiceReview()
     @StateObject private var regionService = RegionService()
     
     var body: some View {
