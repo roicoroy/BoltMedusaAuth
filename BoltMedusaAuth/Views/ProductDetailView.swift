@@ -11,7 +11,7 @@ struct ProductDetailView: View {
     let product: Product
     @ObservedObject var regionService: RegionService
     @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @State private var selectedVariant: ProductVariant?
     @State private var selectedImageIndex = 0
     @State private var quantity = 1
