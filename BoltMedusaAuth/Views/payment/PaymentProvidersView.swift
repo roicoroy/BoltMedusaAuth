@@ -12,9 +12,6 @@ struct PaymentProvidersView: View {
     @StateObject private var paymentProvidersService = PaymentProvidersService()
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedProviderId: String?
-    @State private var isCreatingPaymentCollection = false
-    @State private var showingSuccessAlert = false
-    @State private var successMessage = ""
     @EnvironmentObject var cartService: CartServiceReview // Added EnvironmentObject
     
     var body: some View {
@@ -37,18 +34,17 @@ struct PaymentProvidersView: View {
                     selectedProviderId: $selectedProviderId,
                     onSelectProvider: { providerId in
                         selectedProviderId = providerId
-                        logProviderSelection(providerId: providerId)
                         // Update cart with selected payment provider
                         if let paymentCollectionId = cart.paymentCollection?.id {
                             cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
                                 if success {
-                                    // Payment provider updated successfully
+                                    presentationMode.wrappedValue.dismiss()
                                 } else {
-                                    // Failed to update payment provider
+                                    // Failed to update payment provider, error message is handled by cartService
                                 }
                             }
                         } else {
-                            // Payment collection is nil
+                            // Payment collection is nil, error message is handled by cartService
                         }
                     }
                 )
@@ -60,17 +56,6 @@ struct PaymentProvidersView: View {
                     message: errorMessage,
                     onRetry: {
                         paymentProvidersService.fetchPaymentProviders(for: cart)
-                    }
-                )
-            }
-            
-            // Create Payment Collection Button
-            if let selectedProviderId = selectedProviderId, selectedProviderId == "pp_stripe_stripe" {
-                CreatePaymentCollectionButton(
-                    selectedProviderId: selectedProviderId,
-                    isLoading: isCreatingPaymentCollection,
-                    onCreatePaymentCollection: {
-                        createPaymentCollection(providerId: selectedProviderId)
                     }
                 )
             }
@@ -97,38 +82,9 @@ struct PaymentProvidersView: View {
             selectedProviderId = cart.paymentCollection?.paymentProviders?.first?.id
             paymentProvidersService.cartService = cartService // Inject CartService
         }
-        .alert("Payment Collection Created", isPresented: $showingSuccessAlert) {
-            Button("OK") {
-                presentationMode.wrappedValue.dismiss()
-            }
-        } message: {
-            Text(successMessage)
-        }
     }
     
-    private func logProviderSelection(providerId: String) {
-        // No longer logging provider selection details
-    }
     
-    private func createPaymentCollection(providerId: String) {
-        isCreatingPaymentCollection = true
-        
-        paymentProvidersService.createPaymentCollection(cartId: cart.id) { success, paymentCollection in
-            DispatchQueue.main.async {
-                self.isCreatingPaymentCollection = false
-                
-                if success, let paymentCollection = paymentCollection {
-                    self.successMessage = "Payment collection created"
-                    self.showingSuccessAlert = true
-                    // After successful creation, update the cart service with the new payment collection
-                    self.cartService.currentCart?.paymentCollection = paymentCollection
-                    self.cartService.saveCartToStorage()
-                } else {
-                    // Error is already handled by paymentProvidersService.errorMessage
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Supporting Views

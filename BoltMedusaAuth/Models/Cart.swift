@@ -377,6 +377,26 @@ public struct CartCountry: Codable, Identifiable {
 
 public struct CartPromotion: Codable, Identifiable {
     public let id: String
+    public let code: String?
+    public let isAutomatic: Bool?
+    public let applicationMethod: PromotionApplicationMethod?
+
+    enum CodingKeys: String, CodingKey {
+        case id, code
+        case isAutomatic = "is_automatic"
+        case applicationMethod = "application_method"
+    }
+}
+
+public struct PromotionApplicationMethod: Codable {
+    public let value: String?
+    public let type: String?
+    public let currencyCode: String?
+
+    enum CodingKeys: String, CodingKey {
+        case value, type
+        case currencyCode = "currency_code"
+    }
 }
 
 public struct CartLineItem: Codable, Identifiable {

@@ -51,6 +51,9 @@ class CartServiceReview: ObservableObject {
                 self?.currentCart = response.cart
                 self?.saveCartToStorage()
                 if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
+                    
+                    print("response.cart: \(response.cart)")
+                    
                     self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
                         completion(true)
                     }
@@ -107,6 +110,9 @@ class CartServiceReview: ObservableObject {
                 }
             }, receiveValue: { [weak self] (response: CartResponse) in
                 self?.currentCart = response.cart
+                
+                print("Found client secret: \(response.cart)")
+                
                 if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
                     self?.associateCartWithCustomer(cartId: response.cart.id)
                 }
@@ -517,6 +523,7 @@ class CartServiceReview: ObservableObject {
            let cart = try? JSONDecoder().decode(Cart.self, from: cartData) {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
+                print("response:::::  \(cart)")
             }
         }
     }

@@ -234,7 +234,7 @@ class CartService: ObservableObject {
                 if let httpResponse = response as? HTTPURLResponse {
                     print("Fetch Cart Response Status: \(httpResponse.statusCode)")
                     if let responseString = String(data: data, encoding: .utf8) {
-//                        print("Fetch Cart Response: \(responseString)")
+                        print("Fetch Cart Response: \(responseString)")
                     }
                     
                     if httpResponse.statusCode >= 400 {
@@ -255,6 +255,8 @@ class CartService: ObservableObject {
                 },
                 receiveValue: { [weak self] response in
                     self?.currentCart = response.cart
+                    
+                    print("Fetch Cart Response: \(response.cart)")
                     
                     if let paymentSessions = response.cart.paymentCollection?.paymentSessions,
                        let firstSession = paymentSessions.first,
