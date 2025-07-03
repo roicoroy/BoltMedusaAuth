@@ -15,7 +15,7 @@ struct PaymentProvidersView: View {
     @State private var isCreatingPaymentCollection = false
     @State private var showingSuccessAlert = false
     @State private var successMessage = ""
-    @EnvironmentObject var cartService: CartService // Added EnvironmentObject
+    @EnvironmentObject var cartService: CartServiceReview // Added EnvironmentObject
     
     var body: some View {
         VStack(spacing: 0) {

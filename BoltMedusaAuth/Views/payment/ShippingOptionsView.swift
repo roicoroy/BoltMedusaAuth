@@ -10,12 +10,10 @@ import SwiftUI
 struct ShippingOptionsView: View {
     let cart: Cart
     @StateObject private var shippingService = ShippingService()
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedOptionId: String?
     @State private var isAddingShippingMethod = false
-    @State private var showingSuccessAlert = false
-    @State private var successMessage = ""
     
     var body: some View {
         NavigationView {
@@ -39,6 +37,7 @@ struct ShippingOptionsView: View {
                         selectedOptionId: $selectedOptionId,
                         onSelectOption: { optionId in
                             selectedOptionId = optionId
+                            addShippingMethodToCart(optionId: optionId)
                         }
                     )
                 }
@@ -49,17 +48,6 @@ struct ShippingOptionsView: View {
                         message: errorMessage,
                         onRetry: {
                             shippingService.fetchShippingOptions(for: cart.id)
-                        }
-                    )
-                }
-                
-                // Add Shipping Method Button
-                if let selectedOptionId = selectedOptionId {
-                    AddShippingMethodButton(
-                        selectedOptionId: selectedOptionId,
-                        isLoading: isAddingShippingMethod,
-                        onAddShippingMethod: {
-                            addShippingMethodToCart(optionId: selectedOptionId)
                         }
                     )
                 }
@@ -85,13 +73,6 @@ struct ShippingOptionsView: View {
         .onAppear {
             shippingService.fetchShippingOptions(for: cart.id)
         }
-        .alert("Shipping Method Added", isPresented: $showingSuccessAlert) {
-            Button("OK") {
-                presentationMode.wrappedValue.dismiss()
-            }
-        } message: {
-            Text(successMessage)
-        }
     }
     
     private func addShippingMethodToCart(optionId: String) {
@@ -102,12 +83,7 @@ struct ShippingOptionsView: View {
                 self.isAddingShippingMethod = false
                 
                 if success {
-                    // Find the selected option to show its name
-                    let selectedOption = self.shippingService.shippingOptions.first { $0.id == optionId }
-                    let optionName = selectedOption?.displayName ?? "shipping method"
-                    
-                    self.successMessage = "\(optionName) has been added to your cart. Your cart total has been updated."
-                    self.showingSuccessAlert = true
+                    self.presentationMode.wrappedValue.dismiss()
                 } else {
                     // Error is already handled by cartService.errorMessage
                 }
@@ -215,7 +191,7 @@ struct EmptyShippingOptionsView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "truck")
+            Image(systemName: "truck.box")
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             

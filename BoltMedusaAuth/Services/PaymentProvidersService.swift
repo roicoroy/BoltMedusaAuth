@@ -8,7 +8,7 @@ class PaymentProvidersService: ObservableObject {
     @Published var errorMessage: String?
     
     private var cancellables = Set<AnyCancellable>()
-    weak var cartService: CartService?
+    weak var cartService: CartServiceReview?
     
     deinit {
         cancellables.removeAll()

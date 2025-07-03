@@ -773,7 +773,7 @@ struct ShippingOptionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "truck")
+                Image(systemName: "truck.box")
                     .foregroundColor(.orange)
                 Text("Shipping Options")
                     .font(.headline)
