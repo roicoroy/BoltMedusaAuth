@@ -142,10 +142,6 @@ class AuthService: ObservableObject {
     }
     
     private func handleLoginResponse(data: Data) {
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("Raw Login Response: \(responseString)")
-        }
-        
         do {
             if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                 guard let token = json["token"] as? String else {
@@ -159,7 +155,7 @@ class AuthService: ObservableObject {
                 return
             }
         } catch {
-            print("Failed to parse JSON: \(error)")
+            // Failed to parse JSON, error message will be set below
         }
         
         self.errorMessage = "Failed to parse login response. Please check the console for details."
@@ -198,10 +194,6 @@ class AuthService: ObservableObject {
     }
     
     private func handleCustomerProfileResponse(data: Data) {
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("Raw Customer Profile Response: \(responseString)")
-        }
-        
         do {
             let response = try JSONDecoder().decode(CustomerResponse.self, from: data)
             DispatchQueue.main.async { [weak self] in
@@ -211,7 +203,7 @@ class AuthService: ObservableObject {
             }
             return
         } catch {
-            print("Failed to decode as CustomerResponse: \(error)")
+            // Failed to decode as CustomerResponse, error message will be set below
         }
         
         self.errorMessage = "Failed to parse customer profile response"

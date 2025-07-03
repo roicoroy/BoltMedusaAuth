@@ -43,7 +43,6 @@ class ProductCollectionService: ObservableObject {
                 }
             }, receiveValue: { [weak self] (response: ProductCollectionResponse) in
                 // Handle single collection response, e.g., add to a dictionary or a specific published property
-                print("Fetched single product collection: \(response.collection.title)")
             })
             .store(in: &cancellables)
     }

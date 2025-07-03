@@ -42,13 +42,13 @@ struct PaymentProvidersView: View {
                         if let paymentCollectionId = cart.paymentCollection?.id {
                             cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
                                 if success {
-                                    print("💳 ✅ Cart payment provider updated successfully.")
+                                    // Payment provider updated successfully
                                 } else {
-                                    print("💳 ❌ Failed to update cart payment provider.")
+                                    // Failed to update payment provider
                                 }
                             }
                         } else {
-                            print("💳 ❌ Payment collection is nil, cannot update payment provider.")
+                            // Payment collection is nil
                         }
                     }
                 )
@@ -107,31 +107,10 @@ struct PaymentProvidersView: View {
     }
     
     private func logProviderSelection(providerId: String) {
-        print("💳 PAYMENT PROVIDER SELECTED:")
-        print("💳 ========================")
-        print("💳 Provider ID: \(providerId)")
-        print("💳 Cart ID: \(cart.id)")
-        print("💳 Cart Total: \(cart.formattedTotal)")
-        print("💳 Cart Currency: \(cart.currencyCode)")
-        print("💳 Region ID: \(cart.regionId ?? "nil")")
-        
-        // Find the selected provider for additional details
-        if let selectedProvider = paymentProvidersService.paymentProviders.first(where: { $0.id == providerId }) {
-            print("💳 Provider Name: \(selectedProvider.displayName)")
-            print("💳 Provider Type: \(selectedProvider.providerType.displayName)")
-            print("💳 Provider Status: \(selectedProvider.statusText)")
-            print("💳 Provider Available: \(selectedProvider.isAvailable)")
-        }
-        
-        print("💳 ========================")
+        // No longer logging provider selection details
     }
     
     private func createPaymentCollection(providerId: String) {
-        print("💳 CREATING PAYMENT COLLECTION:")
-        print("💳 =============================")
-        print("💳 Provider ID: \(providerId)")
-        print("💳 Cart ID: \(cart.id)")
-        
         isCreatingPaymentCollection = true
         
         paymentProvidersService.createPaymentCollection(cartId: cart.id) { success, paymentCollection in
@@ -139,15 +118,12 @@ struct PaymentProvidersView: View {
                 self.isCreatingPaymentCollection = false
                 
                 if success, let paymentCollection = paymentCollection {
-                    print("💳 ✅ PAYMENT COLLECTION CREATED SUCCESSFULLY:")
-                    
                     self.successMessage = "Payment collection created"
                     self.showingSuccessAlert = true
                     // After successful creation, update the cart service with the new payment collection
                     self.cartService.currentCart?.paymentCollection = paymentCollection
                     self.cartService.saveCartToStorage()
                 } else {
-                    print("💳 ❌ FAILED TO CREATE PAYMENT COLLECTION")
                     // Error is already handled by paymentProvidersService.errorMessage
                 }
             }

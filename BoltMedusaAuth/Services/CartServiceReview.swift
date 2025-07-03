@@ -455,7 +455,6 @@ class CartServiceReview: ObservableObject {
     }
     
     func handleUserLogout() {
-        print("👤 User logged out, cart will remain as anonymous cart")
     }
 
     func completeCart(completion: @escaping (Bool) -> Void) {

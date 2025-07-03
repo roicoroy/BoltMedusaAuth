@@ -86,7 +86,7 @@ struct ProductsView: View {
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
             if let newCountry = newCountry {
-                print("🛍️ Products view detected country change: \(newCountry.label)")
+                // Products view detected country change
             }
         }
         .sheet(isPresented: $showingCountrySelector) {
@@ -190,7 +190,6 @@ struct SharedCountrySelectorView: View {
                             country: country,
                             isSelected: regionService.selectedCountry?.id == country.id
                         ) {
-                            print("🌍 User selected country: \(country.label) (\(country.currencyCode))")
                             regionService.selectCountry(country)
                             presentationMode.wrappedValue.dismiss()
                         }

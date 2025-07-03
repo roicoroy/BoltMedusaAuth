@@ -33,21 +33,4 @@ extension Int {
     }
 }
 
-// MARK: - Debug Price Formatting
 
-func debugPriceFormatting() {
-    print("=== PRICE FORMATTING DEBUG ===")
-    
-    let testAmounts = [1000, 1050, 2500, 999, 0, 12345]
-    let testCurrencies = ["GBP", "USD", "EUR", "JPY"]
-    
-    for currency in testCurrencies {
-        print("\n\(currency) Examples:")
-        for amount in testAmounts {
-            let formatted = formatPrice(amount, currencyCode: currency)
-            print("  \(amount) cents = \(formatted)")
-        }
-    }
-    
-    print("\n=== END DEBUG ===")
-}

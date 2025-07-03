@@ -46,7 +46,7 @@ class ProductService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completion in
                 if case .failure(let error) = completion {
-                    print("Product detail fetch error: \(error)")
+                    
                 }
             }, receiveValue: { (response: ProductResponse) in
                 completion(response.product)
