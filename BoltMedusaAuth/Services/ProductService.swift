@@ -1,10 +1,3 @@
-//
-//  ProductService.swift
-//  BoltMedusaAuth
-//
-//  Created by Ricardo Bento on 28/06/2025.
-//
-
 import Foundation
 import Combine
 
@@ -12,9 +5,6 @@ class ProductService: ObservableObject {
     @Published var products: [Product] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
-    private let baseURL = "https://1839-2a00-23c7-dc88-f401-c478-f6a-492c-22da.ngrok-free.app"
-    private let publishableKey = "pk_7b9a964b0ae6d083f0d2e70a5db350e2d6a7d93aceea46949373ff2872ead0fc"
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -27,168 +17,71 @@ class ProductService: ObservableObject {
     }
     
     func fetchProducts(limit: Int = 50, offset: Int = 0, categoryId: String? = nil, collectionId: String? = nil) {
-        DispatchQueue.main.async { [weak self] in
-            self?.isLoading = true
-            self?.errorMessage = nil
-        }
+        isLoading = true
+        errorMessage = nil
         
-        var urlString = "\(baseURL)/store/products?limit=\(limit)&offset=\(offset)"
+        var endpoint = "products?limit=\(limit)&offset=\(offset)"
         if let categoryId = categoryId {
-            urlString += "&category_id[]=\(categoryId)"
+            endpoint += "&category_id[]=\(categoryId)"
         }
         if let collectionId = collectionId {
-            urlString += "&collection_id[]=\(collectionId)"
+            endpoint += "&collection_id[]=\(collectionId)"
         }
         
-        guard let url = URL(string: urlString) else {
-            DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Invalid URL for products"
-                self?.isLoading = false
-            }
-            return
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        
-        URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .tryMap { data, response -> Data in
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("Products Response Status: \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("Products Response: \(responseString)")
-                    }
-                    
-                    if httpResponse.statusCode >= 400 {
-                        throw URLError(.badServerResponse)
-                    }
-                }
-                return data
-            }
-            .decode(type: ProductsResponse.self, decoder: JSONDecoder())
+        NetworkManager.shared.request(endpoint: endpoint)
             .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.errorMessage = "Failed to fetch products: \(error.localizedDescription)"
-                        print("Products fetch error: \(error)")
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.products = response.products
-                    print("Fetched \(response.products.count) products")
+            .sink(receiveCompletion: { [weak self] completion in
+                self?.isLoading = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = "Failed to fetch products: \(error.localizedDescription)"
                 }
-            )
+            }, receiveValue: { [weak self] (response: ProductsResponse) in
+                self?.products = response.products
+            })
             .store(in: &cancellables)
     }
     
     func fetchProduct(id: String, completion: @escaping (Product?) -> Void) {
-        guard let url = URL(string: "\(baseURL)/store/products/\(id)") else {
-            completion(nil)
-            return
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        
-        URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .tryMap { data, response -> Data in
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("Product Detail Response Status: \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("Product Detail Response: \(responseString)")
-                    }
-                    
-                    if httpResponse.statusCode >= 400 {
-                        throw URLError(.badServerResponse)
-                    }
-                }
-                return data
-            }
-            .decode(type: ProductResponse.self, decoder: JSONDecoder())
+        NetworkManager.shared.request(endpoint: "products/\(id)")
             .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { completion in
-                    if case .failure(let error) = completion {
-                        print("Product detail fetch error: \(error)")
-                    }
-                },
-                receiveValue: { response in
-                    completion(response.product)
+            .sink(receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("Product detail fetch error: \(error)")
                 }
-            )
+            }, receiveValue: { (response: ProductResponse) in
+                completion(response.product)
+            })
             .store(in: &cancellables)
     }
     
     func searchProducts(query: String, limit: Int = 50, categoryId: String? = nil, collectionId: String? = nil) {
-        DispatchQueue.main.async { [weak self] in
-            self?.isLoading = true
-            self?.errorMessage = nil
-        }
+        isLoading = true
+        errorMessage = nil
         
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            DispatchQueue.main.async {
-                self.errorMessage = "Invalid search query"
-                self.isLoading = false
-            }
+            errorMessage = "Invalid search query"
+            isLoading = false
             return
         }
         
-        var urlString = "\(baseURL)/store/products?q=\(encodedQuery)&limit=\(limit)"
+        var endpoint = "products?q=\(encodedQuery)&limit=\(limit)"
         if let categoryId = categoryId {
-            urlString += "&category_id[]=\(categoryId)"
+            endpoint += "&category_id[]=\(categoryId)"
         }
         if let collectionId = collectionId {
-            urlString += "&collection_id[]=\(collectionId)"
+            endpoint += "&collection_id[]=\(collectionId)"
         }
         
-        guard let url = URL(string: urlString) else {
-            DispatchQueue.main.async { [weak self] in
-                self?.errorMessage = "Invalid search query"
-                self?.isLoading = false
-            }
-            return
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(publishableKey, forHTTPHeaderField: "x-publishable-api-key")
-        
-        URLSession.shared.dataTaskPublisher(for: urlRequest)
-            .tryMap { data, response -> Data in
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("Search Response Status: \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("Search Response: \(responseString)")
-                    }
-                    
-                    if httpResponse.statusCode >= 400 {
-                        throw URLError(.badServerResponse)
-                    }
-                }
-                return data
-            }
-            .decode(type: ProductsResponse.self, decoder: JSONDecoder())
+        NetworkManager.shared.request(endpoint: endpoint)
             .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.errorMessage = "Search failed: \(error.localizedDescription)"
-                        print("Search error: \(error)")
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.products = response.products
-                    print("Search found \(response.products.count) products")
+            .sink(receiveCompletion: { [weak self] completion in
+                self?.isLoading = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = "Search failed: \(error.localizedDescription)"
                 }
-            )
+            }, receiveValue: { [weak self] (response: ProductsResponse) in
+                self?.products = response.products
+            })
             .store(in: &cancellables)
     }
 }
