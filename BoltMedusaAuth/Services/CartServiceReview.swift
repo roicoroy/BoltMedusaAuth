@@ -518,7 +518,6 @@ class CartServiceReview: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            fetchCart(cartId: cart.id)
         }
     }
 }

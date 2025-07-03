@@ -1245,10 +1245,8 @@ class CartService: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
             }
-            // Refresh cart data from server to ensure it's up to date
-            fetchCart(cartId: cart.id)
         } else {
-            print("💾 No cart found in storage")
+            // No cart found in storage
         }
     }
 }
