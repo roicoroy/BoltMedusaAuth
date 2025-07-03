@@ -89,6 +89,12 @@ struct ProductsView: View {
                 print("🛍️ Products view detected country change: \(newCountry.label)")
             }
         }
+        .sheet(isPresented: $showingCountrySelector) {
+            NavigationView {
+                SharedCountrySelectorView(regionService: regionService)
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 }
 
