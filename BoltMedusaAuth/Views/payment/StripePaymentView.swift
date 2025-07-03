@@ -10,7 +10,7 @@ import SwiftUI
 import StripePaymentSheet
 
 struct StripePaymentView: View {
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @State private var paymentSheet: PaymentSheet?
     @State private var isLoading = false
     @State private var paymentResult: PaymentSheetResult?

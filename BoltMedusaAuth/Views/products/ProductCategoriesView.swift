@@ -16,7 +16,7 @@ struct ProductCategoriesView: View {
                 category in
                 NavigationLink(destination: ProductsByCategoryView(category: category)
                     .environmentObject(RegionService())
-                    .environmentObject(CartService())
+                    .environmentObject(CartServiceReview())
                     .environmentObject(AuthService())) {
                     Text(category.name ?? "")
                 }

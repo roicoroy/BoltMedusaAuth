@@ -361,19 +361,29 @@ class CartServiceReview: ObservableObject {
             return
         }
         
-        NetworkManager.shared.request(endpoint: "carts/\(cart.id)/line-items", method: "POST", body: body, requiresAuth: true)
+        NetworkManager.shared.requestData(endpoint: "carts/\(cart.id)/line-items", method: "POST", body: body, requiresAuth: true)
+            .tryMap { data -> Data in
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Add Line Item Raw Response Body: \(responseString)")
+                }
+                return data
+            }
+            .decode(type: CartResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completionResult in
                 self?.isLoading = false
                 if case .failure(let error) = completionResult {
                     self?.errorMessage = "Failed to add item to cart: \(error.localizedDescription)"
+                    print("Error adding line item: \(error.localizedDescription)")
                     completion(false)
                 }
             }, receiveValue: { [weak self] (response: CartResponse) in
                 self?.currentCart = response.cart
                 self?.saveCartToStorage()
+                print("Line item added successfully. Cart ID: \(response.cart.id), Total items: \(response.cart.itemCount)")
                 if UserDefaults.standard.string(forKey: "auth_token") != nil && response.cart.customerId == nil {
                     self?.associateCartWithCustomer(cartId: response.cart.id) { associationSuccess in
+                        print("Associate cart with customer after adding item: \(associationSuccess)")
                         completion(true)
                     }
                 } else {
@@ -476,11 +486,39 @@ class CartServiceReview: ObservableObject {
                 case .finished:
                     break
                 case .failure(let error):
-                    print("Failed to complete cart: \(error)")
+                    print("Failed to complete cart: \(error.localizedDescription)")
                     completion(false)
                 }
             }, receiveValue: { [weak self] (_: Data) in
                 self?.clearCart()
+                completion(true)
+            })
+            .store(in: &cancellables)
+    }
+
+    func applyPromotion(cartId: String, promoCode: String, completion: @escaping (Bool) -> Void) {
+        isLoading = true
+        errorMessage = nil
+
+        let requestBody: [String: Any] = ["promo_codes": [promoCode]]
+        guard let body = try? JSONSerialization.data(withJSONObject: requestBody, options: []) else {
+            errorMessage = "Failed to encode promotion request"
+            isLoading = false
+            completion(false)
+            return
+        }
+
+        NetworkManager.shared.request(endpoint: "carts/\(cartId)/promotions", method: "POST", body: body, requiresAuth: true)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completionResult in
+                self?.isLoading = false
+                if case .failure(let error) = completionResult {
+                    self?.errorMessage = "Failed to apply promotion: \(error.localizedDescription)"
+                    completion(false)
+                }
+            }, receiveValue: { [weak self] (response: CartResponse) in
+                self?.currentCart = response.cart
+                self?.saveCartToStorage()
                 completion(true)
             })
             .store(in: &cancellables)

@@ -259,7 +259,7 @@ struct CartContentView: View {
             // Cart summary with customer info and addresses
             CartSummaryView(
                 cart: cart,
-                authService: authService,
+                authService: authService, cartService:  CartServiceReview(),
                 showingShippingAddressSelector: $showingShippingAddressSelector,
                 showingBillingAddressSelector: $showingBillingAddressSelector,
                 showingAddAddress: $showingAddAddress,
@@ -486,6 +486,7 @@ struct CartItemRow: View {
 struct CartSummaryView: View {
     let cart: Cart
     @ObservedObject var authService: AuthService
+    @ObservedObject var cartService: CartServiceReview
     @Binding var showingShippingAddressSelector: Bool
     @Binding var showingBillingAddressSelector: Bool
     @Binding var showingAddAddress: Bool
@@ -524,6 +525,9 @@ struct CartSummaryView: View {
                 cart: cart,
                 showingPaymentProviders: $showingPaymentProviders
             )
+            
+            // Promotions Selection Section
+            PromotionSelectionView(cart: cart, cartService: cartService)
             
             // Price Summary Section
             PriceSummarySection(cart: cart)
@@ -964,6 +968,53 @@ struct PriceSummarySection: View {
     }
 }
 
+struct PromotionSelectionView: View {
+    let cart: Cart
+    @ObservedObject var cartService: CartServiceReview
+    @State private var selectedPromotionCode: String? = nil
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "tag")
+                    .foregroundColor(.pink)
+                Text("Promotions")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            if let promotions = cart.promotions, !promotions.isEmpty {
+                Picker("Select Promotion", selection: $selectedPromotionCode) {
+                    Text("None").tag(nil as String?)
+                    ForEach(promotions) { promotion in
+                        Text(promotion.code ?? promotion.id).tag(promotion.code ?? promotion.id as String?)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .onChange(of: selectedPromotionCode) { newCode in
+                    if let newCode = newCode, let cartId = cart.id as? String {
+                        cartService.applyPromotion(cartId: cartId, promoCode: newCode) { success in
+                            if success {
+                                // Promotion applied, cart will refresh automatically
+                            } else {
+                                // Error message is already set in cartService
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("No promotions available for this cart.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
 // MARK: - Supporting Views
 
 struct CustomerDetailRow: View {
@@ -1311,7 +1362,7 @@ struct AddressSelectorRow: View {
 
 #Preview {
     CartView()
-        .environmentObject(CartService())
+        .environmentObject(CartServiceReview())
         .environmentObject(RegionService())
         .environmentObject(AuthService())
 }

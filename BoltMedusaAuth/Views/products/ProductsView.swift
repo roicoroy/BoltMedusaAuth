@@ -10,7 +10,7 @@ import SwiftUI
 struct ProductsView: View {
     @StateObject private var productService = ProductService()
     @EnvironmentObject var regionService: RegionService
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
     
@@ -534,6 +534,6 @@ struct ProductCard: View {
 #Preview {
     ProductsView()
         .environmentObject(RegionService())
-        .environmentObject(CartService())
+        .environmentObject(CartServiceReview())
         .environmentObject(AuthService())
 }

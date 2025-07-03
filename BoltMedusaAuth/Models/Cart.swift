@@ -37,6 +37,9 @@ public struct Cart: Codable, Identifiable {
     public let originalShippingTaxTotal: Int
     public let originalShippingSubtotal: Int
     public let originalShippingTotal: Int
+    public let creditLineSubtotal: Int
+    public let creditLineTaxTotal: Int
+    public let creditLineTotal: Int
     public let metadata: [String: Any]?
     public let salesChannelId: String?
     public let items: [CartLineItem]?
@@ -73,6 +76,9 @@ public struct Cart: Codable, Identifiable {
         case originalShippingTaxTotal = "original_shipping_tax_total"
         case originalShippingSubtotal = "original_shipping_subtotal"
         case originalShippingTotal = "original_shipping_total"
+        case creditLineSubtotal = "credit_line_subtotal"
+        case creditLineTaxTotal = "credit_line_tax_total"
+        case creditLineTotal = "credit_line_total"
         case salesChannelId = "sales_channel_id"
         case shippingAddress = "shipping_address"
         case billingAddress = "billing_address"
@@ -104,10 +110,13 @@ public struct Cart: Codable, Identifiable {
         originalItemTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemTaxTotal) ?? 0
         shippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTotal) ?? 0
         shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingSubtotal) ?? 0
-        shippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTaxTotal) ?? 0
-        originalShippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTaxTotal) ?? 0
-        originalShippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
-        originalShippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTotal) ?? 0
+        shippingTaxTotal = try Cart.decodeFlexibleInt(from: container, forKey: .shippingTaxTotal) ?? 0
+        originalShippingTaxTotal = try Cart.decodeFlexibleInt(from: container, forKey: .originalShippingTaxTotal) ?? 0
+        originalShippingSubtotal = try Cart.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
+        originalShippingTotal = try Cart.decodeFlexibleInt(from: container, forKey: .originalShippingTotal) ?? 0
+        creditLineSubtotal = try Cart.decodeFlexibleInt(from: container, forKey: .creditLineSubtotal) ?? 0
+        creditLineTaxTotal = try Cart.decodeFlexibleInt(from: container, forKey: .creditLineTaxTotal) ?? 0
+        creditLineTotal = try Cart.decodeFlexibleInt(from: container, forKey: .creditLineTotal) ?? 0
         
         // Optional fields
         customerId = try container.decodeIfPresent(String.self, forKey: .customerId)

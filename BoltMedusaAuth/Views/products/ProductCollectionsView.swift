@@ -16,7 +16,7 @@ struct ProductCollectionsView: View {
                 collection in
                 NavigationLink(destination: ProductsByCollectionView(collection: collection)
                     .environmentObject(RegionService())
-                    .environmentObject(CartService())
+                    .environmentObject(CartServiceReview())
                     .environmentObject(AuthService())) {
                     Text(collection.title)
                 }

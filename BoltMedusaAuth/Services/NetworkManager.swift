@@ -55,6 +55,9 @@ class NetworkManager {
         return URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
+                    
+                    print("response::::::: \(response)")
+                    
                     if httpResponse.statusCode >= 400 {
                         throw URLError(.badServerResponse)
                     }

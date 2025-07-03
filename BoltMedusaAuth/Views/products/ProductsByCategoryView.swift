@@ -11,7 +11,7 @@ struct ProductsByCategoryView: View {
     let category: ProductCategory
     @StateObject private var productService = ProductService()
     @EnvironmentObject var regionService: RegionService
-    @EnvironmentObject var cartService: CartService
+    @EnvironmentObject var cartService: CartServiceReview
     @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
 
