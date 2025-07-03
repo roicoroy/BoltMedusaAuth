@@ -103,7 +103,7 @@ public struct Cart: Codable, Identifiable {
         originalItemSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemSubtotal) ?? 0
         originalItemTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalItemTaxTotal) ?? 0
         shippingTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTotal) ?? 0
-        shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .subtotal) ?? 0
+        shippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingSubtotal) ?? 0
         shippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .shippingTaxTotal) ?? 0
         originalShippingTaxTotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingTaxTotal) ?? 0
         originalShippingSubtotal = try Self.decodeFlexibleInt(from: container, forKey: .originalShippingSubtotal) ?? 0
@@ -266,12 +266,12 @@ public struct CartAddress: Codable, Identifiable {
     public let firstName: String?
     public let lastName: String?
     public let company: String?
-    public let address1: String
+    public let address1: String?
     public let address2: String?
-    public let city: String
-    public let countryCode: String
+    public let city: String?
+    public let countryCode: String?
     public let province: String?
-    public let postalCode: String
+    public let postalCode: String?
     public let phone: String?
     public let metadata: [String: Any]?
     
@@ -294,12 +294,12 @@ public struct CartAddress: Codable, Identifiable {
         firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
         lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
         company = try container.decodeIfPresent(String.self, forKey: .company)
-        address1 = try container.decode(String.self, forKey: .address1)
+        address1 = try container.decodeIfPresent(String.self, forKey: .address1)
         address2 = try container.decodeIfPresent(String.self, forKey: .address2)
-        city = try container.decode(String.self, forKey: .city)
-        countryCode = try container.decode(String.self, forKey: .countryCode)
+        city = try container.decodeIfPresent(String.self, forKey: .city)
+        countryCode = try container.decodeIfPresent(String.self, forKey: .countryCode)
         province = try container.decodeIfPresent(String.self, forKey: .province)
-        postalCode = try container.decode(String.self, forKey: .postalCode)
+        postalCode = try container.decodeIfPresent(String.self, forKey: .postalCode)
         phone = try container.decodeIfPresent(String.self, forKey: .phone)
         
         // Handle metadata as flexible dictionary
@@ -322,12 +322,12 @@ public struct CartAddress: Codable, Identifiable {
         try container.encodeIfPresent(firstName, forKey: .firstName)
         try container.encodeIfPresent(lastName, forKey: .lastName)
         try container.encodeIfPresent(company, forKey: .company)
-        try container.encode(address1, forKey: .address1)
+        try container.encodeIfPresent(address1, forKey: .address1)
         try container.encodeIfPresent(address2, forKey: .address2)
-        try container.encode(city, forKey: .city)
-        try container.encode(countryCode, forKey: .countryCode)
+        try container.encodeIfPresent(city, forKey: .city)
+        try container.encodeIfPresent(countryCode, forKey: .countryCode)
         try container.encodeIfPresent(province, forKey: .province)
-        try container.encode(postalCode, forKey: .postalCode)
+        try container.encodeIfPresent(postalCode, forKey: .postalCode)
         try container.encodeIfPresent(phone, forKey: .phone)
         
         // Skip metadata encoding for simplicity
@@ -737,26 +737,43 @@ extension CartAddress {
     }
     
     public var fullAddress: String {
-        var components = [address1]
+        var components: [String] = []
+        
+        if let address1 = address1 {
+            components.append(address1)
+        }
         
         if let address2 = address2 {
             components.append(address2)
         }
         
-        components.append("\(city), \(province ?? "") \(postalCode)")
-        components.append(countryCode.uppercased())
+        let provinceString = province ?? ""
+        if let city = city, let postalCode = postalCode {
+            components.append("\(city), \(provinceString) \(postalCode)")
+        }
+        
+        if let countryCode = countryCode {
+            components.append(countryCode.uppercased())
+        }
         
         return components.joined(separator: "\n")
     }
     
     public var singleLineAddress: String {
-        var components = [address1]
+        var components: [String] = []
+        
+        if let address1 = address1 {
+            components.append(address1)
+        }
         
         if let address2 = address2 {
             components.append(address2)
         }
         
-        components.append("\(city), \(province ?? "") \(postalCode), \(countryCode.uppercased())")
+        let provinceString = province ?? ""
+        if let city = city, let postalCode = postalCode, let countryCode = countryCode {
+            components.append("\(city), \(provinceString) \(postalCode), \(countryCode.uppercased())")
+        }
         
         return components.joined(separator: ", ")
     }

@@ -1009,7 +1009,7 @@ struct AddressDisplayView: View {
                     .foregroundColor(.secondary)
             }
             
-            Text(address.address1)
+            Text(address.address1!)
                 .font(.caption)
                 .foregroundColor(.secondary)
             
@@ -1023,7 +1023,7 @@ struct AddressDisplayView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            Text(address.countryCode.uppercased())
+            Text(address.countryCode!.uppercased())
                 .font(.caption)
                 .foregroundColor(.secondary)
             
