@@ -11,15 +11,15 @@ import Foundation
 // MARK: - ProductCategory Model
 public class ProductCategory: Codable, Identifiable {
     public let id: String
-    public let name: String
+    public let name: String?
     public let description: String?
-    public let handle: String
-    public let rank: Int
+    public let handle: String?
+    public let rank: Int?
     public let parentCategoryId: String?
     public let parentCategory: ProductCategory? // Nested parent category
     public let categoryChildren: [ProductCategory]? // Nested children categories
-    public let createdAt: String
-    public let updatedAt: String
+    public let createdAt: String?
+    public let updatedAt: String?
     public let deletedAt: String?
 
     enum CodingKeys: String, CodingKey {

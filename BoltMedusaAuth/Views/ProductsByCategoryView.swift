@@ -54,7 +54,7 @@ struct ProductsByCategoryView: View {
                 regionService: regionService
             )
         }
-        .navigationTitle(category.name)
+        .navigationTitle(category.name ?? "Category")
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
             productService.fetchProducts(categoryId: category.id)

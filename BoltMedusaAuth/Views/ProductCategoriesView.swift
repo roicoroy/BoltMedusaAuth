@@ -18,7 +18,7 @@ struct ProductCategoriesView: View {
                     .environmentObject(RegionService())
                     .environmentObject(CartService())
                     .environmentObject(AuthService())) {
-                    Text(category.name)
+                    Text(category.name ?? "")
                 }
             }
             .navigationTitle("Product Categories")

@@ -871,6 +871,8 @@ class CartService: ObservableObject {
             return
         }
         
+        print("WWWWW: \(url)")
+        
         URLSession.shared.dataTaskPublisher(for: urlRequest)
             .tryMap { data, response -> Data in
                 if let httpResponse = response as? HTTPURLResponse {
