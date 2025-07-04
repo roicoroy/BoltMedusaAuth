@@ -494,7 +494,14 @@ class CartServiceReview: ObservableObject {
             return
         }
 
-        NetworkManager.shared.request(endpoint: "carts/\(cart.id)/complete", method: "POST", requiresAuth: true)
+        NetworkManager.shared.requestData(endpoint: "carts/\(cart.id)/complete", method: "POST", requiresAuth: true)
+            .tryMap { data in
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Complete Cart Raw Response Body: \(responseString)")
+                }
+                return data
+            }
+            .decode(type: OrderResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { result in
                 switch result {
@@ -502,13 +509,28 @@ class CartServiceReview: ObservableObject {
                     break
                 case .failure(let error):
                     print("Failed to complete cart: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("Decoding Error: \(decodingError)")
+                        switch decodingError {
+                        case .typeMismatch(let type, let context):
+                            print("Type Mismatch for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .valueNotFound(let type, let context):
+                            print("Value Not Found for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .keyNotFound(let key, let context):
+                            print("Key Not Found: \(key.stringValue) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .dataCorrupted(let context):
+                            print("Data Corrupted: \(context.debugDescription)")
+                        @unknown default:
+                            print("Unknown Decoding Error: \(decodingError.localizedDescription)")
+                        }
+                    }
                     completion(false)
                 }
-            }, receiveValue: { [weak self] (_: Data) in
+            }, receiveValue: { [weak self] (response: OrderResponse) in
+                print("Cart completed successfully. Order ID: \(response.order.id)")
                 self?.clearCart()
                 completion(true)
             })
-            .store(in: &cancellables)
     }
 
     func applyPromotion(cartId: String, promoCode: String, completion: @escaping (Bool) -> Void) {
@@ -576,7 +598,7 @@ class CartServiceReview: ObservableObject {
            let cart = try? JSONDecoder().decode(Cart.self, from: cartData) {
             DispatchQueue.main.async { [weak self] in
                 self?.currentCart = cart
-                print("response:::::  \(cart)")
+//                print("response:::::  \(cart)")
             }
         }
     }

@@ -12,7 +12,7 @@ import SwiftUI
 public struct PaymentCollection: Codable, Identifiable {
     public let id: String
     public let currencyCode: String
-    public let amount: Double
+    public let amount: Int
     public let status: String?
     public let paymentProviders: [PaymentCollectionProvider]?
     public let paymentSessions: [PaymentSession]?
@@ -37,7 +37,7 @@ public struct PaymentCollection: Codable, Identifiable {
         
         id = try container.decode(String.self, forKey: .id)
         currencyCode = try container.decode(String.self, forKey: .currencyCode)
-        amount = try container.decode(Double.self, forKey: .amount)
+        amount = try decodeFlexibleInt(from: container, forKey: .amount) ?? 0
         status = try container.decodeIfPresent(String.self, forKey: .status)
         paymentProviders = try container.decodeIfPresent([PaymentCollectionProvider].self, forKey: .paymentProviders)
         paymentSessions = try container.decodeIfPresent([PaymentSession].self, forKey: .paymentSessions)
@@ -106,7 +106,7 @@ public struct PaymentCollectionResponse: Codable {
 // MARK: - Helper Extensions
 extension PaymentCollection {
     public func formattedAmount() -> String {
-        return formatPrice(Int(amount), currencyCode: currencyCode)
+        return formatPrice(amount, currencyCode: currencyCode)
     }
     
     

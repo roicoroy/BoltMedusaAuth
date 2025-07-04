@@ -8,6 +8,14 @@
 
 import Foundation
 
+public struct OrderResponse: Codable {
+    public let order: Order
+
+    enum CodingKeys: String, CodingKey {
+        case order
+    }
+}
+
 // MARK: - Top Level Order Response
 
 public struct OrdersResponse: Codable {

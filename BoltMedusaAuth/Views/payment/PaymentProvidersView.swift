@@ -12,15 +12,16 @@ struct PaymentProvidersView: View {
     @StateObject private var paymentProvidersService = PaymentProvidersService()
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedProviderId: String?
+    @State private var isCreatingPaymentCollection = false
     @EnvironmentObject var cartService: CartServiceReview // Added EnvironmentObject
     
     var body: some View {
         VStack(spacing: 0) {
             // Header Info
-//            PaymentCartInfoHeader(cart: cart)
+            PaymentCartInfoHeader(cart: cart)
             
             // Main Content
-            if paymentProvidersService.isLoading {
+            if paymentProvidersService.isLoading || isCreatingPaymentCollection {
                 LoadingPaymentProvidersView()
             } else if paymentProvidersService.paymentProviders.isEmpty && paymentProvidersService.errorMessage == nil {
                 EmptyPaymentProvidersView(
@@ -28,24 +29,27 @@ struct PaymentProvidersView: View {
                         paymentProvidersService.fetchPaymentProviders(for: cart)
                     }
                 )
-            } else if !paymentProvidersService.paymentProviders.isEmpty {
+            } else if let paymentCollectionId = cart.paymentCollection?.id, !paymentProvidersService.paymentProviders.isEmpty {
                 PaymentProvidersListView(
                     paymentProviders: paymentProvidersService.paymentProviders,
                     selectedProviderId: $selectedProviderId,
                     onSelectProvider: { providerId in
                         selectedProviderId = providerId
                         // Update cart with selected payment provider
-                        if let paymentCollectionId = cart.paymentCollection?.id {
-                            cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
-                                if success {
-                                    presentationMode.wrappedValue.dismiss()
-                                } else {
-                                    // Failed to update payment provider, error message is handled by cartService
-                                }
+                        cartService.updateCartPaymentProvider(cartId: cart.id, paymentCollectionId: paymentCollectionId, providerId: providerId) { success in
+                            if success {
+                                presentationMode.wrappedValue.dismiss()
+                            } else {
+                                // Failed to update payment provider, error message is handled by cartService
                             }
-                        } else {
-                            // Payment collection is nil, error message is handled by cartService
                         }
+                    }
+                )
+            } else {
+                // No payment collection yet, or no providers
+                EmptyPaymentProvidersView(
+                    onRetry: {
+                        createPaymentCollection(cartId: cart.id)
                     }
                 )
             }
@@ -67,7 +71,7 @@ struct PaymentProvidersView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
+//                    presentationMode.wrappedWrappedValue.dismiss()
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -81,6 +85,26 @@ struct PaymentProvidersView: View {
             paymentProvidersService.fetchPaymentProviders(for: cart)
             selectedProviderId = cart.paymentCollection?.paymentProviders?.first?.id
             paymentProvidersService.cartService = cartService // Inject CartService
+            
+            // If no payment collection exists, create one
+            if cart.paymentCollection == nil {
+                createPaymentCollection(cartId: cart.id)
+            }
+        }
+    }
+    
+    private func createPaymentCollection(cartId: String) {
+        isCreatingPaymentCollection = true
+        paymentProvidersService.createPaymentCollection(cartId: cartId) { success, paymentCollection in
+            DispatchQueue.main.async {
+                self.isCreatingPaymentCollection = false
+                if success {
+                    // Payment collection created, cartService.currentCart should be updated
+                    // and fetchPaymentProviders will be called again via onAppear
+                } else {
+                    // Error is already handled by paymentProvidersService.errorMessage
+                }
+            }
         }
     }
     

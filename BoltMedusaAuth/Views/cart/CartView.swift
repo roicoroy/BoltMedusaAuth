@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import StripePaymentSheet
 
 struct CartView: View {
     @EnvironmentObject var cartService: CartServiceReview
@@ -19,6 +20,11 @@ struct CartView: View {
     @State private var showingAddAddress = false
     @State private var showingShippingOptions = false
     @State private var showingPaymentProviders = false
+    
+    // Stripe Payment States
+    @State private var paymentSheet: PaymentSheet?
+    @State private var paymentResult: PaymentSheetResult?
+    @State private var orderCompleted = false
     
     var body: some View {
         NavigationView {
@@ -47,7 +53,9 @@ struct CartView: View {
                                     showingBillingAddressSelector: $showingBillingAddressSelector,
                                     showingAddAddress: $showingAddAddress,
                                     showingShippingOptions: $showingShippingOptions,
-                                    showingPaymentProviders: $showingPaymentProviders
+                                    showingPaymentProviders: $showingPaymentProviders,
+                                    paymentSheet: paymentSheet,
+                                    handlePaymentCompletion: handlePaymentCompletion
                                 )
                             }
                         } else if regionService.hasSelectedRegion {
@@ -99,18 +107,18 @@ struct CartView: View {
         .sheet(isPresented: $showingShippingAddressSelector) {
             AddressSelectorView(
                 title: "Select Shipping Address",
-                addressType: .shipping,
-                authService: _authService,
-                cartService: _cartService
+                addressType: .shipping
             )
+            .environmentObject(authService)
+            .environmentObject(cartService)
         }
         .sheet(isPresented: $showingBillingAddressSelector) {
             AddressSelectorView(
                 title: "Select Billing Address",
-                addressType: .billing,
-                authService: _authService,
-                cartService: _cartService
+                addressType: .billing
             )
+            .environmentObject(authService)
+            .environmentObject(cartService)
         }
         .sheet(isPresented: $showingAddAddress) {
             AddAddressView()
@@ -138,6 +146,39 @@ struct CartView: View {
                 // When user logs in, refresh cart to get customer association
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     cartService.refreshCart()
+                }
+            }
+        }
+        .onAppear(perform: preparePaymentSheet)
+        .alert("Order Completed!", isPresented: $orderCompleted) {
+            Button("OK") { presentationMode.wrappedValue.dismiss() }
+        } message: {
+            Text("Your order has been placed successfully.")
+        }
+    }
+    
+    // MARK: - Stripe Payment Logic
+    func preparePaymentSheet() {
+        guard let clientSecret = cartService.currentCart?.paymentCollection?.paymentSessions?.first?.data?["client_secret"]?.value as? String else {
+            print("DEBUG: Client secret not available or not a String.")
+            return
+        }
+
+        var configuration = PaymentSheet.Configuration()
+        configuration.merchantDisplayName = "Bolt Medusa"
+
+        self.paymentSheet = PaymentSheet(
+            paymentIntentClientSecret: clientSecret,
+            configuration: configuration
+        )
+    }
+
+    func handlePaymentCompletion(result: PaymentSheetResult) {
+        self.paymentResult = result
+        if case .completed = result {
+            cartService.completeCart { success in
+                if success {
+                    self.orderCompleted = true
                 }
             }
         }
@@ -230,6 +271,10 @@ struct CartContentView: View {
     @Binding var showingShippingOptions: Bool
     @Binding var showingPaymentProviders: Bool
     
+    // Stripe Payment Properties
+    var paymentSheet: PaymentSheet?
+    var handlePaymentCompletion: (PaymentSheetResult) -> Void
+    
     var body: some View {
         VStack(spacing: 16) {
             // Cart items
@@ -259,7 +304,8 @@ struct CartContentView: View {
             // Cart summary with customer info and addresses
             CartSummaryView(
                 cart: cart,
-                authService: authService, cartService:  CartServiceReview(),
+                authService: authService,
+                cartService: cartService,
                 showingShippingAddressSelector: $showingShippingAddressSelector,
                 showingBillingAddressSelector: $showingBillingAddressSelector,
                 showingAddAddress: $showingAddAddress,
@@ -270,8 +316,11 @@ struct CartContentView: View {
             
 
             // Stripe Payment Button (conditional)
-            if let clientSecret = cart.paymentCollection?.paymentSessions?.first?.data?["client_secret"]?.value as? String {
-                NavigationLink(destination: StripePaymentView()) {
+            if let paymentSheet = paymentSheet, let clientSecret = cart.paymentCollection?.paymentSessions?.first?.data?["client_secret"]?.value as? String {
+                PaymentSheet.PaymentButton(
+                    paymentSheet: paymentSheet,
+                    onCompletion: handlePaymentCompletion
+                ) {
                     Text("Pay with Stripe")
                         .font(.headline)
                         .padding()
@@ -527,7 +576,7 @@ struct CartSummaryView: View {
             )
             
             // Promotions Selection Section
-            PromotionSelectionView(cart: cart, cartService: cartService)
+//            PromotionSelectionView(cart: cart, cartService: cartService)
             
             // Price Summary Section
             PriceSummarySection(cart: cart)
