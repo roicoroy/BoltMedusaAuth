@@ -16,11 +16,11 @@ struct ProductsView: View {
     
     @State private var showingCountrySelector = false
     
-    private var filteredProducts: [Product] {
+    private var filteredProducts: [ProductWithPrice] {
         if searchText.isEmpty {
-            return productService.products
+            return productService.productsWithPrice
         } else {
-            return productService.products.filter { product in
+            return productService.productsWithPrice.filter { product in
                 product.title.localizedCaseInsensitiveContains(searchText) ||
                 (product.description?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
@@ -66,7 +66,9 @@ struct ProductsView: View {
             .navigationTitle("Products")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
-                productService.fetchProducts()
+                if let selectedCountry = regionService.selectedCountry {
+                    productService.fetchProductsWithPrice(regionId: selectedCountry.regionId)
+                }
                 regionService.refreshRegions()
             }
         }
@@ -76,8 +78,8 @@ struct ProductsView: View {
             if !newValue.isEmpty && newValue.count > 2 {
                 // Debounce search
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if searchText == newValue {
-                        productService.searchProducts(query: newValue)
+                    if searchText == newValue, let regionId = regionService.selectedCountry?.regionId {
+                        productService.searchProducts(query: newValue, regionId: regionId)
                     }
                 }
             } else if newValue.isEmpty {
@@ -86,7 +88,12 @@ struct ProductsView: View {
         }
         .onChange(of: regionService.selectedCountry) { newCountry in
             if let newCountry = newCountry {
-                // Products view detected country change
+                productService.fetchProductsWithPrice(regionId: newCountry.regionId)
+            }
+        }
+        .onAppear {
+            if let selectedCountry = regionService.selectedCountry {
+                productService.fetchProductsWithPrice(regionId: selectedCountry.regionId)
             }
         }
         .sheet(isPresented: $showingCountrySelector) {
@@ -372,7 +379,7 @@ struct EmptyCountriesView: View {
 }
 
 struct ProductsGridView: View {
-    let products: [Product]
+    let products: [ProductWithPrice]
     @ObservedObject var regionService: RegionService
     @EnvironmentObject var cartService: CartServiceReview
 
@@ -405,7 +412,11 @@ struct ErrorMessagesView: View {
             if let errorMessage = productService.errorMessage {
                 ErrorBannerView(
                     message: errorMessage,
-                    onRetry: { productService.fetchProducts() }
+                    onRetry: {
+                        if let regionId = regionService.selectedCountry?.regionId {
+                            productService.fetchProductsWithPrice(regionId: regionId)
+                        }
+                    }
                 )
             }
             
@@ -441,13 +452,13 @@ struct ErrorBannerView: View {
 }
 
 struct ProductCard: View {
-    let product: Product
+    let product: ProductWithPrice
     let currencyCode: String
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Product Image
-            AsyncImage(url: URL(string: product.displayImage ?? "")) { image in
+            AsyncImage(url: URL(string: product.thumbnail ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -479,34 +490,43 @@ struct ProductCard: View {
                 }
                 
                 HStack {
-                    Text(product.displayPrice(currencyCode: currencyCode))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                    if let calculatedPrice = product.variants?.first?.calculatedPrice {
+                        Text(formatPrice(calculatedPrice.calculatedAmount, currencyCode: calculatedPrice.currencyCode))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    } else {
+                        Text("Price not available")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                    }
                     
                     Spacer()
                     
-                    if !product.isAvailable {
-                        Text("Contact Us")
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.2))
-                            .foregroundColor(.orange)
-                            .cornerRadius(4)
-                    }
+                    // Assuming isAvailable logic needs to be re-evaluated for ProductWithPrice
+                    // For now, removing it or adapting based on new model structure
+                    // if !product.isAvailable {
+                    //     Text("Contact Us")
+                    //         .font(.caption)
+                    //         .padding(.horizontal, 6)
+                    //         .padding(.vertical, 2)
+                    //         .background(Color.orange.opacity(0.2))
+                    //         .foregroundColor(.orange)
+                    //         .cornerRadius(4)
+                    // }
                 }
                 
-                // Status indicator
-                if let status = product.status {
-                    Text(status.rawValue.capitalized)
-                        .font(.caption2)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(statusColor(for: status).opacity(0.2))
-                        .foregroundColor(statusColor(for: status))
-                        .cornerRadius(3)
-                }
+                // Status indicator (assuming ProductWithPrice doesn't have status directly)
+                // if let status = product.status {
+                //     Text(status.rawValue.capitalized)
+                //         .font(.caption2)
+                //         .padding(.horizontal, 4)
+                //         .padding(.vertical, 2)
+                //         .background(statusColor(for: status).opacity(0.2))
+                //         .foregroundColor(statusColor(for: status))
+                //         .cornerRadius(3)
+                // }
             }
             .padding(.horizontal, 4)
         }
@@ -515,21 +535,7 @@ struct ProductCard: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
-    }
-    
-    private func statusColor(for status: ProductStatus) -> Color {
-        switch status {
-        case .published:
-            return .green
-        case .draft:
-            return .orange
-        case .proposed:
-            return .blue
-        case .rejected:
-            return .red
-        }
-    }
-
+}
 
 #Preview {
     ProductsView()

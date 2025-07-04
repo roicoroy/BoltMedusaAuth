@@ -15,11 +15,11 @@ struct ProductsByCategoryView: View {
     @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
 
-    private var filteredProducts: [Product] {
+    private var filteredProducts: [ProductWithPrice] {
         if searchText.isEmpty {
-            return productService.products
+            return productService.productsWithPrice
         } else {
-            return productService.products.filter {
+            return productService.productsWithPrice.filter {
                 $0.title.localizedCaseInsensitiveContains(searchText) ||
                 ($0.description?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
@@ -57,17 +57,23 @@ struct ProductsByCategoryView: View {
         .navigationTitle(category.name ?? "Category")
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
-            productService.fetchProducts(categoryId: category.id)
+            if let regionId = regionService.regions.first?.id {
+                productService.fetchProductsWithPrice(regionId: regionId)
+            }
         }
         .refreshable {
-            productService.fetchProducts(categoryId: category.id)
+            if let regionId = regionService.regions.first?.id {
+                productService.fetchProductsWithPrice(regionId: regionId)
+            }
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
                 // Debounce search
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if searchText == newValue {
-                        productService.searchProducts(query: newValue, categoryId: category.id)
+                        if let regionId = regionService.regions.first?.id {
+                            productService.searchProducts(query: newValue, regionId: regionId, categoryId: category.id)
+                        }
                     }
                 }
             } else if newValue.isEmpty {

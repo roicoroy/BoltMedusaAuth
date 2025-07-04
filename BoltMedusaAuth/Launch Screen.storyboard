@@ -15,9 +15,15 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" semanticContentAttribute="spatial" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" image="SplashScreen" translatesAutoresizingMaskIntoConstraints="NO" id="XWM-px-Kqh">
-                                <rect key="frame" x="78" y="83" width="248" height="715"/>
-                                <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" semanticContentAttribute="spatial" image="SplashScreen" translatesAutoresizingMaskIntoConstraints="NO" id="XWM-px-Kqh">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <constraints>
+                                    <constraint firstItem="XWM-px-Kqh" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="000-000-000"/>
+                                    <constraint firstItem="XWM-px-Kqh" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="111-111-111"/>
+                                    <constraint firstItem="XWM-px-Kqh" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="222-222-222"/>
+                                    <constraint firstItem="XWM-px-Kqh" firstAttribute="bottom" secondItem="Ze5-6b-2t3" secondAttribute="bottom" id="333-333-333"/>
+                                </constraints>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>

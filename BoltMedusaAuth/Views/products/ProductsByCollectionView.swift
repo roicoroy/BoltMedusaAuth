@@ -15,11 +15,11 @@ struct ProductsByCollectionView: View {
     @EnvironmentObject var authService: AuthService
     @State private var searchText = ""
 
-    private var filteredProducts: [Product] {
+    private var filteredProducts: [ProductWithPrice] {
         if searchText.isEmpty {
-            return productService.products
+            return productService.productsWithPrice
         } else {
-            return productService.products.filter {
+            return productService.productsWithPrice.filter {
                 $0.title.localizedCaseInsensitiveContains(searchText) ||
                 ($0.description?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
@@ -57,17 +57,24 @@ struct ProductsByCollectionView: View {
         .navigationTitle(collection.title)
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
-            productService.fetchProducts(collectionId: collection.id)
+            if let regionId = regionService.regions.first?.id {
+                productService.fetchProductsWithPrice(regionId: regionId, collectionId: collection.id)
+            }
         }
         .refreshable {
-            productService.fetchProducts(collectionId: collection.id)
+            if let regionId = regionService.regions.first?.id {
+                productService.fetchProductsWithPrice(regionId: regionId, collectionId: collection.id)
+            }
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty && newValue.count > 2 {
                 // Debounce search
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if searchText == newValue {
-                        productService.searchProducts(query: newValue, collectionId: collection.id)
+                        if let regionId = regionService.regions.first?.id {
+                            productService.searchProducts(query: newValue, regionId: regionId, collectionId: collection.id)
+                        }
+                        
                     }
                 }
             } else if newValue.isEmpty {

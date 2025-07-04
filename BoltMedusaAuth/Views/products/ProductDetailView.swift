@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct ProductDetailView: View {
-    let product: Product
+    let product: ProductWithPrice
     @ObservedObject var regionService: RegionService
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var cartService: CartServiceReview
-    @State private var selectedVariant: ProductVariant?
+    @State private var selectedVariant: ProductWithPriceVariant?
     @State private var selectedImageIndex = 0
     @State private var quantity = 1
     @State private var showingAddToCartSuccess = false
@@ -24,7 +24,7 @@ struct ProductDetailView: View {
                 if let images = product.images, !images.isEmpty {
                     TabView(selection: $selectedImageIndex) {
                         ForEach(Array(images.enumerated()), id: \.offset) { index, image in
-                            AsyncImage(url: URL(string: image.url)) { imageView in
+                            AsyncImage(url: URL(string: image.url ?? "")) { imageView in
                                 imageView
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
@@ -75,7 +75,7 @@ struct ProductDetailView: View {
                         
                         HStack {
                             if let selectedCountry = regionService.selectedCountry {
-                                Text(selectedVariant?.displayPrice(currencyCode: selectedCountry.currencyCode) ?? product.displayPrice(currencyCode: selectedCountry.currencyCode))
+                                Text(formatPrice(selectedVariant?.calculatedPrice?.calculatedAmount ?? 0, currencyCode: selectedVariant?.calculatedPrice?.currencyCode ?? selectedCountry.currencyCode))
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.primary)
@@ -84,7 +84,7 @@ struct ProductDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             } else {
-                                Text(selectedVariant?.displayPrice ?? product.displayPrice)
+                                Text(formatPrice(selectedVariant?.calculatedPrice?.calculatedAmount ?? 0, currencyCode: selectedVariant?.calculatedPrice?.currencyCode ?? "USD"))
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.primary)
@@ -92,15 +92,7 @@ struct ProductDetailView: View {
                             
                             Spacer()
                             
-                            if !product.isAvailable {
-                                Text("Contact for Availability")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.orange.opacity(0.2))
-                                    .foregroundColor(.orange)
-                                    .cornerRadius(6)
-                            }
+                            
                         }
                     }
                     
@@ -240,7 +232,7 @@ struct ProductDetailView: View {
                                 DetailRow(title: "Handle", value: handle)
                             }
                             
-                            DetailRow(title: "Status", value: product.displayStatus)
+                            
                             
                             if let weight = product.weight {
                                 DetailRow(title: "Weight", value: "\(weight)g")
@@ -332,7 +324,7 @@ struct ProductDetailView: View {
 }
 
 struct VariantCard: View {
-    let variant: ProductVariant
+    let variant: ProductWithPriceVariant
     let currencyCode: String
     let isSelected: Bool
     let onTap: () -> Void
@@ -345,13 +337,11 @@ struct VariantCard: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
                 
-                Text(variant.displayPrice(currencyCode: currencyCode))
+                Text(formatPrice(variant.calculatedPrice?.calculatedAmount ?? 0, currencyCode: variant.calculatedPrice?.currencyCode ?? currencyCode))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                Text(variant.stockStatus)
-                    .font(.caption2)
-                    .foregroundColor(variant.stockStatusColor)
+                
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
