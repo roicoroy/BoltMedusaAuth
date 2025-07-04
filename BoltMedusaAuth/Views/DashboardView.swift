@@ -169,11 +169,9 @@ struct DashboardView: View {
             AddAddressView()
                 .environmentObject(authService)
         }
-        .sheet(isPresented: $showingEditAddress) {
-            if let address = selectedAddress {
-                EditAddressView(address: address)
-                    .environmentObject(authService)
-            }
+        .sheet(item: $selectedAddress) { address in
+            EditAddressView(address: address)
+                .environmentObject(authService)
         }
     }
     

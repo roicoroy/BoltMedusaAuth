@@ -58,12 +58,12 @@ struct ProductsByCollectionView: View {
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
             if let regionId = regionService.regions.first?.id {
-                productService.fetchProductsWithPrice(regionId: regionId, collectionId: collection.id)
+                productService.fetchProductsWithPrice(regionId: regionId)
             }
         }
         .refreshable {
             if let regionId = regionService.regions.first?.id {
-                productService.fetchProductsWithPrice(regionId: regionId, collectionId: collection.id)
+                productService.fetchProductsWithPrice(regionId: regionId)
             }
         }
         .onChange(of: searchText) { newValue in

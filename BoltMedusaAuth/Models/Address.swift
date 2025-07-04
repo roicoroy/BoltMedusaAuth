@@ -91,6 +91,3 @@ struct AddressRequest: Codable {
     }
 }
 
-struct AddressResponse: Codable {
-    let address: Address
-}

@@ -42,7 +42,7 @@ struct AddAddressView: View {
                 VStack(spacing: 20) {
                     // Header
                     VStack(spacing: 8) {
-                        Image(systemName: "location.badge.plus")
+                        Image(systemName: "plus.circle.fill")
                             .font(.system(size: 50))
                             .foregroundColor(.blue)
                         

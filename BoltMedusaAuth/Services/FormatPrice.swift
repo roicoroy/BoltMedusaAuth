@@ -17,7 +17,7 @@ public func formatPrice(_ amount: Int, currencyCode: String) -> String {
     formatter.maximumFractionDigits = 2
     
     // Convert from cents to main currency unit (divide by 100)
-    let decimalAmount = Double(amount) / 100.0
+    let decimalAmount = Double(amount)
     return formatter.string(from: NSNumber(value: decimalAmount)) ?? "\(currencyCode.uppercased()) 0.00"
 }
 

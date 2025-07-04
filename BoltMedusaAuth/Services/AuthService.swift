@@ -250,13 +250,22 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completionResult in
                 if case .failure(let error) = completionResult {
+                    print("DEBUG: Add Address API call failed: \(error.localizedDescription)")
                     completion(false, "Failed to add address: \(error.localizedDescription)")
                 }
-            }, receiveValue: { [weak self] (response: AddressResponse) in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self?.fetchCustomerProfile()
+            }, receiveValue: { [weak self] (data: Data) in
+                print("DEBUG: Add Address Raw Response: \(String(data: data, encoding: .utf8) ?? "Invalid Data")")
+                do {
+                    let response = try JSONDecoder().decode(Address.self, from: data)
+                    print("DEBUG: Add Address Decoded Response: \(response)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.fetchCustomerProfile()
+                    }
+                    completion(true, nil)
+                } catch {
+                    print("DEBUG: Add Address Decoding Error: \(error)")
+                    completion(false, "Failed to decode address response: \(error.localizedDescription)")
                 }
-                completion(true, nil)
             })
             .store(in: &cancellables)
     }
@@ -303,7 +312,7 @@ class AuthService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completionResult in
                 if case .failure(let error) = completionResult {
-                    completion(false, "Failed to update address: \(error.localizedDescription)")
+                    completion(false, "Failed to updatetoken address: \(error.localizedDescription)")
                 }
             }, receiveValue: { [weak self] (response: AddressResponse) in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -321,7 +330,8 @@ class AuthService: ObservableObject {
                 if case .failure(let error) = completionResult {
                     completion(false, "Failed to delete address: \(error.localizedDescription)")
                 }
-            }, receiveValue: { [weak self] (response: Data) in
+            }, receiveValue: { [weak self] (data: Data) in
+                print("DEBUG: Delete Address Raw Response: \(String(data: data, encoding: .utf8) ?? "Invalid Data")")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self?.fetchCustomerProfile()
                 }
