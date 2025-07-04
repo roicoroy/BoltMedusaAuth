@@ -493,37 +493,14 @@ class CartServiceReview: ObservableObject {
             completion(false)
             return
         }
-
         NetworkManager.shared.requestData(endpoint: "carts/\(cart.id)/complete", method: "POST", requiresAuth: true)
-            .tryMap { data in
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("Complete Cart Raw Response Body: \(responseString)")
-                }
-                return data
-            }
+            
             .decode(type: OrderResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { result in
-                switch result {
-                case .finished:
-                    break
-                case .failure(let error):
-                    print("Failed to complete cart: \(error.localizedDescription)")
-                    if let decodingError = error as? DecodingError {
-                        print("Decoding Error: \(decodingError)")
-                        switch decodingError {
-                        case .typeMismatch(let type, let context):
-                            print("Type Mismatch for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
-                        case .valueNotFound(let type, let context):
-                            print("Value Not Found for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
-                        case .keyNotFound(let key, let context):
-                            print("Key Not Found: \(key.stringValue) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
-                        case .dataCorrupted(let context):
-                            print("Data Corrupted: \(context.debugDescription)")
-                        @unknown default:
-                            print("Unknown Decoding Error: \(decodingError.localizedDescription)")
-                        }
-                    }
+            .sink(receiveCompletion: { [weak self] completionResult in
+                self?.isLoading = false
+                if case .failure(let error) = completionResult {
+                    self?.errorMessage = "Failed to complete cart: \(error.localizedDescription)"
                     completion(false)
                 }
             }, receiveValue: { [weak self] (response: OrderResponse) in
@@ -531,6 +508,9 @@ class CartServiceReview: ObservableObject {
                 self?.clearCart()
                 completion(true)
             })
+            .store(in: &cancellables)
+            
+   
     }
 
     func applyPromotion(cartId: String, promoCode: String, completion: @escaping (Bool) -> Void) {
@@ -559,6 +539,7 @@ class CartServiceReview: ObservableObject {
                 completion(true)
             })
             .store(in: &cancellables)
+
     }
     
     // MARK: - Utility Methods
@@ -574,8 +555,10 @@ class CartServiceReview: ObservableObject {
     func clearCart() {
         DispatchQueue.main.async { [weak self] in
             self?.currentCart = nil
+            print("DEBUG: Cart cleared. currentCart is now nil.")
         }
         UserDefaults.standard.removeObject(forKey: "medusa_cart")
+        print("DEBUG: Cart data removed from UserDefaults.")
     }
     
     func refreshCart() {

@@ -174,13 +174,22 @@ struct CartView: View {
     }
 
     func handlePaymentCompletion(result: PaymentSheetResult) {
+        print("DEBUG: handlePaymentCompletion entered with result: \(result)")
         self.paymentResult = result
         if case .completed = result {
+            print("DEBUG: Stripe payment completed. Attempting to complete cart...")
             cartService.completeCart { success in
                 if success {
+                    print("DEBUG: Cart completion successful.")
                     self.orderCompleted = true
+                } else {
+                    print("DEBUG: Cart completion failed.")
                 }
             }
+        } else if case .failed(let error) = result {
+            print("DEBUG: Stripe payment failed. Cart completion not attempted. Error: \(error.localizedDescription)")
+        } else if case .canceled = result {
+            print("DEBUG: Stripe payment canceled. Cart completion not attempted.")
         }
     }
 }
