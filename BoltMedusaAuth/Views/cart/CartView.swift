@@ -84,18 +84,18 @@ struct CartView: View {
             }
             .navigationTitle("Shopping Cart")
             .navigationBarTitleDisplayMode(.large)
-//            .toolbar {
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    HStack {
-//                        if let cart = cartService.currentCart, !cart.isEmpty {
-//                            Button("Clear") {
-//                                cartService.clearCart()
-//                            }
-//                            .foregroundColor(.red)
-//                        }
-//                    }
-//                }
-//            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        if let cart = cartService.currentCart, !cart.isEmpty {
+                            Button("Clear") {
+                                cartService.clearCart()
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
             
         }
         .sheet(isPresented: $showingCheckout) {
