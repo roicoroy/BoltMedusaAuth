@@ -398,13 +398,20 @@ public struct CartPromotion: Codable, Identifiable {
 }
 
 public struct PromotionApplicationMethod: Codable {
-    public let value: String?
+    public let value: Int?
     public let type: String?
     public let currencyCode: String?
 
     enum CodingKeys: String, CodingKey {
         case value, type
         case currencyCode = "currency_code"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode)
+        value = try decodeFlexibleInt(from: container, forKey: .value)
     }
 }
 
@@ -474,8 +481,8 @@ public struct CartLineItem: Codable, Identifiable {
         isTaxInclusive = try container.decode(Bool.self, forKey: .isTaxInclusive)
         
         // Handle flexible numeric types for price fields
-        unitPrice = try Self.decodeFlexibleInt(from: container, forKey: .unitPrice) ?? 0
-        compareAtUnitPrice = try Self.decodeFlexibleInt(from: container, forKey: .compareAtUnitPrice)
+        unitPrice = try CartLineItem.decodeFlexibleInt(from: container, forKey: .unitPrice) ?? 0
+        compareAtUnitPrice = try CartLineItem.decodeFlexibleInt(from: container, forKey: .compareAtUnitPrice)
         
         // Optional fields
         thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail)

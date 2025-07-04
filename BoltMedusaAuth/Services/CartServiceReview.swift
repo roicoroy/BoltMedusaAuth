@@ -375,6 +375,21 @@ class CartServiceReview: ObservableObject {
                 if case .failure(let error) = completionResult {
                     self?.errorMessage = "Failed to add item to cart: \(error.localizedDescription)"
                     print("Error adding line item: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("Decoding Error: \(decodingError)")
+                        switch decodingError {
+                        case .typeMismatch(let type, let context):
+                            print("Type Mismatch for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .valueNotFound(let type, let context):
+                            print("Value Not Found for \(type) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .keyNotFound(let key, let context):
+                            print("Key Not Found: \(key.stringValue) at path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")) - \(context.debugDescription)")
+                        case .dataCorrupted(let context):
+                            print("Data Corrupted: \(context.debugDescription)")
+                        @unknown default:
+                            print("Unknown Decoding Error: \(decodingError.localizedDescription)")
+                        }
+                    }
                     completion(false)
                 }
             }, receiveValue: { [weak self] (response: CartResponse) in
